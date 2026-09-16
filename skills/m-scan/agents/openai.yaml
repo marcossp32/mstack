@@ -1,0 +1,3 @@
+interface:
+  display_name: "m-scan"
+  short_description: "Answer what the repo can settle by reading"

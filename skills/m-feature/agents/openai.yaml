@@ -1,0 +1,5 @@
+interface:
+  display_name: "m-feature"
+  short_description: "Take one feature from idea to working code"
+policy:
+  allow_implicit_invocation: false

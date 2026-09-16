@@ -1,0 +1,3 @@
+interface:
+  display_name: "m-prove"
+  short_description: "Drive the running app against the Goal, evidence audited"

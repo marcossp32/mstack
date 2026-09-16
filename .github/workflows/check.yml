@@ -1,0 +1,10 @@
+name: check
+
+on: [push, pull_request]
+
+jobs:
+  shared-copies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/sync-shared.mjs --check

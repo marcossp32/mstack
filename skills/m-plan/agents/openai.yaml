@@ -1,0 +1,3 @@
+interface:
+  display_name: "m-plan"
+  short_description: "Cut the work into ordered build steps"
