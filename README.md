@@ -41,6 +41,12 @@ No skill names a model. Each role asks for a tier — cheap, standard or strong 
 
 Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote and a `main` branch.
 
+## Inspired by
+
+- [Matt Pocock](https://www.aihero.dev/), whose [skills](https://github.com/mattpocock/skills) make an agent follow a team's process — grilling the request before writing code, and test-first.
+- [Addy Osmani](https://addyosmani.com/blog/agentic-engineering/), on the human owning architecture and correctness while the agent implements, and on [agent skills](https://github.com/addyosmani/agent-skills) as quality gates rather than prompts.
+- Lauren Tan, on verification as the skill that matters: an agent proves its own work by running the real thing. `m-prove` exists because of that idea.
+
 ## Editing
 
 ```
