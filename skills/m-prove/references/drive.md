@@ -14,7 +14,7 @@ A caveat is one of the last two.
 - HEAD differs from the contract, or `git status --porcelain` is not empty: stop; every line is not driven, naming why.
 - Read the contract's recipe in full, as a file: its harness, traps and teardown win; evidence goes only to your subdir of the evidence dir. Leave `/run` and `/verify` uninvoked.
 - Start every command with `cd <your subdir> &&`, so tools that write where they run (`playwright-cli`) stay out of the checkout.
-- Change no file in the checkout, even temporarily, ignored files included; dependency installs and build output the recipe runs are the exception. A launch that needs an edit: every line not driven, naming the file.
+- Change no file in the checkout, even temporarily, ignored files included. The supervisor already ran the recipe's installs and builds there; run none yourself, since the other driver may be using the same checkout. A launch that needs an edit, an install or a build: every line not driven, naming what it needs.
 - Environment: the shipped defaults; set an override only on the lines the contract lists it for. A line that passes only with a variable the contract does not list: not verified, naming the variable.
 - Start your own server from the checkout, output to `launch.txt`, on a port the other driver is not using (Q1 the recipe's port or the next free one, Q2 that plus 100); poll the health check for up to 2 minutes. Stop only processes you started.
 - **Control**: before anything else, drive one path the diff never touched and save it as `control.txt`.

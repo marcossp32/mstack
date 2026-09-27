@@ -3,12 +3,12 @@ name: m-research
 description: "Answers questions from primary sources (official docs, changelogs, source at the installed version) with exact quotes and links. Use when a fact must come from outside the repo: limits, timeouts, security guidance, version changes, or any docs or API question."
 ---
 
-Every answer is a **quote** from a **primary source**, with the link it was read from. Nothing quotable is **not found**: a finished answer. The report lives in your reply; the repo stays as you found it. Everything you write, prompts included, follows [`references/writing.md`](references/writing.md); a subagent's final message is its report blocks.
+Every answer is a **quote** from a **primary source**, with the link it was read from. Nothing quotable is **not found**: a finished answer. The report lives in your reply; the repo stays as you found it. A subagent's final message is its report blocks.
 
 # Dispatch
 
 1. **Pin the version** of each library or API, from the caller or the lockfile. A question with no subject is **not applicable** and gets no search.
-2. **One fresh subagent per question**, all in parallel, in the background: `general-purpose`, on the standard tier ([`references/routing.md`](references/routing.md); tiers, never model names). The prompt opens with `Invoke the Skill tool with m-research, then follow "Answer one question".` and carries the question verbatim, the pinned version, and the owner's docs domain when known.
+2. **One fresh subagent per question**, all in parallel, in the background: `general-purpose`, on the standard tier: the harness's middle model, never a named one; `/m-feature`'s Routing line overrides it. The prompt opens with `Invoke the Skill tool with m-research, then follow "Answer one question".` and carries the question verbatim, the pinned version, and the owner's docs domain when known.
 3. **Check every reply.**
    - An answer with no quote goes back.
    - Every number code will use — limit, timeout, size — you find on its page yourself. Not there: **not found**.

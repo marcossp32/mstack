@@ -9,7 +9,8 @@ Run one feature through GitHub: one map issue plus one issue per build step. You
 - A decision nobody has made that everything else waits on: stop and say so. Never invent a step to cover it.
 - Read [`references/github.md`](references/github.md) before the first command.
 - The human stays in this session until the final PR.
-- Everything you write — chat, agent prompts, GitHub — follows [`references/writing.md`](references/writing.md).
+- To the human: result first, one line per finding or decision, no recap. Between steps, write only when they must see or decide something.
+- Agent prompts carry the inputs listed below, never this conversation's reasoning.
 
 # Start
 
@@ -27,16 +28,16 @@ If this ships wrong, how hard is it to undo? You decide it; stages only report e
 - Hard: schema, public API, stored data format, core dependency.
 - Easy: names, folders, internal structure.
 
-It sets the depth of grilling, plan, build and review. Settle it and write it to the map three times: at the start; after scan (grilling uses it); after docs (plan, build and review use it — a vendor limit can change it). It stays fixed until a replan re-settles it, and remaining steps then run at the new depth. Tell the human whenever it changes.
+It sets the depth of grilling and plan, and the build tier. Settle it and write it to the map three times: at the start; after scan (grilling uses it); after docs (plan and build use it — a vendor limit can change it). It stays fixed until a replan re-settles it, and remaining steps then run at the new depth. Whenever it changes, re-resolve the build tier (routing rule 5) and tell the human.
 
 # Stages
 
 The order is fixed.
 
 ```
-scan → grilling → docs → plan → build ⇄ review → prove
-                          ↑                          │
-                          └───────── replan ─────────┘
+scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → prove
+                          ↑                                      │
+                          └────────────────── replan ────────────┘
 ```
 
 | Stage | Returns | Runs in | Skill |
@@ -45,15 +46,16 @@ scan → grilling → docs → plan → build ⇄ review → prove
 | grilling | confirmed Goal · where it runs · boundary and data-state answers if asked · Not doing · decisions made alone | main chat | `/m-grilling` |
 | docs | 4 answers, each with a primary link | main chat | `/m-research` |
 | plan | ordered steps · blocking · design checks | main chat | `/m-plan` |
-| build | step branch · PR into the feature branch, its number, 4 test checks answered | fresh agent | `/m-build` |
-| review | PASS or CHANGES REQUIRED · must-fix · what was checked | fresh agent | `/m-review` |
+| build | step branch · PR into the feature branch and its number, or a stop line | fresh agent | `/m-build` |
+| check | `STEP CHECK: PASS` or `FAIL`, per step | main chat, a script | `/m-review` |
+| review | confirmed findings, each failed by a frozen reproduction · counts | main chat, dispatches its own agents | `/m-review` |
 | prove | a verdict per requirement · what else broke · evidence for the pull request | fresh agent | `/m-prove` |
 
 "Runs in" is fixed. A thin "Returns": tell the human and continue, except:
 
 - Scan slices: A owns Q1, B Q2–5, C Q6 and Q9, D Q7–8. A slice missing one of its questions goes back naming it. You assemble the nine lines.
 - Docs uses the version scan reported, never the newest.
-- A review without a verdict did not finish: rerun it.
+- A review without `report.py`'s output did not finish: rerun from the step that aborted.
 - Build returns no PR: see Step results.
 
 ## Docs
@@ -61,7 +63,7 @@ scan → grilling → docs → plan → build ⇄ review → prove
 Hand these to `/m-research`. No subject (e.g. no external call, so no vendor timeout) → "not applicable", a finished answer.
 
 1. Hard limits of the service or library: rate limits, payload sizes, quotas.
-2. The documented timeout, as a number. `/m-build` writes it into code; `/m-review` checks it.
+2. The documented timeout, as a number. `/m-build` gets it as a fact for code that calls out.
 3. Vendor security guidance: auth, secrets, what never to log.
 4. What changed in the installed version.
 
@@ -69,31 +71,34 @@ Post the reply as a comment on the map; links under Sources.
 
 ## Routing
 
-- grilling and plan need the human; docs dispatches its own agents. These three stay in the main chat.
+- grilling and plan need the human; docs and review dispatch their own agents. These four stay in the main chat.
 - Run all four scan slices at once.
 - One build at a time: one step branch, one PR, one issue in flight.
-- One review after every build, on that step's diff only.
-- prove after the last PASS, before the final PR; again after any replan.
+- When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's command.
+- A step check after every build, on its step branch.
+- One review, after the last step passes its check, on the whole feature diff.
+- prove after the review and any fix step, before the final PR; again after any replan.
 
 ## Dispatch
 
 Always a fresh agent, never a fork: a fork inherits the plan's reasoning and agrees with it.
 
-First line of every prompt (without it, build skips the red-test gate):
+First line of every prompt (without it, the agent works without the stage's rules):
 
 ```
-Invoke the Skill tool with `<m-scan | m-build | m-review | m-prove>`. Then do the work below.
+Invoke the Skill tool with `<m-scan | m-build | m-prove>`. Then do the work below.
 ```
 
-Models come from [`references/routing.md`](references/routing.md): tiers, never names. You resolved them at Start and wrote the line to the map; every dispatch below uses that line, and only its escalation signal changes it.
+Models come from [`references/routing.md`](references/routing.md): tiers, never names. You resolved them at Start and wrote the line to the map; every dispatch below uses that line's entry for its role. Only an escalation signal or a changed undo verdict (build only) changes it.
 
-| Stage | subagent_type | tier |
+| Stage | subagent_type | Routing entry |
 |---|---|---|
-| scan A | `Explore` | cheap |
-| scan B, C, D | `Explore` | standard |
-| build | `general-purpose` | one below the review tier; strong when the undo verdict is hard |
-| review | `general-purpose` | strong |
-| prove | `general-purpose` | strong; it routes its own drivers |
+| scan A | `Explore` | scan A |
+| scan B, C, D | `Explore` | scan B–D |
+| build | `general-purpose` | build |
+| prove | `general-purpose` | prove |
+
+`/m-research`, `/m-review` and `/m-prove` dispatch their own agents; hand each the Routing line, and they take the research, hunt, repro, Q1 and Q2 entries from it.
 
 After each stage returns, append its ledger line ([`references/routing.md`](references/routing.md)).
 
@@ -102,12 +107,13 @@ The agent has not seen this conversation. Hand it:
 | Stage | Inputs |
 |---|---|
 | scan A–D | the feature · the questions it owns |
-| docs | installed versions (scan) · the four questions · target infrastructure |
-| build | step issue number and Done when · scan Q2, Q4, Q5, Q6, Q7, Q8 · docs numbers or "not applicable" · plan's design-check answers · the step branch it is on · undo verdict |
-| review | fixed point (`git merge-base HEAD feature/<name>`, recorded when the branch is cut) · step issue number · PR number · design-check answers · scan Q6 · docs timeouts or "not applicable" · map's Not doing and Settled up front · undo verdict |
-| prove | Goal, Settled up front and Not doing from the map · scan Q9 · undo verdict · base branch `main` · keep evidence for the pull request (closing only) |
+| docs | installed versions (scan) · the four questions · target infrastructure · the Routing line |
+| build | step issue number and Done when · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
+| build, fix mode | the fix step issue (claims, conditions, entry points) · the same scan and docs inputs · the fix branch it is on |
+| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · Goal, Settled up front and Not doing from the map · the Routing line |
+| prove | Goal, Settled up front and Not doing from the map · scan Q9 · base branch `main` · keep evidence for the pull request (closing only) · the Routing line |
 
-# Before every build and every review
+# Before every build and the review
 
 Re-read the map and the open steps. Where they disagree with what you were about to do, the map wins, or fix the map first.
 
@@ -118,18 +124,29 @@ gh issue list --state open --json number,title,labels --search "parent:<map>"
 
 # Step results
 
+Run the step check on the step branch with the PR number, against `origin/feature/<name>` after `git fetch`: merges land on GitHub, so the local feature branch is stale.
+
 - **PASS**: merge the step branch into the feature branch, close the step issue, add a line to Decided, start the next build.
-- **Second CHANGES REQUIRED** on one step: no rework; replan.
-- **CHANGES REQUIRED**: comment the must-fix list on the step issue; re-dispatch `/m-build` in rework mode with that list, the same hand-off and the existing branch; review again.
-- **"Not checked"** line: if you omitted the input, re-dispatch with it; otherwise record it on the map before accepting PASS.
-- **No PR** (Done when unobservable, or spec wrong): no review; replan.
-- **"Worth noting"**: record on the map; never blocks.
+- **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again.
+- **Second FAIL** on one step: replan.
+- **`credential?`** line: show the human before merging.
+- **Suite "not comparable"**: the suite was red when the feature started, so the step check cannot judge it. Comment that on the map once, with the baseline's failing tests, and tell the human.
+- **No PR**: a missing decision, ask the human; an unobservable Done when or a contradiction, replan.
 
 After each step, compare what you learned against the plan. The approach is wrong: replan. Never redesign without the human's confirmation.
 
+# Review results
+
+After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, run the feature review. Post its report on the map. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is not hunted twice.
+
+- **No confirmed findings**, or no test suite to review with: go to Closing; prove is the judge left.
+- **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/fix-<n>`, dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. All `fixed`: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
+- **`still-failing` or `SUITE WORSE`**: one more round on the same branch, naming which claims still hold and the suite's failing tests, never the reproduction's output. Still failing: replan.
+- **The builder disputes a finding**: the reproduction did fail, so the question is what the spec wants. Show the human the claim and the builder's reason; they decide.
+
 # Replan
 
-Triggers: two CHANGES REQUIRED on one step · build returns no PR · a step shows the approach is wrong · prove returns not verified on a requirement or a `new` break. Scan findings feed grilling and plan, not replan.
+Triggers: two failed step checks on one step · build returns no PR for an unobservable Done when or a contradiction · a finding still failing after two fix rounds · a step shows the approach is wrong · prove returns not verified on a requirement or a `new` break. Scan findings feed grilling and plan, not replan.
 
 1. Tell the human in one line what the failed step's branch contained, then clear it (nothing to clear when prove triggered):
    ```bash
@@ -142,7 +159,7 @@ Triggers: two CHANGES REQUIRED on one step · build returns no PR · a step show
 4. The human confirms the revised list.
 5. Create, rewrite and re-link step issues; note the change under Decided.
 
-A re-cut step with the same Done when, even under a new issue number, is the same step: its next CHANGES REQUIRED means replan. A changed Done when starts at zero.
+A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 
 **Stop:**
 
@@ -153,11 +170,11 @@ A re-cut step with the same Done when, even under a new issue number, is the sam
 
 # Closing
 
-After the last PASS:
+After the review and any fix step:
 
 1. `git switch feature/<name>` and `git pull --ff-only`. Run prove with evidence kept for the pull request; comment its verdict on the map, without the Evidence line. A green suite is not prove.
    - not verified on a requirement, or a `new` break: replan.
-   - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and review), then prove again; or the human ships with it listed in the PR.
+   - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and the step check), then prove again; or the human ships with it listed in the PR.
    - `pre-existing`: stays in the comment.
 2. Check every step issue is closed.
 3. Complete Decided and Sources.

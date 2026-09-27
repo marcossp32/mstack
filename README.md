@@ -19,9 +19,9 @@ Drop `-g` to install into the current project's `.claude/skills/` instead of `~/
 `m-feature` only runs when you type it. It routes the work through the other skills:
 
 ```
-scan → grilling → docs → plan → build ⇄ review → prove
-                          ↑                          │
-                          └───────── replan ─────────┘
+scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → prove
+                          ↑                                      │
+                          └────────────────── replan ────────────┘
 ```
 
 | Skill | Stage | Runs in |
@@ -31,15 +31,15 @@ scan → grilling → docs → plan → build ⇄ review → prove
 | `m-grilling` | asks you only what is hard to undo | main chat |
 | `m-research` | vendor limits, timeouts, security guidance, version changes | main chat |
 | `m-plan` | ordered build steps, design checks, one issue per step | main chat |
-| `m-build` | one step, test-first, one pull request into the feature branch | subagent |
-| `m-review` | two passes over one step's diff, ending on PASS or CHANGES REQUIRED | subagent |
+| `m-build` | one step from its issue, method left to the builder, one pull request into the feature branch | subagent |
+| `m-review` | a script checks each step; one feature review reports only failures a frozen reproduction demonstrated | main chat, scripts and its own subagents |
 | `m-prove` | drives the running app against the Goal and hunts what else broke, then evidences the pull request | subagent |
 
 Every skill except `m-feature` also works on its own.
 
 No skill names a model. Each role asks for a tier — cheap, standard or strong — and `m-feature` resolves the tiers once per feature, writes them on the map, and records what each run cost in the git dir. To map the tiers onto the models you have, write `.mstack/routing.md` in the repo or `~/.mstack/routing.md`; without it, tiers fall back to what the harness offers.
 
-Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote and a `main` branch.
+Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote and a `main` branch. `m-review` needs Python 3 and git 2.31 or newer.
 
 ## Inspired by
 
@@ -50,18 +50,12 @@ Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote and a 
 ## Editing
 
 ```
-skills/<name>/          one folder per skill, installed on its own
-shared/                 documents more than one skill reads
-scripts/sync-shared.mjs copies shared/ into each reader's references/
+skills/<name>/SKILL.md      what the skill does, loaded when it runs
+skills/<name>/references/   read only when needed, or by the agents the skill dispatches
+skills/<name>/scripts/      run, never read
 ```
 
-A skill cannot link to `../` — `npx skills` installs each folder separately, so the target would not exist. Edit the file in `shared/`, never the copy under `references/`, then:
-
-```bash
-node scripts/sync-shared.mjs
-```
-
-CI runs it with `--check` and fails on a copy that drifted.
+Each folder installs on its own, so a skill never links outside itself. The step issue template lives in both `m-plan/SKILL.md` and `m-feature/references/github.md`: change them together.
 
 Try an install from the working tree before pushing:
 

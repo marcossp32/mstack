@@ -8,7 +8,6 @@ Answer questions about a feature by reading this repository. You run before anyo
 - No network.
 - Read only: no edits, new files or commits. Return the report; `/m-feature` posts it.
 - Report what exists; choosing is someone else's job.
-- Everything you write follows [`references/writing.md`](references/writing.md).
 
 # Questions
 
@@ -17,10 +16,10 @@ Answer questions about a feature by reading this repository. You run before anyo
 3. Does an installed library already do it?
 4. How does the repo do similar things?
 5. What does the repo call these things?
-6. How does it test: framework, test file location and naming, assertion style, how fakes are set up.
+6. How does it test: framework, test file location and naming, assertion style, how fakes are set up, the exact command that runs the whole suite, and the one that runs a single test file.
 7. Which values differ between local and production, and which do not?
 8. Infrastructure limits: disk, outbound network, max run time, memory.
-9. How the app runs (start command, URL or entry point, prerequisites: seeded DB, env file, services) and whether PRs land squashed or merged, read from `git log` on the default branch.
+9. How the app runs (start command, URL or entry point, prerequisites: seeded DB, env file, services), how a fresh checkout gets its dependencies, and whether PRs land squashed or merged, read from `git log` on the default branch.
 
 Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 8. Alone: all nine, Q1 first.
 
@@ -48,4 +47,4 @@ One line per owned question, every one, with a path, or "Not found". Never fill 
 - Q7 Not found — nothing sets timeouts per environment
 ```
 
-At the top, when found: it already exists · the plan breaks the repo's pattern · the infrastructure does not allow it.
+At the top, when found: it already exists · the request breaks the repo's pattern · the infrastructure does not allow it.

@@ -1,100 +1,103 @@
 ---
 name: m-review
-description: "Reviews one build step's diff in two independent passes, verifying the builder's test claims, and ends on PASS or CHANGES REQUIRED. Use after every /m-build step, or on any step diff with a known fixed point."
+description: "Judges a change by execution, never by opinion: a script checks each build step, and a feature review reports only failures a frozen reproduction demonstrated. Use as the check and review stages of /m-feature, or on any branch with a runnable test suite before it merges."
 ---
 
-Review one step's diff and report. Change nothing. You have not seen the conversation that produced the code; do not seek it out. Everything you write follows [`references/writing.md`](references/writing.md); your final message is the report template below.
+Judge a change only by what running code shows. A finding without a reproduction that failed at the gate does not exist: no confidence scores, no severity, no "possible issues". An empty report is the expected outcome; never pad it.
 
-# Setup
+Runs in the main chat: the feature review dispatches its own agents. Models are tiers, never names: strong is the harness's most capable model, standard its middle one. `/m-feature`'s Routing line overrides the tiers below.
 
-Gather all of this before either pass. Stop only where an item says so; items with a fallback use it; anything else missing goes under Not checked.
+Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout.
 
-1. Diff: `git diff <fixed-point>...HEAD` (three dots). The fixed point is where the step branch left the feature branch; if not given, `git merge-base HEAD <feature-branch>`. It must resolve with `git rev-parse`, or stop.
-2. Empty diff: stop and say so.
-3. The step issue and its Done when. None: say "no issue available" and run only Pass B. Never invent the requirement.
-4. Repo standards: `CONTRIBUTING.md`, `CODING_STANDARDS.md`, `AGENTS.md`, lint config. Apply them first; on smells and style they win.
-5. Design-check answers from `/m-plan`.
-6. The PR, with the builder's answers about its tests: verify them.
-7. Undo verdict. Missing: treat as hard.
-8. Timeout values from docs, or "not applicable" (no external call).
-9. The map's Not doing list.
-10. The test command (scan Q6).
-11. The map's Settled up front.
+# Step check
 
-# Two passes
+After each build, on the step branch. No model judgement.
 
-Run Pass A first, judging without the standards or design notes, then Pass B. A's findings do not decide B's.
+```bash
+python3 scripts/step_check.py baseline --test-cmd "<scan Q6 | none>"     # once, before the first step
+git fetch origin && python3 scripts/step_check.py check --base origin/feature/<name> --pr <n>
+```
 
-- **Pass A** reads the issue, Settled up front and the diff.
-- **Pass B** reads the diff, the standards and the design notes.
+Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` lines are for the human to look at and do not fail the step.
 
-## Pass A — spec
+# Feature review
 
-- Done when met, checked in the code.
-- Done when covered by a test of that behaviour.
-- Every Settled up front decision the diff touches holds in the code.
-- Nothing added beyond the step.
-- Nothing asked for left out, compared line by line.
-- The feature branch still works with this merged.
+Once, after every step has passed its check, on the feature branch, before prove.
 
-## Pass B — code
+**Needs** a test suite that runs, and a committed state. No suite: say so and stop; `/m-prove` is the only judge left.
 
-**B1 Tests** — green tests are not evidence; a step whose tests prove nothing fails however green.
+## 0. Prepare
 
-- Every test asserts.
-- No test file changed after its production code (`git log` order).
-- Every test failed on its assertion before the code existed (commit order).
-- Tests assert on results, not on calls.
-- Break the code once per Done when and once per test named after a behaviour, at either depth: the smallest change that breaks that behaviour ([`references/proving-tests.md`](references/proving-tests.md)). Run the tests; one must go red; undo. A break nothing catches is an untested Done when or behaviour: name the break.
+```bash
+python3 scripts/prepare.py --base main --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
+```
 
-**B2 Design** (hard to undo only): run [`references/design-checks.md`](references/design-checks.md) on the code.
+The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` set to this checkout (to copy env files from). Take it from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout.
 
-**B3 Production**
+## 1. Hunt
 
-- No credentials, keys, tokens or internal URLs: could this repo be made public today?
-- Every call outside the process has a timeout.
-- Resources released on error paths.
-- Environment-specific values come from the environment.
-- Failure logs allow diagnosis without reproducing.
-
-**B4 Smells**, after the repo's standards. If the repo documents none, Fowler's twelve: Mysterious Name, Duplicated Code, Feature Envy, Data Clumps, Primitive Obsession, Repeated Switches, Shotgun Surgery, Divergent Change, Speculative Generality, Message Chains, Middle Man, Refused Bequest. Smells only go under Worth noting.
-
-# Depth
-
-- Hard to undo: everything.
-- Easy: Pass A, B1, B3. B2 and B4 only if something is obviously wrong.
-
-Out of scope: what linters and formatters cover, style with no repo rule, code outside the diff (note it as separate work), anything on Not doing.
-
-# Verdict
-
-**CHANGES REQUIRED** if any:
-
-- Done when not met, or not tested.
-- A Settled up front decision broken.
-- A test with no assertion, written to fit the code, or asserting only on calls.
-- Credentials in the diff.
-- An external call without timeout, or a resource leak on an error path.
-- A hardcoded environment-specific value.
-- The feature branch broken by the merge.
-- Work the step did not ask for.
-
-Otherwise **PASS**. Smells, naming and preference never block.
-
-Fill every section:
+Dispatch 3 fresh `general-purpose` agents at once, on the strong tier: nothing downstream checks what they miss. They do not see each other. Prompt:
 
 ```
-VERDICT: <PASS | CHANGES REQUIRED>
-
-Must fix
-- <what is wrong> · <file:line> · <what it should be>
-
-Worth noting
-- <what you saw> · <file:line>
-
-Checked and clean
-- <one line each>
-
-Not checked
-- <what, and why>
+Read <this skill's directory>/references/hunt.md and follow it.
 ```
+
+then: the ledger command (`python3 <scripts>/ledger.py add`), the base and head from prepare, the changed files, the Goal, Settled up front and Not doing, and which repo rule files exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`).
+
+Over about 1,500 changed lines: split the files into groups by directory and give each group 2 hunters. Every hunter may read the whole repo.
+
+Mark a candidate `duplicate` only when its claim, condition and file match another's (`python3 scripts/ledger.py duplicate --id <id> --of <id>`). Never drop one for looking unlikely: the gate decides.
+
+## 2. Reproduce
+
+One fresh `general-purpose` agent per candidate, on the standard tier (the gate checks its work), never a hunter. Prompt:
+
+```
+Read <this skill's directory>/references/repro.md and follow it.
+```
+
+then: the finding's id, claim, condition and entry point, the test command, and how the repo tests (scan Q6). It does not get the hunter's reasoning.
+
+Up to 4 at once when tests share nothing (database, ports, files); otherwise one at a time. It returns `capture · repro · cmd`, or `unjudgeable · <reason> · files <paths | none>`:
+
+```bash
+python3 scripts/ledger.py unjudgeable --id <id> --reason "<reason>" --remove <files it left>
+```
+
+The gate removes a reproduction's files on every outcome; `--remove` does it for a writer that gave up. A leftover failing file turns every later suite run red.
+
+## 3. Gate
+
+One at a time, per returned reproduction:
+
+```bash
+python3 scripts/gate.py confirm --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>"
+```
+
+The only route to `confirmed`. A killed reproduction is not sent back or adjusted.
+
+## 4. Report
+
+```bash
+python3 scripts/report.py
+```
+
+Return its output verbatim. Stop: no second round, no suggestions.
+
+# Recheck
+
+After a fix step for confirmed findings has passed its step check, on the fix branch:
+
+```bash
+python3 scripts/gate.py recheck --id <id> --promote
+```
+
+`fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. `still-failing` or `SUITE WORSE`: the fix did not hold.
+
+# Never
+
+- Write `confirmed`, `fixed` or `still-failing` by any route but the gate.
+- Score confidence or severity, or count agreement between agents as evidence either way.
+- Edit a frozen reproduction, an existing test, the harness or the code under review.
+- Show the builder a reproduction: it gets the claim and the condition.
+- Review outside the diff, or anything on Not doing.

@@ -1,9 +1,9 @@
 ---
 name: m-grilling
-description: "Asks the human only the hard-to-undo decisions that the repo and docs cannot settle. Use as the grilling stage of /m-feature, or to pin down one decision before a build. For open-ended stress-testing of an idea, use grilling instead."
+description: "Asks the human only the hard-to-undo decisions that the repo and docs cannot settle. Use as the grilling stage of /m-feature, or to pin down one decision before a build."
 ---
 
-Interview the human in the main chat, only about decisions that are hard to undo. Decide the rest yourself. Everything you write follows [`references/writing.md`](references/writing.md).
+Interview the human in the main chat, only about decisions that are hard to undo. Decide the rest yourself.
 
 Inputs: the feature as asked · the `/m-scan` report, read before drafting any question · the undo verdict.
 
@@ -59,6 +59,6 @@ Hand back:
 - Where it runs, and what that limits.
 - Module boundary and data state on failure, if asked.
 - Decisions you made, one line each, checked against the request the same way.
-- Not doing: what the human ruled out. If it did not come up, ask, even though it fails the three conditions: review measures scope against it.
+- Not doing: what the human ruled out. If it did not come up, ask, even though it fails the three conditions: review and prove leave it out, and build holds its scope against it.
 
 Goal, Where it runs and Not doing go under their map headings; the rest under Settled up front.

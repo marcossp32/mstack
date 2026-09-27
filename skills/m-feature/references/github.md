@@ -1,5 +1,3 @@
-<!-- Copied from shared/github.md by scripts/sync-shared.mjs. Edit the source, not this copy. -->
-
 # GitHub
 
 ## Prerequisites
@@ -29,7 +27,8 @@ gh label list --limit 100 | grep -E 'feature:map|build'
 | docs | a comment with the answers; links under Sources |
 | plan | the step issues; design checks as a comment; descoped items under Not doing |
 | build | its step issue and pull request |
-| review | chat. On CHANGES REQUIRED, you comment the must-fix list on the step issue |
+| step check | chat. On FAIL, you comment its output on the step issue |
+| review | a comment with the report. Confirmed findings become one fix step issue: claim and condition, never the reproduction |
 | prove | a comment with the verdict, without its Evidence line. The final pull request carries the requirements, their evidence and a link to that comment |
 
 Comments append. `gh issue edit` replaces the whole body, so read it first:
@@ -47,7 +46,7 @@ EOF
 
 ## Map body
 
-Created with Goal and How hard to undo filled, other headings empty. Re-read before every build and review.
+Created with Goal and How hard to undo filled, other headings empty. Re-read before every build and the review.
 
 ```markdown
 ## Goal
@@ -72,7 +71,7 @@ Created with Goal and How hard to undo filled, other headings empty. Re-read bef
 <!-- links /m-research used -->
 
 ## Not doing
-<!-- out of scope for review. Filled by grilling and plan before the first review -->
+<!-- out of scope for review. Filled by grilling and plan before the review -->
 
 ## Replans
 <!-- one dated line each: what broke, what changed. Two lines = stop -->
@@ -106,7 +105,8 @@ main
       └── step/<name>  one per step, cut from the feature branch when the step starts; merged into it on PASS, then deleted
 ```
 
-- One step, one branch, one pull request. CHANGES REQUIRED: push fixes to the same branch.
+- One step, one branch, one pull request. A failed step check: push fixes to the same branch.
+- A fix step (`step/fix-<n>`) is a step like any other, cut from the feature branch after the review.
 - No direct commits to `main` or the feature branch.
 - Blocking and progress use GitHub's blocked-by and sub-issues, not checklists in the body.
 
@@ -170,7 +170,6 @@ gh issue edit 45 --add-blocked-by 44
 
 # each step
 gh issue develop 45 --base feature/<name> --name step/<name> --checkout   # --name required
-git merge-base HEAD feature/<name>                                         # fixed point for /m-review
 gh pr create --base feature/<name> --title "<step>" --body-file -
 gh pr merge --squash --delete-branch                                       # or --merge, per scan Q9
 gh issue close 45 --comment "<what landed>"

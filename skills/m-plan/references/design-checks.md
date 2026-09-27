@@ -1,10 +1,8 @@
-<!-- Copied from shared/design-checks.md by scripts/sync-shared.mjs. Edit the source, not this copy. -->
-
 # Design checks
 
-`/m-plan` runs them on the plan. `/m-review` runs them on the code (B2), only when hard to undo, and reports intended vs built where they differ.
+`/m-plan` runs them on the plan, before code exists. Nothing checks them on the code: the review judges only what execution shows.
 
-Depth: hard to undo → all seven, report each. Easy → one pass in `/m-plan`, report only failures; `/m-review` skips them.
+Depth: hard to undo → all seven, report each. Easy → one pass, report only failures.
 
 1. Will other code use this? Yes → put it somewhere shared, outside the feature folder.
 2. If this decision changes, how many files change? More than 1–2 → keep the decision in one place. *(S)*

@@ -3,9 +3,9 @@ name: m-prove
 description: "Proves a change does what was asked by driving the running app: a supervisor writes a short contract, two fresh agents drive it at once (one proves the requirements, one hunts what else broke), and the supervisor judges their evidence. Use as the prove stage of /m-feature, or before merging or releasing a change nobody has watched working."
 ---
 
-Supervise a proof that the change holds in the running app: contract, two drives, judgement. Everything you write follows [`references/writing.md`](references/writing.md); a verdict line's reference is what was driven and its route.
+Supervise a proof that the change holds in the running app: contract, two drives, judgement. A verdict line's reference is what was driven and its route.
 
-Models come from [`references/routing.md`](references/routing.md): tiers, never names. `/m-feature` hands you its Routing line; without one, resolve the drivers' tiers yourself and put them in the header you return.
+Models are tiers, never names: cheap, standard or strong — the harness's quickest, middle and most capable model. `/m-feature` hands you its Routing line: take the Q1 and Q2 entries from it. Without one, use the tiers under Drive. Either way, put them in the header you return.
 
 This conversation wrote or watched the code: dispatch a fresh `general-purpose` agent on the strong tier, whose prompt opens `Invoke the Skill tool with m-prove.` with the inputs below, and relay its verdict.
 
@@ -14,7 +14,6 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 - Requirements verbatim: the Goal, or what the human asked. Never take them from the diff. None: ask; as a subagent, return `Not driven · no requirements`.
 - Settled up front: decisions the human confirmed. Each one with an observable effect (data state on failure, a default, a limit) is a requirement.
 - Not doing.
-- Undo verdict; none: hard.
 - How the app runs: scan Q9; none: look where m-scan Q9 looks.
 - Base branch; none: the default branch.
 - Whether evidence is kept for a pull request. `/m-feature` asks for it.
@@ -23,31 +22,35 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 
 Read files and git; start nothing.
 
-1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base <base branch> HEAD`. Create the evidence dir `$(git rev-parse --absolute-git-dir)/m-prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id.
+1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base <base branch> HEAD`. Create the evidence dir `$(git rev-parse --path-format=absolute --git-common-dir)/mstack/prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id.
 2. **Requirements, before reading the diff.** One line per clause, quoted:
    - surface: where its user reaches it (page, HTTP endpoint, CLI command, public API from a script);
    - settled when: the observation that shows it, read back by a route that skips the code that wrote it (the record on a fresh read, the file on disk, the message off the queue). What the surface returns to its caller counts when that is the effect asked for. No such route: what the app itself shows, and the line says `via the app itself`.
 
    Say what settles it, not how to drive it: no payloads, values or steps. A tolerance comes from the clause ("each wait doubles"), never a number the clause does not state. Not observable: say so; the line ends not driven. Unreachable locally: the nearest surface with the same behaviour, named beside the one asked for.
 3. **Environment**: the shipped defaults plus what the recipe or `.env.example` sets. Any other variable is an override, listed with the lines that need it and why. A requirement that names development, local or default settings is driven with no override.
-4. **Run**: a recipe in the repo (`.claude/skills/run-*/SKILL.md`, `.claude/skills/verify/SKILL.md`) or a `~/.claude/skills/*/SKILL.md` whose description names this repo; else scan Q9. Launch · health check (no server: the entry point run once) · prerequisites.
+4. **Run**: a recipe in the repo (`.claude/skills/run-*/SKILL.md`, `.claude/skills/verify/SKILL.md`) or a `~/.claude/skills/*/SKILL.md` whose description names this repo; else scan Q9. Launch · health check (no server: the entry point run once) · prerequisites. **Shared state**: whether two servers from this checkout would share a database, data dir, queue or fixed port the recipe cannot move. Any: the drives run one after the other.
 5. **Risk areas**, now from `git diff <base>...HEAD`: where else this change can reach. Check each kind: callers of what changed, data it shares, start and shutdown, integrations, configuration and defaults, platform. One line per area that applies, with its `file:line`. Leave out Not doing.
 
 ```
 HEAD <sha> · tree <sha> · base <sha> · checkout <path> · evidence <dir>
-Run  · <recipe path | none> · <launch> · <health check> · <prerequisites> · overrides <VAR=value → R2 | none>
+Run  · <recipe path | none> · <launch> · <health check> · <prerequisites> · overrides <VAR=value → R2 | none> · shared state <none → parallel | what → Q1 then Q2>
 R1 "<clause>" · surface <…> · settled when <observation> via <route>
 Risk · <area> · <file:line>
 ```
 
+# Prepare
+
+Run the recipe's dependency install and build once in the checkout, output to `<evidence>/prepare.txt`. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Drivers install and build nothing in the checkout, so two drives never write the same files.
+
 # Drive
 
-Dispatch both at once, each a fresh `general-purpose` agent, prompt `Read <this skill's directory>/references/drive.md and follow it as <Q1 | Q2>.`, then the contract:
+Dispatch both at once (one after the other when the contract names shared state), each a fresh `general-purpose` agent, prompt `Read <this skill's directory>/references/drive.md and follow it as <Q1 | Q2>.`, then the contract:
 
 - **Q1, does it do what was asked?** The cheap tier when a recipe exists; the strong tier when the launch is improvised. You judge its evidence, so a cheap drive that reports without evidence costs one send-back, not a wrong verdict.
 - **Q2, what else broke?** The strong tier: inventing routes is its job.
 
-No Agent tool: drive Q1, then Q2, yourself by that file; the header says `self-driven`.
+A Routing line overrides both tiers. No Agent tool: drive Q1, then Q2, yourself by that file; the header says `self-driven`.
 
 # Judge
 

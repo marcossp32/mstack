@@ -1,59 +1,65 @@
 ---
 name: m-build
-description: "Builds one step test-first: the test comes from the spec, is watched failing, and is never edited to pass. Use as the build stage of /m-feature, or for any change whose tests must mean something."
+description: "Builds one step from its issue: the whole spec up front, the method left to the builder, scope held to what was asked, one pull request. Use as the build stage of /m-feature, for a fix step from /m-review, or for any change with an observable Done when."
 ---
 
-Build one step test-first, so no test is shaped around code that already works. Everything you write follows [`references/writing.md`](references/writing.md); your final message is the PR number, or the stop line.
-
-**Never edit a test to make it pass.** A test that failed on its assertion is frozen. If the code cannot satisfy it, fix the code, or stop: no PR, one line naming the spec behaviour that is wrong.
+Build one step. The method is yours: how you design it, whether you write tests, how you check your work. Your final message is the PR number, or the stop line; the PR says what changed, not how you got there.
 
 # Inputs
 
-- The step issue and its Done when.
-- How the repo tests (`/m-scan`). Write tests the same way.
-- Timeouts and limits (`/m-research`).
+- The step issue: what to do, what you need to know, Done when.
+- From `/m-scan`: what already exists, which installed library already does it, how the repo does similar things, what it calls them, how it tests, per-environment values, infrastructure limits, how it runs.
+- Vendor limits and timeouts (`/m-research`), or "not applicable". These are facts you cannot infer from the repo: use them where the code calls out.
 
-No observable Done when: write nothing and return no PR, with one line saying what could not be observed and a testable criterion that would fix it.
+# Scope
 
-# Loop
+Deliver what the issue asks, at the scope it intends. Make routine calls yourself. No features, options, refactors or cleanup it did not ask for. A better approach, or a request that looks mistaken: say so in one line in the PR and build what was asked.
 
-One behaviour at a time.
+# Stop instead
 
-1. **One failing test**, from the Done when, not from code. Name it after the behaviour in the repo's words (`rejects a draft with no title`); a name needing "and" is two tests. Assert on outputs, not calls. What to assert on and what to fake: [`references/test-quality.md`](references/test-quality.md).
-2. **Run it. It must fail on its assertion**, showing expected and actual. Import errors, missing functions (`x is not a function`), syntax errors, setup crashes and a bare `AssertionError` do not count: fix and rerun. Commit the red test.
-3. **Minimum code** that passes: no extra cases, options or side edits. Commit.
-4. **Whole suite green.** Red elsewhere means your change broke it: fix the code.
-5. **Refactor** without touching tests. A test goes red: you changed behaviour, undo — unless the test was pinned to internals (see test-quality.md).
-6. Next behaviour.
+No PR, one line, when:
 
-# Modes
+- the Done when cannot be observed: say what cannot be seen and a criterion that could;
+- the spec contradicts itself, the repo, or an existing test: quote both sides;
+- a decision nobody has made blocks the work: name it.
 
-- **Bug fix**: a failing test that reproduces the bug, then the fix.
-- **Tests for existing code**: take the intended behaviour from the issue, docs or human, never from the code. Then break the code to prove each test reacts: [`references/proving-tests.md`](references/proving-tests.md).
-- **Rework** (must-fix list from `/m-review`, same branch). Sort the list before editing:
-  - Behaviour findings (unhandled case, wrong result, Done when not met): the loop, test first.
-  - Construction findings, with no behaviour to pin down (timeout, resource release, environment value, credential): fix directly, and list them in the PR with why each has no test.
-  - Answer every finding, disagreements included, with reasons. Tests that went red on their assertion stay frozen; the must-fix list is no licence to edit them.
+Stopping is a finished answer. Never bend a test, the spec or the Done when to get past it.
 
-# Every step, whatever the issue says
+# Existing tests
 
-1. Same input twice gives the same result; tested.
-2. Empty and huge responses handled; tested.
-3. Behaviour can change in production without a code edit or redeploy; per-environment values come from the environment.
-4. Failure logs are enough to diagnose without reproducing.
-5. When migrating data: a deploy that stops halfway can be re-run safely.
-6. Every call outside the process has a timeout, with `/m-research`'s value.
-7. Resources are released on error paths.
+A test that fails after your change is information about the change. Change or delete one only when the issue changes the behaviour it pins, and list it in the PR with the clause that changed it. A test that disagrees with the spec is a stop, not an edit.
+
+# How this is judged
+
+Nothing else checks your work:
+
+- **Step check** (a script, after you push): the suite is no worse than when the feature started; every existing test file you changed or deleted is listed in the PR; no credentials in the added lines.
+- **Feature review** (once all steps are in): only failures demonstrated by running code count.
+- **Prove**: fresh agents drive the running app against the feature's Goal.
+
+What none of these can show locally rests on you alone: a timeout on every call out of the process (with `/m-research`'s value), resources released on rare error paths, per-environment values read from the environment.
+
+# Fix mode
+
+The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds. The review re-runs its reproduction afterwards; do not look for it in the git dir or recreate it. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is.
 
 # Pull request
 
-You are already on the step branch. Target the feature branch.
+You are on the step branch. Target the feature branch.
 
-- What changed: one bullet per behaviour.
-- `Part of #<n>`, without retelling the issue. Never `Closes`: it is ignored on non-default branches.
-- What to watch, including any test that needed many fakes.
-- Answers, checked with `git diff` and commit order:
-  - Did any test file change after its production code?
-  - Does every test assert?
-  - Did every test fail on its assertion before its production code existed?
-  - Would the tests go red if the code broke? When hard to undo, prove it: [`references/proving-tests.md`](references/proving-tests.md).
+```markdown
+<what a user can now do, one sentence>
+
+## What changed
+- <one bullet per behaviour, most important first>
+
+## Tests changed
+- <existing test file · what changed · the issue clause that changed it>, or "none"
+
+## What to watch
+- <risk, assumption, anything the Done when does not cover>
+
+Part of #<n>
+```
+
+`Part of`, never `Closes`: closing keywords are ignored on non-default branches.
