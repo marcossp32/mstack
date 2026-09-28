@@ -10,6 +10,7 @@ Build one step. The method is yours: how you design it, whether you write tests,
 - The step issue: what to do, what you need to know, Done when.
 - From `/m-scan`: what already exists, which installed library already does it, how the repo does similar things, what it calls them, how it tests, per-environment values, infrastructure limits, how it runs.
 - Vendor limits and timeouts (`/m-research`), or "not applicable". These are facts you cannot infer from the repo: use them where the code calls out.
+- The board URL from `/m-feature`, or none.
 
 # Scope
 
@@ -63,3 +64,20 @@ Part of #<n>
 ```
 
 `Part of`, never `Closes`: closing keywords are ignored on non-default branches.
+
+With a board URL (`.../projects/<n>` under owner `<owner>`), put the PR on the board as In Progress once it is open. The board moves it to Done when it merges or closes; a rework push to the same PR leaves the card alone.
+
+```bash
+P=<n>; O=<owner>
+PID=$(gh project view $P --owner $O --format json --jq .id)
+ITEM=$(gh project item-add $P --owner $O --url <PR URL> --format json --jq .id)
+read FID OID < <(gh project field-list $P --owner $O --limit 50 --format json |
+  jq -r '.fields[] | select(.name=="Status") | .id as $i | .options[] | select(.name=="In Progress") | "\($i) \(.id)"')
+if [ -n "$OID" ]; then
+  gh project item-edit --project-id $PID --id $ITEM --field-id $FID --single-select-option-id $OID
+else
+  echo "no Status value In Progress, or the field list did not come back"
+fi
+```
+
+A card command that fails does not undo the PR: return the PR number and say the card was not set.
