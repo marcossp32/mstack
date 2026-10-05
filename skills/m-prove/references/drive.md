@@ -18,6 +18,7 @@ A caveat is not verified or not driven.
 - Change no file in the checkout, even temporarily, ignored files included. The supervisor already ran the recipe's installs and builds there; run none yourself, since the other driver may be using the same checkout. A launch that needs an edit, an install or a build: every line not driven, naming what it needs.
 - Environment: the shipped defaults; set an override only on the lines the contract lists it for. A line that passes only with a variable the contract does not list: not verified, naming the variable.
 - Start your own server from the checkout, output to `launch.txt`, on a port the other driver is not using (Q1 the recipe's port or the next free one, Q2 that plus 100); poll the health check for up to 2 minutes. Stop only processes you started.
+- That health check is the only loop you wait on. A long command (a suite, a build): run it in the background when the harness tells you it has finished; never wait with `sleep` or `until` loops.
 - **Control**: before anything else, drive one path the diff never touched and save it as `control.txt`.
 
 **Q1, does it do what was asked?**

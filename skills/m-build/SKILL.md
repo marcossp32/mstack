@@ -40,6 +40,10 @@ Nothing else checks your work:
 
 What none of these can show locally rests on you alone: a timeout on every call out of the process (with `/m-research`'s value), resources released on rare error paths, per-environment values read from the environment.
 
+# Long commands
+
+A command that runs for minutes (a suite, a build, a render): run it in the background when the harness tells you it has finished, and wait for that. Never wait with `sleep`, `until` or polling loops: they hold the turn, hit the tool's time limit and start over.
+
 # Fix mode
 
 The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds. The review re-runs its reproduction afterwards; do not look for it in the git dir or recreate it. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is.
