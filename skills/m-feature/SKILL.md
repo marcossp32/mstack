@@ -117,8 +117,8 @@ The agent has not seen this conversation. Hand it:
 | plan (main chat) | the board URL, besides its own inputs |
 | build | step issue number and Done when · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on · the board URL |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the same scan and docs inputs · the fix branch it is on · the board URL |
-| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front and Not doing from · the Routing line |
-| prove | the map number, to read Goal, Settled up front and Not doing from · scan Q9 · base branch `main` · the Routing line · closing only: the final pull request (board URL, map number, feature branch, title, and its body with the Proved section's placeholders) |
+| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from · the Routing line |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · the Routing line · closing only: the final pull request (board URL, map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
@@ -169,6 +169,8 @@ Set the map card's Stage to Replan; it goes back to Build when the human confirm
 3. Run `/m-plan` in the main chat with its four inputs, the fact that broke the plan, and the steps merged into the feature branch, read from `git log` (not issue state).
 4. The human confirms the revised list.
 5. Create, rewrite and re-link step issues; note the change under Decided.
+
+A replan's steps serve requirements already on the map: their Done when never becomes a prove requirement. What the feature must do changes only through the Goal or Settled up front, with the human, or Assumed in an autonomous run.
 
 A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 

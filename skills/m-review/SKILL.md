@@ -42,7 +42,7 @@ Dispatch 3 fresh `general-purpose` agents at once, on the strong tier: nothing d
 Read <this skill's directory>/references/hunt.md and follow it.
 ```
 
-then: the ledger command (`python3 <scripts>/ledger.py add`), the base and head from prepare, the changed files, the Goal, Settled up front and Not doing verbatim (from `/m-feature`: the map number, for the hunter to read them from), and which repo rule files exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`).
+then: the ledger command (`python3 <scripts>/ledger.py add`), the base and head from prepare, the changed files, the Goal, Settled up front, Assumed and Not doing verbatim (from `/m-feature`: the map number, for the hunter to read them from), and which repo rule files exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`).
 
 Over about 1,500 changed lines: split the files into groups by directory and give each group 2 hunters. Every hunter may read the whole repo.
 

@@ -129,7 +129,7 @@ One field per `item-edit`: a card that needs two runs it twice.
 | Stage | Destination |
 |---|---|
 | scan | one comment: the four slices as nine lines. You then decide the undo verdict and write it to the body |
-| grilling | body: Goal, Where it runs, Settled up front, Not doing |
+| grilling | body: Goal, Where it runs, Settled up front, Assumed, Not doing |
 | docs | a comment with the answers; links under Sources |
 | plan | the step issues; design checks as a comment; descoped items under Not doing |
 | build | its step issue and pull request |
@@ -171,7 +171,10 @@ Created with Goal and How hard to undo filled, other headings empty. Re-read bef
 <the Routing line, resolved once at the start. A stage escalated later adds a dated line under it: role, new tier, the signal>
 
 ## Settled up front
-<!-- what /m-grilling returned -->
+<!-- what /m-grilling returned that the human confirmed -->
+
+## Assumed
+<!-- decisions made without the human's confirmation. Built like Settled up front; /m-prove does not turn them into requirements -->
 
 ## Decided
 <!-- one line per closed step: link + summary. Replan changes and why -->

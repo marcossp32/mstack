@@ -25,7 +25,7 @@ Each step, in priority order:
 
 Name steps after what a person can see or do, in the repo's words. Each has an observable **Done when**: what a user or caller sees (`GET /drafts/<id>` returns the saved draft, `report --month 2026-09` prints one line per account), not "implemented X" and not how to verify it. One or two steps: say it may not need a plan.
 
-Every behaviour in the Goal and in Settled up front (data state on failure, defaults, limits) lands in some step's Done when.
+Every behaviour in the Goal, Settled up front and Assumed (data state on failure, defaults, limits) lands in some step's Done when.
 
 Record blocking only where B cannot start before A lands, never for preferred order.
 
@@ -41,7 +41,7 @@ Show the human:
 Steps    · one line each, in order, with Done when
 Blocking · which steps block which
 Design   · one line per check reported at that depth: what you found; if failed, what you changed
-Settled  · one line per Settled up front decision: the step whose Done when covers it, or why none needs one
+Settled  · one line per Settled up front or Assumed decision: the step whose Done when covers it, or why none needs one
 Decided  · choices made without asking
 ```
 

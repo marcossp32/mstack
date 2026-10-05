@@ -9,7 +9,7 @@ Look for:
 - callers, contracts or stored data the change breaks;
 - inputs and states it mishandles: empty, huge, repeated, out of order, failing midway;
 - error paths: swallowed errors, resources left open, partial writes;
-- behaviour that contradicts the Goal or a Settled up front decision.
+- behaviour that contradicts the Goal, or a Settled up front or Assumed decision.
 
 Register every candidate you cannot refute from the code. Do not filter for likelihood: the gate kills what is false, and a candidate you hold back is a bug nobody tests. Drop one only when the code refutes it: a guard before it, a caller that never passes that input.
 
