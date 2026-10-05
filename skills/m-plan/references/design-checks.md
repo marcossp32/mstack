@@ -1,6 +1,6 @@
 # Design checks
 
-`/m-plan` runs them on the plan, before code exists. Nothing checks them on the code: the review judges only what execution shows.
+`/m-plan` runs them on the plan, before code exists. On the code, the review catches check 2 only where it shows: two copies of a decision that disagree for some input.
 
 Depth: hard to undo → all seven, report each. Easy → one pass, report only failures.
 

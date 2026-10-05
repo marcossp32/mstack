@@ -9,6 +9,7 @@ Look for:
 - callers, contracts or stored data the change breaks;
 - inputs and states it mishandles: empty, huge, repeated, out of order, failing midway;
 - error paths: swallowed errors, resources left open, partial writes;
+- one decision made in two places that disagree for some input: a runtime rule and the data migration that applies it, a validator and the serializer, a query filter and the code that counts its rows;
 - behaviour that contradicts the Goal, or a Settled up front or Assumed decision.
 
 Register every candidate you cannot refute from the code. Do not filter for likelihood: the gate kills what is false, and a candidate you hold back is a bug nobody tests. Drop one only when the code refutes it: a guard before it, a caller that never passes that input.
