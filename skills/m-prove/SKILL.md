@@ -19,6 +19,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 - How the app runs: scan Q9; none: look where m-scan Q9 looks.
 - Base branch; none: the default branch.
 - Whether evidence is kept for a pull request: yes when you are handed the final pull request below, otherwise only when asked.
+- Re-prove: the last prove's verdict comment and its tree, when `/m-feature` proves again after a replan.
 - The final pull request, from `/m-feature` at closing only: board URL, map issue number, feature branch, title, and its body with the Proved section as placeholders. Given it, you open that pull request (Final pull request, below), and evidence is kept for it on the terms Judge sets.
 
 # Contract
@@ -34,11 +35,12 @@ Read files and git; start nothing.
 3. **Environment**: the shipped defaults plus what the recipe or `.env.example` sets. Any other variable is an override, listed with the lines that need it and why. A requirement that names development, local or default settings is driven with no override.
 4. **Run**: a recipe in the repo (`.claude/skills/run-*/SKILL.md`, `.claude/skills/verify/SKILL.md`) or a `~/.claude/skills/*/SKILL.md` whose description names this repo; else scan Q9. Launch · health check (no server: the entry point run once) · prerequisites. **Shared state**: whether two servers from this checkout would share a database, data dir, queue or fixed port the recipe cannot move. Any: the drives run one after the other.
 5. **Risk areas**, now from `git diff <base>...HEAD`: where else this change can reach. Check each kind: callers of what changed, data it shares, start and shutdown, integrations, configuration and defaults, platform. One line per area that applies, with its `file:line`. Leave out Not doing.
+6. **Re-prove only**: read `git diff <last tree> HEAD` the same way. A requirement that diff cannot reach keeps its last verdict, verified or pre-existing, as `carried <last short sha>` and is not driven again. Lines last not verified or not driven are driven, and so is every risk area the new diff reaches. Nothing the diff touches stays carried.
 
 ```
 HEAD <sha> · tree <sha> · base <sha> · checkout <path> · evidence <dir>
 Run  · <recipe path | none> · <launch> · <health check> · <prerequisites> · overrides <VAR=value → R2 | none> · shared state <none → parallel | what → Q1 then Q2>
-R1 "<clause>" · surface <…> · settled when <observation> via <route>
+R1 "<clause>" · surface <…> · settled when <observation> via <route> | carried <sha>
 Risk · <area> · <file:line>
 ```
 
@@ -78,7 +80,7 @@ Only when `/m-feature` handed you one. The verdict is **Proved** when every R li
 
 1. `git rev-parse HEAD^{tree}` still equals the contract's tree. Changed: open nothing, and return `PR · not opened · tree changed`.
 2. Comment your verdict on the map, without the Evidence line: `gh issue comment <map> --body-file -`. It prints the comment's URL; that is the body's Prove verdict link.
-3. Fill the body's Proved section: one table row per R line (requirement quoted, verdict, evidence), and one `<details>` block per output, holding the command and up to 15 lines of it. Then one line: `Also driven: <covered risk areas> · Not driven: <line · precondition, or none> · [Prove verdict](<comment URL>)`. Each verified line shows its evidence while the evidence dir is kept, so a PR Not verified only for a not driven or `base not run` line still carries it; a line not verified shows its verdict and value only. The body stays under 65,536 characters: trim outputs, never the verdict lines.
+3. Fill the body's Proved section: one table row per R line (requirement quoted, verdict, evidence), and one `<details>` block per output, holding the command and up to 15 lines of it. Then one line: `Also driven: <covered risk areas> · Not driven: <line · precondition, or none> · [Prove verdict](<comment URL>)`. Each verified line shows its evidence while the evidence dir is kept, so a PR Not verified only for a not driven or `base not run` line still carries it; a line not verified shows its verdict and value only. A carried line keeps its row, evidence included, from the pull request an earlier prove opened; its verdict cell adds `carried <sha>`. The body stays under 65,536 characters: trim outputs, never the verdict lines.
 4. Look for one an earlier prove opened: `gh pr list --base main --head <feature branch> --state open --json number,isDraft --jq '.[0] // "none"'`. It prints `none` when there is none, else the PR's number and draft state.
    - Found: `gh pr edit <n> --body-file -`. The do-not-merge first line below is in the body only when the PR is Not verified and not a draft; step 5 settles which. `gh pr edit` has no `--attach` in 2.96.0: images become one line each, saying what it shows and at which viewport, unless the installed `gh pr edit --help` lists the flag.
    - None: `gh pr create --base main --head <feature branch> --title "<title>" --body-file -`, with `--draft` when Not verified. Attach each screenshot with `--attach "<path>#<alt text>"` where the installed `gh pr create --help` lists the flag; without it, one line per image as above.
@@ -108,6 +110,7 @@ Return:
 ```
 HEAD <sha> · tree <sha> · recipe <path | improvised> · Q1 <tier>/<effort> · Q2 <tier>/<effort> | self-driven
 R1 "<requirement>" — <verdict> · <what was driven, where> (asked <surface>, if different) → <value> via <route>
+R2 "<requirement>" — <verified | pre-existing> · carried <sha>                                  re-prove only
 B1 <what broke> — <new | pre-existing | base not run> · <what was driven> → head <value> · base <value> · <file:line>
 Covered — <risk area> · <what was driven> | not driven · <two routes tried>
 Not driven — <line> · <precondition> · <routes tried>

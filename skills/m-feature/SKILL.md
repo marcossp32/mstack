@@ -83,7 +83,7 @@ Post the reply as a comment on the map; links under Sources.
 - When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's command.
 - A step check after every build, on its step branch.
 - One review, after the last step passes its check, on the whole feature diff.
-- prove after the review and any fix step, and it opens the final PR; again after any replan.
+- prove after the review and any fix step, and it opens the final PR; again after any replan, as a re-prove: it drives only what the replan's diff can reach, and the rest keeps its verdict.
 
 ## Dispatch
 
@@ -118,7 +118,7 @@ The agent has not seen this conversation. Hand it:
 | build | step issue number and Done when · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on · the board URL |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the same scan and docs inputs · the fix branch it is on · the board URL |
 | review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from · the Routing line |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · the Routing line · closing only: the final pull request (board URL, map number, feature branch, title, and its body with the Proved section's placeholders) |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · on a re-prove, the last verdict comment and that prove's tree · the Routing line · closing only: the final pull request (board URL, map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
@@ -189,7 +189,7 @@ After the review and any fix step:
 1. Check every step issue is closed.
 2. Complete Decided and Sources.
 3. Write the final pull request body in [`references/github.md`](references/github.md), keeping the Proved section's placeholders as they are.
-4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body, the board URL and the map number. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, sets the PR's card to Proved or Not verified, and deletes its evidence dir. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
+4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body, the board URL and the map number; after a replan, also the last verdict comment and that prove's tree, so it re-proves. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, sets the PR's card to Proved or Not verified, and deletes its evidence dir. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
    - not verified on a requirement, or a `new` break: replan. The PR stays open at Not verified; the next prove updates it.
    - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and the step check), then prove again. Or the human ships with it listed in the PR: `gh pr ready <n>`; a do-not-merge first line comes out with `gh pr view <n> --json body --jq .body`, then `gh pr edit <n> --body-file -` without it; go to 5. The card stays at Not verified, because that is what was proved.
    - `pre-existing`, on a requirement or a break: no replan. It stays in the verdict comment and the pull request's Proved table.
