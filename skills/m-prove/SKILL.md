@@ -11,7 +11,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 
 # Inputs
 
-- Requirements verbatim: the Goal, or what the human asked. Never take them from the diff. None: ask; as a subagent, return `Not driven · no requirements`.
+- Requirements verbatim: the Goal, or what the human asked. Never take them from the diff. Given a map issue, read them from its body, never from a summary in your prompt. None: ask; as a subagent, return `Not driven · no requirements`.
 - Settled up front: decisions the human confirmed. Each one with an observable effect (data state on failure, a default, a limit) is a requirement.
 - Not doing.
 - How the app runs: scan Q9; none: look where m-scan Q9 looks.

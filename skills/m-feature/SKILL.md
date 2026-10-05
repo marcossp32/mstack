@@ -11,6 +11,7 @@ Run one feature through GitHub: one map issue plus one issue per build step, eac
 - The human stays in this session until the final PR.
 - To the human: result first, one line per finding or decision, no recap. Between steps, write only when they must see or decide something.
 - Agent prompts carry the inputs listed below, never this conversation's reasoning.
+- Map sections reach an agent verbatim: name the map issue and the sections, and the agent reads them itself (`gh issue view <map> --json body --jq .body`). Never summarise, shorten or reword them in a prompt. A section that needs changing changes on the map first.
 
 # Start
 
@@ -116,8 +117,8 @@ The agent has not seen this conversation. Hand it:
 | plan (main chat) | the board URL, besides its own inputs |
 | build | step issue number and Done when · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on · the board URL |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the same scan and docs inputs · the fix branch it is on · the board URL |
-| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · Goal, Settled up front and Not doing from the map · the Routing line |
-| prove | Goal, Settled up front and Not doing from the map · scan Q9 · base branch `main` · the Routing line · closing only: the final pull request (board URL, map number, feature branch, title, and its body with the Proved section's placeholders) |
+| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front and Not doing from · the Routing line |
+| prove | the map number, to read Goal, Settled up front and Not doing from · scan Q9 · base branch `main` · the Routing line · closing only: the final pull request (board URL, map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
