@@ -7,8 +7,9 @@ Verdicts, one per R line (Q1) or risk area (Q2):
 - **verified**: driven on its surface; the read-back meets settled when, read literally.
 - **not verified**: driven and wrong, repeated once on a fresh run with new values, with the control passing. Wrong on only one of the two runs: add `intermittent`.
 - **not driven**: nothing reached it after doing its prerequisites and trying two different routes; name the precondition and both routes.
+- **pre-existing** (Q1): not verified on head, and the base fails the same observation the same way.
 
-A caveat is one of the last two.
+A caveat is not verified or not driven.
 
 **Setup**
 - HEAD differs from the contract, or `git status --porcelain` is not empty: stop; every line is not driven, naming why.
@@ -21,6 +22,7 @@ A caveat is one of the last two.
 
 **Q1, does it do what was asked?**
 - For each R line choose the values and steps yourself; put the run id in every value you create.
+- A line comes back not verified: drive the same observation on the base, set up as Q2 does below. It fails the same way there: `pre-existing`, with head and base values. The base cannot run: keep not verified and add `base not run`.
 - A timing requirement: report the raw numbers you measured. Judge only the tolerance the clause states; what you observe lags what the app does, so a value within your measurement gap of the bound meets it.
 
 **Q2, what else broke?**
@@ -45,7 +47,7 @@ A caveat is one of the last two.
 
 ```
 HEAD <sha> · tree <sha> · checkout clean <yes | no: files> · driving <Q1 | Q2>
-R1 — <verdict> · drove <what, with which values> → <value> via <route> · <file> · repeated <yes | no>
+R1 — <verdict> · drove <what, with which values> → <value> via <route> · <file> · repeated <yes | no> · base <value | not run>   base only when not verified or pre-existing
 Area <name> — <verdict> · drove <what, head and base> → head <value> · base <value | not run> · <file>
 Break — <what> · head <value> · base <value | not run> · <file>
 Deviation — <what you saw that the contract did not expect> · <file>

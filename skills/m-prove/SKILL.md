@@ -65,6 +65,7 @@ Read [`references/drive.md`](references/drive.md), then check both reports:
 - Every variable set in the evidence is an override the contract lists for that line.
 - Every host the app was pointed at is on this machine, and no break is about Not doing; a break that is gets dropped.
 - Each deviation is one of: **product** (repeats on a fresh run with the control passing), **harness** (the control fails too), **driver error** (the evidence contradicts the report). Only product makes a line not verified.
+- An R line is `pre-existing` when the base, driven the same way, fails it the same way: the change did not cause it. It is not a not verified, unless the Goal asks to change that existing behaviour.
 - A Q2 break is `new` when the base, driven the same way, behaves differently; `pre-existing` when the base fails the same way; `base not run` when the base could not be driven.
 
 A line failing a check goes back once to a fresh agent on the strong tier, with the contract, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
@@ -73,7 +74,7 @@ Evidence kept for a pull request, and nothing not verified: keep the evidence di
 
 # Final pull request
 
-Only when `/m-feature` handed you one. The verdict is **Proved** when every R line is verified, no line is not driven, and no B line is `new` or `base not run`; anything else is **Not verified**. A Not verified pull request is a draft, so nobody merges it by accident.
+Only when `/m-feature` handed you one. The verdict is **Proved** when every R line is verified or pre-existing, no line is not driven, and no B line is `new` or `base not run`; anything else is **Not verified**. A Not verified pull request is a draft, so nobody merges it by accident.
 
 1. `git rev-parse HEAD^{tree}` still equals the contract's tree. Changed: open nothing, and return `PR · not opened · tree changed`.
 2. Comment your verdict on the map, without the Evidence line: `gh issue comment <map> --body-file -`. It prints the comment's URL; that is the body's Prove verdict link.

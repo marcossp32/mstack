@@ -192,7 +192,7 @@ After the review and any fix step:
 4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body, the board URL and the map number. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, sets the PR's card to Proved or Not verified, and deletes its evidence dir. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
    - not verified on a requirement, or a `new` break: replan. The PR stays open at Not verified; the next prove updates it.
    - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and the step check), then prove again. Or the human ships with it listed in the PR: `gh pr ready <n>`; a do-not-merge first line comes out with `gh pr view <n> --json body --jq .body`, then `gh pr edit <n> --body-file -` without it; go to 5. The card stays at Not verified, because that is what was proved.
-   - `pre-existing`: stays in the comment.
+   - `pre-existing`, on a requirement or a break: no replan. It stays in the verdict comment and the pull request's Proved table.
    - `PR · not opened · tree changed`: the feature branch moved during prove; prove again.
 5. The PR is Proved, or the human chose to ship it: set the map card's Stage to Done. The map card's Status goes to Done by itself when the human merges and the map closes.
 6. Tell the human in three lines: shipped, left out, what to watch in production. Stop.
