@@ -8,7 +8,7 @@ Run one feature through GitHub: one map issue plus one issue per build step, eac
 
 - A decision nobody has made that everything else waits on: stop and say so. Never invent a step to cover it.
 - Read [`references/github.md`](references/github.md) before the first command.
-- The human stays in this session until the final PR.
+- The human stays in this session until the final PR, unless they ask for an autonomous run (below).
 - To the human: result first, one line per finding or decision, no recap. Between steps, write only when they must see or decide something.
 - Agent prompts carry the inputs listed below, never this conversation's reasoning.
 - Map sections reach an agent verbatim: name the map issue and the sections, and the agent reads them itself (`gh issue view <map> --json body --jq .body`). Never summarise, shorten or reword them in a prompt. A section that needs changing changes on the map first.
@@ -165,7 +165,7 @@ Set the map card's Stage to Replan; it goes back to Build when the human confirm
    gh issue close 47 --comment "Replanned: <what broke>"
    gh issue edit 48 --remove-blocked-by 47
    ```
-2. Add a dated line under Replans: what broke, what changes. Count the lines in the map body, never from memory. Second line: stop (below).
+2. Add a dated line under Replans: what broke, what changes. Count the lines in the map body, never from memory. Second line: stop (below), except in an autonomous run.
 3. Run `/m-plan` in the main chat with its four inputs, the fact that broke the plan, and the steps merged into the feature branch, read from `git log` (not issue state).
 4. The human confirms the revised list.
 5. Create, rewrite and re-link step issues; note the change under Decided.
@@ -181,6 +181,19 @@ A re-cut step with the same Done when, even under a new issue number, is the sam
 - Open no PR to main. One prove already opened stays open at Not verified, as a draft or with its do-not-merge line; comment on it that the plan is being re-cut.
 - The map card stays at Replan, with `needs:human` on the map.
 - Tell the human in four lines: what shipped, what is unbuilt, the two things that broke the plan, the question only they can answer.
+
+# Autonomous run
+
+The human asked not to be asked: they are away, or told you to decide everything. The rest of this skill holds, except:
+
+- Every point that waits on the human takes your recommendation: a grilling answer, the plan's confirmation, a replan's revised list, a disputed finding, a decision nobody has made, Your call. Record each on the map with its reason; a decision goes under Assumed. Nothing waits, so nothing gets `needs:human` but the next line.
+- A `credential?` line is never merged on your own: leave that step open with `needs:human` on its issue and say so on the map.
+- A replan still needs a trigger from Replan above, never taste.
+- Two Replans lines do not stop the run. Instead:
+  - A requirement that failed because of how it was worded, not because of what the code does: fix the wording you wrote (never the human's own words) on the map, say so under Decided, and prove that line again. No build, no replan.
+  - The same requirement not verified on two proves in a row, each after a step aimed at it: the approach is wrong. Stop as under Replan.
+  - A budget the human set (money, time, rounds) is spent: stop as under Replan.
+- Say each replan in one line as it starts, with what broke: the human may look in.
 
 # Closing
 

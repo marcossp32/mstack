@@ -186,7 +186,7 @@ Created with Goal and How hard to undo filled, other headings empty. Re-read bef
 <!-- out of scope for review. Filled by grilling and plan before the review -->
 
 ## Replans
-<!-- one dated line each: what broke, what changed. Two lines = stop -->
+<!-- one dated line each: what broke, what changed. Two lines = stop, except in an autonomous run -->
 ```
 
 Open step issues are not listed in the map; query them:
