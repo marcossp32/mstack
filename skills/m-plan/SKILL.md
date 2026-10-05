@@ -7,7 +7,7 @@ Cut the work into build steps and run the design checks before any code exists. 
 
 # Inputs
 
-- `/m-feature`: undo verdict, map number, feature branch, board URL.
+- `/m-feature`: undo verdict, map number, feature branch.
 - `/m-scan`: what exists, how the repo does it, what it calls it.
 - `/m-grilling`: confirmed Goal, where it runs, hard-to-undo decisions.
 - `/m-research`: limits, timeouts, security guidance.
@@ -63,21 +63,6 @@ After confirmation:
   gh issue edit <B> --add-blocked-by <A>
   ```
   Each body is self-contained: the builder has not seen this conversation. No checklists or method; the stage skill carries those.
-- Put every step issue on the board with Status Todo. The board URL is `.../projects/<n>` under owner `<owner>`; none (run outside `/m-feature`): skip it.
-  ```bash
-  P=<n>; O=<owner>
-  PID=$(gh project view $P --owner $O --format json --jq .id)
-  read FID OID < <(gh project field-list $P --owner $O --limit 50 --format json |
-    jq -r '.fields[] | select(.name=="Status") | .id as $i | .options[] | select(.name=="Todo") | "\($i) \(.id)"')
-  if [ -n "$OID" ]; then
-    for url in <step issue URLs>; do
-      ITEM=$(gh project item-add $P --owner $O --url "$url" --format json --jq .id)
-      gh project item-edit --project-id $PID --id $ITEM --field-id $FID --single-select-option-id $OID
-    done
-  else
-    echo "no Status value Todo, or the field list did not come back"   # stop and tell the human
-  fi
-  ```
 - Post the design checks as a comment on the map: `gh issue comment <map> --body-file -`.
 - Add what the human ruled out to Not doing. `gh issue edit` replaces the whole body: read it first (`gh issue view <map> --json body --jq .body`) and change only that section.
 
@@ -89,6 +74,6 @@ Extra inputs: what broke the plan, and which steps are merged (from `git log`, n
 - Say whether the undo verdict still holds. If it changed, the re-planned part and every remaining step use the new depth.
 - Name the cause (often a wrong Done when, a misplaced boundary, or two steps in one), then re-cut.
 - Re-run the design checks on what changed.
-- The human confirms; re-link with `--add-blocked-by`. New step issues get a Todo card, as above.
+- The human confirms; re-link with `--add-blocked-by`.
 - One line on what changed and why, for Decided.
 - The failed step survived unchanged: you found the wrong cause; look again.

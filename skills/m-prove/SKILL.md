@@ -20,7 +20,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 - Base branch; none: the default branch.
 - Whether evidence is kept for a pull request: yes when you are handed the final pull request below, otherwise only when asked.
 - Re-prove: the last prove's verdict comment and its tree, when `/m-feature` proves again after a replan.
-- The final pull request, from `/m-feature` at closing only: board URL, map issue number, feature branch, title, and its body with the Proved section as placeholders. Given it, you open that pull request (Final pull request, below), and evidence is kept for it on the terms Judge sets.
+- The final pull request, from `/m-feature` at closing only: map issue number, feature branch, title, and its body with the Proved section as placeholders. Given it, you open that pull request (Final pull request, below), and evidence is kept for it on the terms Judge sets.
 
 # Contract
 
@@ -86,24 +86,7 @@ Only when `/m-feature` handed you one. The verdict is **Proved** when every R li
    - None: `gh pr create --base main --head <feature branch> --title "<title>" --body-file -`, with `--draft` when Not verified. Attach each screenshot with `--attach "<path>#<alt text>"` where the installed `gh pr create --help` lists the flag; without it, one line per image as above.
    - `--draft` refused (drafts need a public repo or a GitHub Team or Enterprise plan): create it again without `--draft`, with `**Not verified: do not merge.** This repo cannot hold draft pull requests.` as the body's first line. The PR line says `draft unavailable`.
 5. Proved and a draft: `gh pr ready <n>`. Not verified and ready: `gh pr ready <n> --undo`; refused, the PR line says `draft unavailable`, as on create. Then the do-not-merge line: Not verified and still not a draft, it is the body's first line; a draft or Proved, it is not in the body. Change the body with `gh pr edit <n> --body-file -` when it does not match.
-6. Set the pull request's card Status to Proved or Not verified. The board URL is `.../projects/<n>` under owner `<owner>`:
-
-```bash
-P=<n>; O=<owner>
-PID=$(gh project view $P --owner $O --format json --jq .id)
-ITEM=$(gh project item-add $P --owner $O --url <PR URL> --format json --jq .id)
-read FID OID < <(gh project field-list $P --owner $O --limit 50 --format json |
-  jq -r --arg o "<Proved | Not verified>" '.fields[] | select(.name=="Status") | .id as $i | .options[] | select(.name==$o) | "\($i) \(.id)"')
-if [ -n "$OID" ]; then
-  gh project item-edit --project-id $PID --id $ITEM --field-id $FID --single-select-option-id $OID
-else
-  echo "no Status value <Proved | Not verified>, or the field list did not come back"
-fi
-```
-
-7. Delete the evidence dir once the pull request holds what it needs.
-
-A card command that fails leaves the pull request as it is: say so on the PR line.
+6. Delete the evidence dir once the pull request holds what it needs.
 
 Return:
 
@@ -116,5 +99,5 @@ Covered — <risk area> · <what was driven> | not driven · <two routes tried>
 Not driven — <line> · <precondition> · <routes tried>
 Harness — <launch> · <health check> · <traps hit>                          improvised only
 Evidence — R1 <file>#<alt text> · R2 <file>                                kept for a pull request only
-PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · card <set | not set: why> · verdict <comment URL>   final pull request only
+PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · verdict <comment URL>   final pull request only
 ```
