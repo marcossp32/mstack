@@ -37,9 +37,9 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 
 Every skill except `m-feature` also works on its own.
 
-No skill names a model. Each role asks for a tier — cheap, standard or strong — and `m-feature` resolves the tiers once per feature, writes them on the map, and records what each run cost in the git dir. To map the tiers onto the models you have, write `.mstack/routing.md` in the repo or `~/.mstack/routing.md`; without it, tiers fall back to what the harness offers.
+Each skill dispatches every agent with a tier (cheap, standard or strong: the harness's quickest, middle and most capable model) chosen by how much judgement the work needs and whether anything checks it afterwards, and a reasoning effort: medium, and high on the cheap model. Where the harness cannot set effort per agent, the agent runs at the session's. Which model each tier is belongs to your own config: say it once in `~/.claude/CLAUDE.md` (e.g. `cheap = haiku, standard = sonnet, strong = opus`).
 
-Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote and a `main` branch. `m-review` needs Python 3 and git 2.31 or newer.
+Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote and a `main` branch. `m-review` needs Python 3 and git 2.31 or newer. `m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser), and installs it globally with npm the first time a change has one.
 
 `m-feature` labels the map `feature:map`, each step `build`, and whichever issue is waiting on you `needs:human`. A GitHub Projects board is optional and the skills never touch it: to follow features there, turn on the board's built-in "Auto-add to project" workflow with a filter on those labels, and keep "Item closed" and "Pull request merged" on so cards reach Done by themselves.
 

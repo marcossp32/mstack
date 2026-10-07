@@ -5,7 +5,7 @@ description: "Judges a change by execution, never by opinion: a script checks ea
 
 Judge a change only by what running code shows. A finding without a reproduction that failed at the gate does not exist: no confidence scores, no severity, no "possible issues". An empty report is the expected outcome; never pad it.
 
-Runs in the main chat: the feature review dispatches its own agents. Models are tiers, never names: strong is the harness's most capable model, standard its middle one. `/m-feature`'s Routing line overrides the tiers below.
+Runs in the main chat: the feature review dispatches its own agents. Every dispatch passes a model and an effort. The model is a tier: strong is the harness's most capable, standard its middle one. The effort is medium. A harness that cannot set effort per agent runs it at the session's.
 
 Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout.
 
@@ -36,7 +36,7 @@ The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` s
 
 ## 1. Hunt
 
-Dispatch 3 fresh `general-purpose` agents at once, on the strong tier: nothing downstream checks what they miss. They do not see each other. Prompt:
+Dispatch 3 fresh `general-purpose` agents at once, model strong: nothing downstream checks what they miss. They do not see each other. Prompt:
 
 ```
 Read <this skill's directory>/references/hunt.md and follow it.
@@ -50,7 +50,7 @@ Mark a candidate `duplicate` only when its claim, condition and file match anoth
 
 ## 2. Reproduce
 
-One fresh `general-purpose` agent per candidate, on the standard tier (the gate checks its work), never a hunter. Prompt:
+One fresh `general-purpose` agent per candidate, model standard (the gate checks its work), never a hunter. Prompt:
 
 ```
 Read <this skill's directory>/references/repro.md and follow it.

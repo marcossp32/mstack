@@ -70,9 +70,6 @@ Created with Goal and How hard to undo filled, other headings empty. Re-read bef
 ## Where it runs
 <platform and what it limits. From scan Q8, else asked in grilling>
 
-## Routing
-<the Routing line, resolved once at the start. A stage escalated later adds a dated line under it: role, new tier, the signal>
-
 ## Settled up front
 <!-- what /m-grilling returned that the human confirmed -->
 

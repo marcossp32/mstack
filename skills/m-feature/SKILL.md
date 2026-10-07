@@ -19,8 +19,7 @@ Run one feature through GitHub: one map issue plus one issue per build step. You
 2. Create labels `feature:map`, `build` and `needs:human`.
 3. Cut and push `feature/<name>` from `main`.
 4. Create the map: the request verbatim as provisional Goal, your provisional undo verdict, other headings empty.
-5. Resolve routing for the whole feature and write its line to the map ([`references/routing.md`](references/routing.md)).
-6. Start scan.
+5. Start scan.
 
 # Undo verdict
 
@@ -29,7 +28,7 @@ If this ships wrong, how hard is it to undo? You decide it; stages only report e
 - Hard: schema, public API, stored data format, core dependency.
 - Easy: names, folders, internal structure.
 
-It sets the depth of grilling and plan, and the build tier. Settle it and write it to the map three times: at the start; after scan (grilling uses it); after docs (plan and build use it — a vendor limit can change it). It stays fixed until a replan re-settles it, and remaining steps then run at the new depth. Whenever it changes, re-resolve the build tier (routing rule 5) and tell the human.
+It sets the depth of grilling and plan. Settle it and write it to the map three times: at the start; after scan (grilling uses it); after docs (plan and build use it — a vendor limit can change it). It stays fixed until a replan re-settles it, and remaining steps then run at the new depth. Whenever it changes, tell the human.
 
 # Stages
 
@@ -92,29 +91,27 @@ First line of every prompt (without it, the agent works without the stage's rule
 Invoke the Skill tool with `<m-scan | m-build | m-prove>`. Then do the work below.
 ```
 
-Models come from [`references/routing.md`](references/routing.md): tiers, never names. You resolved them at Start and wrote the line to the map; every dispatch below uses that line's entry for its role. Only an escalation signal or a changed undo verdict (build only) changes it.
+Every dispatch passes a model and an effort. The model is a tier: cheap, standard or strong, the harness's quickest, middle and most capable. The effort is the agent's reasoning effort: medium, and high on the cheap model. A harness that cannot set effort per agent runs it at the session's.
 
-| Stage | subagent_type | Routing entry |
+| Stage | subagent_type | Model |
 |---|---|---|
-| scan A | `Explore` | scan A |
-| scan B, C, D | `Explore` | scan B–D |
-| build | `general-purpose` | build |
-| prove | `general-purpose` | prove |
+| scan A | `Explore` | cheap |
+| scan B, C, D | `Explore` | standard |
+| build | `general-purpose` | strong |
+| prove | `general-purpose` | strong |
 
-`/m-research`, `/m-review` and `/m-prove` dispatch their own agents; hand each the Routing line, and they take the research, hunt, repro, Q1 and Q2 entries from it.
-
-After each stage returns, append its ledger line ([`references/routing.md`](references/routing.md)).
+`/m-research`, `/m-review` and `/m-prove` dispatch their own agents and pick their own models.
 
 The agent has not seen this conversation. Hand it:
 
 | Stage | Inputs |
 |---|---|
 | scan A–D | the feature · the questions it owns |
-| docs | installed versions (scan) · the four questions · target infrastructure · the Routing line |
+| docs | installed versions (scan) · the four questions · target infrastructure |
 | build | step issue number and Done when · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the same scan and docs inputs · the fix branch it is on |
-| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from · the Routing line |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · on a re-prove, the last verdict comment and that prove's tree · the Routing line · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
+| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
