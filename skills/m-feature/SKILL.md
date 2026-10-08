@@ -91,16 +91,13 @@ First line of every prompt (without it, the agent works without the stage's rule
 Invoke the Skill tool with `<m-scan | m-build | m-prove>`. Then do the work below.
 ```
 
-Every dispatch passes a model and an effort. The model is a tier: cheap, standard or strong, the harness's quickest, middle and most capable. The effort is the agent's reasoning effort: medium, and high on the cheap model. A harness that cannot set effort per agent runs it at the session's.
+| Stage | subagent_type |
+|---|---|
+| scan A–D | `Explore` |
+| build | `general-purpose` |
+| prove | `general-purpose` |
 
-| Stage | subagent_type | Model |
-|---|---|---|
-| scan A | `Explore` | cheap |
-| scan B, C, D | `Explore` | standard |
-| build | `general-purpose` | strong |
-| prove | `general-purpose` | strong |
-
-`/m-research`, `/m-review` and `/m-prove` dispatch their own agents and pick their own models.
+Pick each agent's model by [`references/models.md`](references/models.md).
 
 The agent has not seen this conversation. Hand it:
 

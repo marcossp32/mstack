@@ -8,11 +8,11 @@ Every answer is a **quote** from a **primary source**, with the link it was read
 # Dispatch
 
 1. **Pin the version** of each library or API, from the caller or the lockfile. A question with no subject is **not applicable** and gets no search.
-2. **One fresh subagent per question**, all in parallel, in the background: `general-purpose`, model standard (the harness's middle one), effort medium. The prompt opens with `Invoke the Skill tool with m-research, then follow "Answer one question".` and carries the question verbatim, the pinned version, and the owner's docs domain when known.
+2. **One fresh subagent per question**, all in parallel, in the background: `general-purpose`. The prompt opens with `Invoke the Skill tool with m-research, then follow "Answer one question".` and carries the question verbatim, the pinned version, and the owner's docs domain when known.
 3. **Check every reply.**
    - An answer with no quote goes back.
    - Every number code will use — limit, timeout, size — you find on its page yourself. Not there: **not found**.
-   - Two primary sources in conflict: run that question once more, model strong, effort medium.
+   - Two primary sources in conflict: run that question once more.
 4. **Return** the blocks in question order, then **Sources**.
 
 # Answer one question

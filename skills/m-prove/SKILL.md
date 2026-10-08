@@ -5,9 +5,7 @@ description: "Proves a change does what was asked by driving the running app: a 
 
 Supervise a proof that the change holds in the running app: contract, two drives, judgement. A verdict line's reference is what was driven and its route.
 
-Every dispatch passes a model and an effort. The model is a tier: cheap, standard or strong, the harness's quickest, middle and most capable. The effort is medium, and high on the cheap model. A harness that cannot set effort per agent runs it at the session's; the header you return says what was used.
-
-This conversation wrote or watched the code: dispatch a fresh `general-purpose` agent, model strong, whose prompt opens `Invoke the Skill tool with m-prove.` with the inputs below, and relay its verdict.
+This conversation wrote or watched the code: dispatch a fresh `general-purpose` agent whose prompt opens `Invoke the Skill tool with m-prove.` with the inputs below, and relay its verdict.
 
 # Inputs
 
@@ -52,8 +50,8 @@ Run the recipe's dependency install and build once in the checkout, output to `<
 
 Dispatch both at once (one after the other when the contract names shared state), each a fresh `general-purpose` agent, prompt `Read <this skill's directory>/references/drive.md and follow it as <Q1 | Q2>.`, then the contract:
 
-- **Q1, does it do what was asked?** Model cheap when a recipe exists; model strong when the launch is improvised. You judge its evidence, so a cheap drive that reports without evidence costs one send-back, not a wrong verdict.
-- **Q2, what else broke?** Model strong: inventing routes is its job.
+- **Q1, does it do what was asked?** You judge its evidence: a drive that reports without evidence costs one send-back, not a wrong verdict.
+- **Q2, what else broke?** Inventing routes is its job.
 
 No Agent tool: drive Q1, then Q2, yourself by that file; the header says `self-driven`.
 
@@ -70,7 +68,7 @@ Read [`references/drive.md`](references/drive.md), then check both reports:
 - An R line is `pre-existing` when the base, driven the same way, fails it the same way: the change did not cause it. It is not a not verified, unless the Goal asks to change that existing behaviour.
 - A Q2 break is `new` when the base, driven the same way, behaves differently; `pre-existing` when the base fails the same way; `base not run` when the base could not be driven.
 
-A line failing a check goes back once to a fresh agent, model strong, with the contract, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
+A line failing a check goes back once to a fresh agent with the contract, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
 
 Evidence kept for a pull request, and nothing not verified: keep the evidence dir and, per requirement, pick what shows it best. A screenshot for anything visible, cropped to the element, viewport in its name, base and head side by side when it changed; otherwise the command and up to 15 lines of its output. Mask tokens, secrets and personal data first. In every other case, delete the evidence dir.
 
@@ -91,7 +89,7 @@ Only when `/m-feature` handed you one. The verdict is **Proved** when every R li
 Return:
 
 ```
-HEAD <sha> · tree <sha> · recipe <path | improvised> · Q1 <tier>/<effort> · Q2 <tier>/<effort> | self-driven
+HEAD <sha> · tree <sha> · recipe <path | improvised> | self-driven
 R1 "<requirement>" — <verdict> · <what was driven, where> (asked <surface>, if different) → <value> via <route>
 R2 "<requirement>" — <verified | pre-existing> · carried <sha>                                  re-prove only
 B1 <what broke> — <new | pre-existing | base not run> · <what was driven> → head <value> · base <value> · <file:line>
