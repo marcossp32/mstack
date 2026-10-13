@@ -127,7 +127,7 @@ main
 `Closes #n` only works on pull requests to the default branch.
 
 - Step PR body: `Part of #45`. After merging: `gh issue close 45 --comment "<what landed>"`.
-- Final PR to main: `Closes #<map>`. Every step issue is closed before `/m-prove` opens it.
+- Final PR to main: `Closes #<map>`. Every step issue is closed before `/m-prove` opens it, but a `credential?` step an autonomous run left open for the human.
 
 ## Final pull request body
 
