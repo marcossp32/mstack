@@ -7,7 +7,7 @@ Judge a change only by what running code shows. A finding without a reproduction
 
 Runs in the main chat: the feature review dispatches its own agents.
 
-Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout.
+Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout. `step_check.py`, `prepare.py` and `gate.py` run the whole suite, `step_check.py` up to three times: start each with the Bash tool's `run_in_background` and read its output when the harness says it exited, so no run hits the tool's 10-minute limit.
 
 # Step check
 
@@ -100,7 +100,7 @@ python3 scripts/gate.py recheck --id <id> --promote
 python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
 ```
 
-The writer gives up: the finding stays `stale`, and that is the answer. Never call a stale finding fixed yourself.
+The writer gives up: delete the files it lists that git does not track (`git ls-files --error-unmatch <path>` fails), and the finding stays `stale`: that is the answer. Never call a stale finding fixed yourself.
 
 # Never
 
