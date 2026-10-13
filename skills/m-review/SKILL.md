@@ -7,7 +7,7 @@ Judge a change only by what running code shows. A finding without a reproduction
 
 Runs in the main chat: the feature review dispatches its own agents.
 
-Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout.
+Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout. `step_check.py`, `prepare.py` and `gate.py` run the whole suite, `step_check.py` up to three times: start each with the Bash tool's `run_in_background` and read its output when the harness says it exited, so no run hits the tool's 10-minute limit.
 
 # Step check
 
@@ -18,7 +18,7 @@ python3 scripts/step_check.py baseline --test-cmd "<scan Q6 | none>"     # once,
 git fetch origin && python3 scripts/step_check.py check --base origin/feature/<name> --pr <n>
 ```
 
-Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` lines are for the human to look at and do not fail the step.
+Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` lines are for the human to look at and do not fail the step. A red suite runs up to three times: `intermittent` means red on some runs only, and still fails. `suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
 
 # Feature review
 
@@ -29,7 +29,7 @@ Once, after every step has passed its check, on the feature branch, before prove
 ## 0. Prepare
 
 ```bash
-python3 scripts/prepare.py --base main --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
+git fetch origin && python3 scripts/prepare.py --base origin/<base branch> --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
 ```
 
 The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` set to this checkout (to copy env files from). Take it from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout.
@@ -94,9 +94,17 @@ python3 scripts/gate.py recheck --id <id> --promote
 
 `fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. `still-failing` or `SUITE WORSE`: the fix did not hold.
 
+`stale`: the reproduction now fails before its assertion (the markup or API it set up against changed), so it says nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
+
+```bash
+python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
+```
+
+The writer gives up: delete the files it lists that git does not track (`git ls-files --error-unmatch <path>` fails), and the finding stays `stale`: that is the answer. Never call a stale finding fixed yourself.
+
 # Never
 
-- Write `confirmed`, `fixed` or `still-failing` by any route but the gate.
+- Write `confirmed`, `fixed`, `still-failing` or `stale` by any route but the gate, or judge a finding fixed from the builder's checks.
 - Score confidence or severity, or count agreement between agents as evidence either way.
 - Edit a frozen reproduction, an existing test, the harness or the code under review.
 - Show the builder a reproduction: it gets the claim and the condition.

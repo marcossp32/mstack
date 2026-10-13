@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Step 0 of a feature review. Aborts if anything the gate needs is missing.
 
-  prepare.py --base <main, or the head the last review reported> --test-cmd "<cmd>"
+  prepare.py --base <the base branch, or the head the last review reported> --test-cmd "<cmd>"
              [--setup-cmd "<cmd>"]
 
 --base       the diff is merge-base(HEAD, base)..HEAD

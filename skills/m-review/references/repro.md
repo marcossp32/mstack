@@ -16,6 +16,10 @@ Models write tests that pass far more reliably than tests meant to fail. So:
 
 The gate runs the capture, then the repro, 5 times each at HEAD, then the repro at the base. A capture that fails, a repro that passes, or one that fails before reaching its assertion kills the finding.
 
+## Recheck
+
+Told it is a recheck: a fix has landed since the finding was confirmed, and its old reproduction no longer sets up. Write both files the same way against the code as it is now, but do not require the capture to pass: on fixed code it fails at its assertion, and that is the answer. Both must reach their assertion. The gate then runs both and reads which one passes.
+
 ## Rules
 
 - New files only, named with the finding id, where the repo's runner discovers them (scan Q6). Follow the repo's test conventions.

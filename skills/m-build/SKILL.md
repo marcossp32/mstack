@@ -68,3 +68,5 @@ Part of #<n>
 ```
 
 `Part of`, never `Closes`: closing keywords are ignored on non-default branches.
+
+Tests changed lists every existing test file with M, D or R in `git diff --name-status -M origin/<feature branch>...HEAD`: the step check fails on any it misses.

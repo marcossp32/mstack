@@ -10,7 +10,9 @@
       After each build, on the step branch. Exit 0 = PASS, 1 = FAIL.
 
 Checks:
-  1. Suite no worse than at the feature's start (exit-code level).
+  1. Suite no worse than at the feature's start (exit-code level). Red is run
+     up to 3 times: red on some runs only is a FAIL marked intermittent. Every
+     run's full output is saved under the git dir and its path printed.
   2. Every existing test file changed or deleted is listed in the PR.
   3. No credentials in the added lines.
 """
@@ -36,6 +38,18 @@ SECRETS = [
 SUSPECT = re.compile(
     r"(?i)(password|passwd|secret|api[_-]?key|access[_-]?token)\s*[:=]\s*"
     r"['\"][^'\"\s]{8,}['\"]")
+
+
+SUITE_RUNS = 3
+
+
+def save_log(pr, run, out):
+    """The suite's full output, kept so a FAIL never needs a rerun to read."""
+    stamp = now().replace(":", "")
+    path = os.path.join(state_dir("check"), f"{pr or 'nopr'}-{stamp}-run{run}.log")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(out)
+    return path
 
 
 def baseline_path(branch):
@@ -93,14 +107,29 @@ def cmd_check(a):
         notes.append("suite · none in this repo")
     else:
         rc, out = sh(base_info["cmd"], cwd=r, timeout=3600)
+        logs = [save_log(a.pr, 1, out)] if rc != 0 else []
         if rc == 0:
             notes.append("suite · green")
         elif base_info["rc"] == 0:
-            fails.append("suite · red, was green at the feature's start\n"
-                         + tail(out, 2500))
+            # Red once may be a flaky test: run it again before judging.
+            reds = [out]
+            for i in range(2, SUITE_RUNS + 1):
+                rc_i, out_i = sh(base_info["cmd"], cwd=r, timeout=3600)
+                logs.append(save_log(a.pr, i, out_i))
+                if rc_i != 0:
+                    reds.append(out_i)
+            runs = f"red {len(reds)} of {SUITE_RUNS} runs"
+            if len(reds) == SUITE_RUNS:
+                fails.append(f"suite · {runs}, was green at the feature's start\n"
+                             + tail(out, 2500))
+            else:
+                fails.append(f"suite · intermittent · {runs}, was green at the "
+                             "feature's start\n" + tail(reds[0], 2500))
+            notes.append("suite logs · " + " · ".join(logs))
         else:
             notes.append("suite · red, was already red at the feature's start: "
-                         "not comparable, record it on the map")
+                         "not comparable, record it on the map · log "
+                         + logs[0])
 
     # 2. existing tests changed or deleted
     _, status = git(f"diff --name-status -M {base} HEAD")

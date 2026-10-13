@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""The gate. The only route to confirmed, fixed and still-failing.
+"""The gate. The only route to confirmed, fixed, still-failing and stale.
 
   gate.py confirm --id F-001 --capture <path> --repro <path> --cmd "<cmd with {test}>"
   gate.py recheck --id F-001 [--promote]
+  gate.py recheck --id F-001 --capture <path> --repro <path> --cmd "<cmd>" [--promote]   stale only
 
 confirm, all mandatory:
   1. The capture (the repro before its assertion was inverted) passes at HEAD
@@ -16,7 +17,10 @@ checkout afterwards, aborts included. The frozen copies live in the git dir, out
 builder's way.
 
 recheck: the frozen repro, restored at its path, passes on every run at the
-current HEAD, and the suite is no worse than when the review started.
+current HEAD, and the suite is no worse than when the review started. A repro
+that fails only before its assertion is stale: the code it set up against
+changed. A stale finding is rechecked with a capture and repro rewritten
+against the current code; both must reach their assertions and disagree.
 """
 import argparse
 import os
@@ -194,12 +198,8 @@ def judge(a, data, f, r, cap, rep, watch, evidence, cleanup):
     close(data, f, "confirmed", f"{kind}: {note}", evidence, cleanup)
 
 
-def cmd_recheck(a):
-    r = root()
-    data = load()
-    f = find(data, a.id)
-    if f["state"] not in ("confirmed", "still-failing"):
-        die(f"{a.id} is {f['state']}; only confirmed or still-failing can be rechecked")
+def recheck_frozen(a, f, r):
+    """The repro the gate froze at confirm, restored at its path."""
     ev = f["evidence"]
     rep = ev["repro"]
     full = os.path.join(r, rep["path"])
@@ -211,31 +211,131 @@ def cmd_recheck(a):
     os.makedirs(os.path.dirname(full) or r, exist_ok=True)
     shutil.copy2(rep["frozen"], full)
 
-    _, head = git("rev-parse HEAD", cwd=r)
-    res = runs(ev["cmd"], rep["path"], r, a.runs, [(full, rep["sha256"])])
-    fixed = all(x["rc"] == 0 for x in res)
-    keep = fixed and a.promote
-    if not keep:
+    keep = False
+    try:
+        res = runs(ev["cmd"], rep["path"], r, a.runs, [(full, rep["sha256"])])
+        if all(x["rc"] == 0 for x in res):
+            state = "fixed"
+        elif any(x["rc"] != 0 and not setup_failure(x["full"]) for x in res):
+            state = "still-failing"
+        else:
+            # Every failure came before an assertion: the repro no longer sets
+            # up against this code, so it says nothing about the claim.
+            state = "stale"
+        keep = state == "fixed" and a.promote
+    finally:
         # A still-failing repro must not count as collateral damage.
-        os.remove(full)
+        if not keep and os.path.exists(full):
+            os.remove(full)
+    return state, {"repro": strip(res)}, rep["path"]
+
+
+def recheck_rewritten(a, f, r):
+    """A stale finding, rewritten against this code by a fresh writer.
+
+    The capture asserts the broken behaviour, the repro the correct one. Both
+    must reach their assertions and disagree on every run: the repro passing
+    and the capture failing is fixed, the reverse is still-failing.
+    """
+    paths = {role: rel.replace("\\", "/")
+             for role, rel in (("capture", a.capture), ("repro", a.repro))}
+    # Each rewrite is frozen under its own name, so it never overwrites the
+    # copies an earlier confirm or recheck froze.
+    suffix = f"r{len(f.get('rechecks', [])) + 1}"
+    keep = False
+    try:
+        files = {}
+        for role, rel in paths.items():
+            full = os.path.join(r, rel)
+            if not os.path.exists(full):
+                die(f"{role} not found: {rel}")
+            if git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0:
+                die(f"{role} is a tracked file; it must be new: {rel}")
+            frozen = os.path.join(frozen_dir(a.id),
+                                  os.path.basename(rel) + f".{role}.{suffix}")
+            shutil.copy2(full, frozen)
+            files[role] = {"path": rel, "abs": full, "frozen": frozen,
+                           "sha256": sha(full)}
+        cap, rep = files["capture"], files["repro"]
+        watch = [(cap["abs"], cap["sha256"]), (rep["abs"], rep["sha256"])]
+
+        cap_res = runs(a.cmd, cap["path"], r, a.runs, watch)
+        rep_res = runs(a.cmd, rep["path"], r, a.runs, watch)
+        if any(x["rc"] != 0 and setup_failure(x["full"]) for x in cap_res + rep_res):
+            state = "stale"
+        elif (all(x["rc"] == 0 for x in rep_res)
+              and all(x["rc"] != 0 for x in cap_res)):
+            state = "fixed"
+        elif (all(x["rc"] != 0 for x in rep_res)
+              and all(x["rc"] == 0 for x in cap_res)):
+            state = "still-failing"
+        else:
+            state = "stale"
+        if state in ("fixed", "still-failing"):
+            # The rewritten pair is the finding's repro from now on.
+            f["evidence"].update({
+                "cmd": a.cmd,
+                "capture": {k: cap[k] for k in ("path", "frozen", "sha256")},
+                "repro": {k: rep[k] for k in ("path", "frozen", "sha256")}})
+        keep = state == "fixed" and a.promote
+    finally:
+        # Every outcome, aborts included: a leftover failing file turns
+        # later suite runs red. Tracked files were refused above, never removed.
+        for rel in paths.values():
+            path = os.path.join(r, rel)
+            tracked = git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0
+            if os.path.exists(path) and not tracked and not (keep and rel == paths["repro"]):
+                os.remove(path)
+    return state, {"capture": strip(cap_res), "repro": strip(rep_res)}, rep["path"]
+
+
+def cmd_recheck(a):
+    r = root()
+    data = load()
+    f = find(data, a.id)
+    rewritten = bool(a.capture or a.repro)
+    if rewritten:
+        if not (a.capture and a.repro and a.cmd):
+            die("a rewritten recheck needs --capture, --repro and --cmd")
+        if "{test}" not in a.cmd:
+            die("--cmd must contain {test}, replaced by the file to run")
+        if f["state"] != "stale":
+            die(f"{a.id} is {f['state']}; only a stale finding takes a rewritten repro")
+        if tracked_changes(r):
+            die("tracked files changed: a repro writer may only add new files")
+    elif f["state"] == "stale":
+        die(f"{a.id} is stale: recheck it with a rewritten --capture, --repro and --cmd")
+    elif f["state"] not in ("confirmed", "still-failing"):
+        die(f"{a.id} is {f['state']}; only confirmed or still-failing can be rechecked")
+
+    _, head = git("rev-parse HEAD", cwd=r)
+    if rewritten:
+        state, res, path = recheck_rewritten(a, f, r)
+    else:
+        state, res, path = recheck_frozen(a, f, r)
     rc_suite, out_suite = sh(data["test_cmd"], cwd=r, timeout=3600)
     worse = data["baseline"]["rc"] == 0 and rc_suite != 0
 
     f.setdefault("rechecks", []).append({
-        "at": now(), "head": head, "runs": strip(res),
+        "at": now(), "head": head, "rewritten": rewritten, "runs": res,
         "suite_rc": rc_suite, "suite_tail": tail(out_suite)})
-    f["state"] = "fixed" if fixed else "still-failing"
+    f["state"] = state
     save(data)
 
-    if keep:
-        print(f"{a.id} -> fixed. Repro left at {rep['path']}: commit it as a "
+    if state == "fixed" and a.promote:
+        print(f"{a.id} -> fixed. Repro left at {path}: commit it as a "
               "regression test")
+    elif state == "stale":
+        print(f"{a.id} -> stale: the repro fails before any assertion on this "
+              "code, so it cannot tell whether the claim still holds. A fresh "
+              "repro writer gets the claim and condition; recheck its files with "
+              "--capture, --repro and --cmd")
     else:
-        print(f"{a.id} -> {f['state']}")
+        print(f"{a.id} -> {state}")
     if worse:
         print("SUITE WORSE: green when the review started, red now\n"
               + tail(out_suite, 2000))
-    sys.exit(0 if fixed and not worse else 1)
+    sys.exit(0 if state == "fixed" and not worse else 1)
 
 
 def main():
@@ -255,6 +355,9 @@ def main():
     p.add_argument("--id", required=True)
     p.add_argument("--promote", action="store_true",
                    help="leave a passing repro in the checkout to be committed")
+    p.add_argument("--capture", help="stale only: rewritten capture, a new file")
+    p.add_argument("--repro", help="stale only: rewritten repro, a new file")
+    p.add_argument("--cmd", help="stale only: runs one test file; {test} is its path")
     p.add_argument("--runs", type=int, default=RUNS)
     p.set_defaults(fn=cmd_recheck)
     a = ap.parse_args()

@@ -2,8 +2,9 @@
 """Findings ledger. State on disk, not in the model's context.
 
 States: proposed -> duplicate | unjudgeable | dead | confirmed
-        confirmed | still-failing -> fixed | still-failing   (gate.py recheck)
-Only gate.py writes confirmed, fixed and still-failing. This script refuses to.
+        confirmed | still-failing -> fixed | still-failing | stale   (gate.py recheck)
+        stale -> fixed | still-failing | stale   (gate.py recheck, rewritten repro)
+Only gate.py writes confirmed, fixed, still-failing and stale. This script refuses to.
 """
 import argparse
 import os
@@ -12,7 +13,7 @@ import sys
 from common import die, git, now, read_json, root, state_dir, write_json
 
 TERMINAL = {"duplicate", "unjudgeable", "dead", "confirmed", "fixed",
-            "still-failing"}
+            "still-failing", "stale"}
 
 
 def run_dir():
