@@ -128,7 +128,8 @@ def cmd_check(a):
             notes.append("suite logs · " + " · ".join(logs))
         else:
             notes.append("suite · red, was already red at the feature's start: "
-                         "not comparable, record it on the map")
+                         "not comparable, record it on the map · log "
+                         + logs[0])
 
     # 2. existing tests changed or deleted
     _, status = git(f"diff --name-status -M {base} HEAD")

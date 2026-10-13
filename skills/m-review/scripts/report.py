@@ -32,8 +32,14 @@ def main():
         print(f"Condition · {f['condition']}")
         print(f"Entry     · {f.get('entry', '?')}")
         print(f"Kind      · {ev['kind']} · {ev['base_note']}")
-        n = len(ev["repro_runs"])
-        print(f"Repro     · fails {n}/{n} at head · frozen {ev['repro']['frozen']}")
+        rewrites = [c for c in f.get("rechecks", []) if c.get("rewritten")]
+        if rewrites and f["state"] in ("fixed", "still-failing"):
+            n = len(rewrites[-1]["runs"]["repro"])
+            print(f"Repro     · rewritten at {rewrites[-1]['head'][:12]}, {n} runs · "
+                  f"frozen {ev['repro']['frozen']}")
+        else:
+            n = len(ev["repro_runs"])
+            print(f"Repro     · fails {n}/{n} at head · frozen {ev['repro']['frozen']}")
     print("\n" + LIMITS)
 
 
