@@ -5,7 +5,9 @@ description: "Judges a change by execution, never by opinion: a script checks ea
 
 Judge a change only by what running code shows. A finding without a reproduction that failed at the gate does not exist: no confidence scores, no severity, no "possible issues". An empty report is the expected outcome; never pad it.
 
-Runs in the main chat: the feature review dispatches its own agents.
+The step check and recheck run where they are called. The feature review dispatches its own agents; from `/m-feature` it runs in a fresh agent, so its hunts stay out of the orchestrator's context, and returns only `report.py`'s output. With no Agent tool there, return `Review · not run · no Agent tool` and the caller runs it in its own chat.
+
+Models are tiers: strong is the harness's most capable, standard its middle one. A tier that does not resolve runs on the session's model.
 
 Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout. `step_check.py`, `prepare.py` and `gate.py` run the whole suite, `step_check.py` up to three times: start each with the Bash tool's `run_in_background` and read its output when the harness says it exited, so no run hits the tool's 10-minute limit.
 
@@ -36,7 +38,7 @@ The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` s
 
 ## 1. Hunt
 
-Dispatch 3 fresh `general-purpose` agents at once. Nothing downstream checks what they miss. They do not see each other. Prompt:
+Dispatch 3 fresh `general-purpose` agents at once, model strong: nothing downstream checks what they miss. They do not see each other. Prompt:
 
 ```
 Read <this skill's directory>/references/hunt.md and follow it.
@@ -50,7 +52,7 @@ Mark a candidate `duplicate` only when its claim, condition and file match anoth
 
 ## 2. Reproduce
 
-One fresh `general-purpose` agent per candidate, never a hunter: the gate checks its work. Prompt:
+One fresh `general-purpose` agent per candidate, model standard, never a hunter: the gate checks its work. Prompt:
 
 ```
 Read <this skill's directory>/references/repro.md and follow it.

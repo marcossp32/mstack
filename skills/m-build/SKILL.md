@@ -42,7 +42,7 @@ What none of these can show locally rests on you alone: a timeout on every call 
 
 # Long commands
 
-A command that runs for minutes (a suite, a build, a render): run it in the background when the harness tells you it has finished, and wait for that. Never wait with `sleep`, `until` or polling loops: they hold the turn, hit the tool's time limit and start over.
+A command that runs for minutes (a suite, a build, a render): start it with the Bash tool's `run_in_background` and do nothing else on it; the harness tells you when it exits. Waiting on something else to happen (a file, a port): the Monitor tool, loaded first with ToolSearch (`select:Monitor`). Never a loop in Bash, such as `until grep -q done log; do sleep 20; done`: it holds the turn, hits the tool's 10-minute limit and starts over.
 
 # Fix mode
 
