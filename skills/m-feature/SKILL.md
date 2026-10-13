@@ -20,10 +20,12 @@ Run one feature through GitHub: one map issue plus one issue per build step. You
 2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run, below), credentials, budgets. Run instructions are not the request.
    - A credential stays in this conversation and reaches prove as its own input. It is never written to GitHub (issue, comment, PR body) or to a prompt that posts one.
    - A budget goes on the map under Settled up front.
-3. Create labels `feature:map`, `build` and `needs:human`.
-4. Cut and push `feature/<name>` from `main`.
-5. Create the map: the request verbatim as provisional Goal, without the run instructions, your provisional undo verdict, other headings empty.
-6. Start scan.
+3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
+4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every stage that takes a base gets this one.
+5. Create labels `feature:map`, `build` and `needs:human`.
+6. Cut and push `feature/<name>` from `<base>`.
+7. Create the map: the request verbatim as provisional Goal, without the run instructions, Base with the source issue, your provisional undo verdict, other headings empty.
+8. Start scan.
 
 # Undo verdict
 
@@ -112,8 +114,8 @@ The agent has not seen this conversation. Hand it:
 | docs | installed versions (scan) · the questions under Docs · target infrastructure |
 | build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan and docs inputs · the fix branch it is on |
-| review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
+| review (main chat) | base `<base>` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `<base>` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
@@ -145,7 +147,7 @@ After each step, compare what you learned against the plan. The approach is wron
 After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, run the feature review. Post its report on the map. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is not hunted twice.
 
 - **No confirmed findings**, or no test suite to review with: go to Closing; prove is the judge left.
-- **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/fix-<n>`, dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. All `fixed`: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
+- **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/<name>-fix-<n>` (github.md, Branches), dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. All `fixed`: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
 - **`still-failing` or `SUITE WORSE`**: one more round on the same branch, naming which claims still hold and the suite's failing tests, never the reproduction's output. Still failing: replan.
 - **`stale`**: `/m-review` rewrites that reproduction against the fix branch and rechecks it. It stays stale: list it on the map and in the final PR's What to watch. Never judge a finding fixed yourself, from the builder's checks or by reading the code.
 - **The builder disputes a finding**: the reproduction did fail, so the question is what the spec wants. Show the human the claim and the builder's reason; they decide.
@@ -173,7 +175,7 @@ A re-cut step with the same Done when, even under a new issue number, is the sam
 
 - Leave the feature branch and merged steps as they are.
 - Leave remaining step issues open, each commented that the plan is being re-cut.
-- Open no PR to main. One prove already opened stays open at Not verified, as a draft or with its do-not-merge line; comment on it that the plan is being re-cut.
+- Open no PR to `<base>`. One prove already opened stays open at Not verified, as a draft or with its do-not-merge line; comment on it that the plan is being re-cut.
 - Add `needs:human` to the map.
 - Tell the human in four lines: what shipped, what is unbuilt, the two things that broke the plan, the question only they can answer.
 
@@ -201,7 +203,7 @@ After the review and any fix step:
 1. Check every step issue is closed.
 2. Complete Decided and Sources.
 3. Write the final pull request body in [`references/github.md`](references/github.md), keeping the Proved section's placeholders as they are.
-4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body and the map number; after a replan, also the last verdict comment and that prove's tree, so it re-proves. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, and deletes its evidence dir. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
+4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body and the map number; after a replan, also the last verdict comment and that prove's tree, so it re-proves. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, and deletes its evidence dir with its cleanup script; refused, it returns the dir, and the closing message lists every such dir once. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
    - not verified on a requirement, or a `new` break: replan. The PR stays open at Not verified; the next prove updates it.
    - `human check`: a line only the human can drive, as `/m-prove` defines it. No replan, no Your call: it goes in the closing message's To merge.
    - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and the step check), then prove again. Or the human ships with it listed in the PR: `gh pr ready <n>`; a do-not-merge first line comes out with `gh pr view <n> --json body --jq .body`, then `gh pr edit <n> --body-file -` without it; go to 5.

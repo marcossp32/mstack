@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- `gh` ≥ 2.94.0 (`gh --version`); older versions lack `--parent` and `--blocked-by`. Tell the human to upgrade; no GraphQL workaround. Below 2.99.0 there is no `--attach`: the final pull request describes its screenshots in words instead.
+- `gh` ≥ 2.94.0 (`gh --version`); older versions lack `--parent` and `--blocked-by`. Tell the human to upgrade; no GraphQL workaround. Where `gh pr create --help` lists no `--attach`, the final pull request describes its screenshots in words instead.
 - `gh auth status` clean, default repo set.
 - Once per repo, before trusting any `--json` field name here: `gh issue list --limit 1 --json bogus 2>&1 | head -40` prints the valid ones.
 - Every body goes on stdin: `--body-file -` with a quoted heredoc (`<<'EOF'` keeps backticks and `$` literal). Nothing is written to the repo.
@@ -58,11 +58,14 @@ EOF
 
 ## Map body
 
-Created with Goal and How hard to undo filled, other headings empty. Re-read before every build and the review.
+Created with Goal, Base and How hard to undo filled, other headings empty. Re-read before every build and the review.
 
 ```markdown
 ## Goal
 <done, in 1–2 observable lines. Starts as the request verbatim; /m-grilling confirms it; /m-prove judges against it>
+
+## Base
+<the branch the feature is cut from and merges into · source issue #<n>, or none>
 
 ## How hard to undo
 <hard or easy, and why. Provisional → after scan → after docs → fixed from plan unless a replan changes it>
@@ -112,14 +115,18 @@ Self-contained context: the builder has not seen the conversation. No checklists
 ## Branches
 
 ```
-main
- └── feature/<name>    from main at the start. You never merge it; PR to main at the end
-      └── step/<name>  one per step, cut from the feature branch when the step starts; merged into it on PASS, then deleted
+<base>
+ └── feature/<name>              from <base> at the start. You never merge it; PR to <base> at the end
+      └── step/<name>-<n>        one per step, cut from the feature branch when the step starts; merged into it on PASS, then deleted
+      └── step/<name>-fix-<n>    a fix step, cut from the feature branch after the review
 ```
 
+`<base>` is the map's Base: the branch the source issue targets, else the default branch.
+
 - One step, one branch, one pull request. A failed step check: push fixes to the same branch.
-- A fix step (`step/fix-<n>`) is a step like any other, cut from the feature branch after the review.
-- No direct commits to `main` or the feature branch.
+- A fix step is a step like any other.
+- A step branch name carries the feature's name, so two features never share one. Before cutting it, `git ls-remote --heads origin <branch>` must print nothing. It prints a line: take the next number; never push over a branch that exists.
+- No direct commits to `<base>` or the feature branch.
 - Blocking and progress use GitHub's blocked-by and sub-issues, not checklists in the body.
 
 ## Closing
@@ -127,7 +134,8 @@ main
 `Closes #n` only works on pull requests to the default branch.
 
 - Step PR body: `Part of #45`. After merging: `gh issue close 45 --comment "<what landed>"`.
-- Final PR to main: `Closes #<map>`. Every step issue is closed before `/m-prove` opens it.
+- Final PR to `<base>`: `Closes #<map>`, and `Closes #<source>` when the map has a source issue. Every step issue is closed before `/m-prove` opens it.
+- `<base>` is not the default branch: those lines close nothing. The closing message's To merge then gives the human `gh issue close <map> <source> --comment "Merged in #<PR>"` to run after merging.
 
 ## Final pull request body
 
@@ -161,9 +169,10 @@ Also driven: <risk areas prove covered, one line> · Not driven: <line · precon
 - <risk, regression surface, rollback>
 
 Closes #<map>
+Closes #<source>   only when the map has a source issue
 ```
 
-- A screenshot is an image reference to its file in prove's evidence dir. `--attach "<path>#<alt text>"`, once per image, uploads it and rewrites that reference; nothing is committed. Below gh 2.99.0: replace each image with one line saying what it shows and at which viewport.
+- A screenshot is an image reference to its file in prove's evidence dir. `--attach "<path>#<alt text>"`, once per image, uploads it and rewrites that reference; nothing is committed. Where `--help` lists no `--attach`: replace each image with one line saying what it shows and at which viewport.
 - Before and after: a two-column table with the base screenshot beside the head one.
 - Mask tokens, secrets and personal data before attaching; in a public repo attachments are visible without signing in.
 - The body stays under 65,536 characters: trim outputs, never the verdict lines.
@@ -172,7 +181,9 @@ Closes #<map>
 
 ```bash
 # start
-git switch -c feature/<name> main
+gh issue view <n> --json state,title,body,url                               # the source issue; fails on a pull request
+gh repo view --json defaultBranchRef --jq .defaultBranchRef.name           # <base>, when the issue names no target branch
+git fetch origin && git switch -c feature/<name> origin/<base>
 git push -u origin feature/<name>
 gh issue create --title "<feature>" --label feature:map --body-file -
 
@@ -181,7 +192,8 @@ gh issue create --title "<step>" --label build --parent 42 --body-file -
 gh issue edit 45 --add-blocked-by 44
 
 # each step
-gh issue develop 45 --base feature/<name> --name step/<name> --checkout   # --name required
+git ls-remote --heads origin step/<name>-<n>                                 # must print nothing
+gh issue develop 45 --base feature/<name> --name step/<name>-<n> --checkout   # --name required
 gh pr create --base feature/<name> --title "<step>" --body-file -         # /m-build
 gh pr merge --squash --delete-branch                                       # or --merge, per scan Q9
 gh issue close 45 --comment "<what landed>"
@@ -192,7 +204,7 @@ gh issue close 45 --comment "Replanned: <what broke>"
 gh issue edit 46 --remove-blocked-by 45
 
 # end: /m-prove opens it, a draft unless Proved
-gh pr list --base main --head feature/<name> --state open --json number,isDraft --jq '.[0] // "none"'   # not none: an earlier prove opened it; edit it instead
-gh pr create --base main --head feature/<name> --title "<feature>" --body-file - [--draft]   # drafts refused: without it, a do-not-merge first line
+gh pr list --base <base> --head feature/<name> --state open --json number,isDraft --jq '.[0] // "none"'   # not none: an earlier prove opened it; edit it instead
+gh pr create --base <base> --head feature/<name> --title "<feature>" --body-file - [--draft]   # drafts refused: without it, a do-not-merge first line
 gh pr ready <n>            # Proved, or the human ships it; `gh pr ready <n> --undo` puts a Not verified one back to draft
 ```
