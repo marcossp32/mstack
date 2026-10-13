@@ -14,7 +14,10 @@ Drop `-g` to install into the current project's `.claude/skills/` instead of `~/
 
 ```
 /m-feature <what you want built>
+/m-feature --auto <what you want built>
 ```
+
+`--auto` runs it without asking you: every decision is researched, made and recorded on the map, and it stops only for a credential, a budget you set, or an approach that keeps failing. Credentials you pass (a store password) are used to drive the app and never written to GitHub.
 
 `m-feature` only runs when you type it. It routes the work through the other skills:
 

@@ -10,16 +10,20 @@ Run one feature through GitHub: one map issue plus one issue per build step. You
 - Read [`references/github.md`](references/github.md) before the first command.
 - The human stays in this session until the final PR, unless they ask for an autonomous run (below).
 - To the human: result first, one line per finding or decision, no recap. Between steps, write only when they must see or decide something.
+- A turn that ends to wait on something running says the stage, step n of N, what runs and roughly how long.
 - Agent prompts carry the inputs listed below, never this conversation's reasoning.
 - Map sections reach an agent verbatim: name the map issue and the sections, and the agent reads them itself (`gh issue view <map> --json body --jq .body`). Never summarise, shorten or reword them in a prompt. A section that needs changing changes on the map first.
 
 # Start
 
 1. `gh --version` ≥ 2.94.0 and `gh auth status`.
-2. Create labels `feature:map`, `build` and `needs:human`.
-3. Cut and push `feature/<name>` from `main`.
-4. Create the map: the request verbatim as provisional Goal, your provisional undo verdict, other headings empty.
-5. Start scan.
+2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run, below), credentials, budgets. Run instructions are not the request.
+   - A credential stays in this conversation and reaches prove as its own input. It is never written to GitHub (issue, comment, PR body) or to a prompt that posts one.
+   - A budget goes on the map under Settled up front.
+3. Create labels `feature:map`, `build` and `needs:human`.
+4. Cut and push `feature/<name>` from `main`.
+5. Create the map: the request verbatim as provisional Goal, without the run instructions, your provisional undo verdict, other headings empty.
+6. Start scan.
 
 # Undo verdict
 
@@ -44,7 +48,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 |---|---|---|---|
 | scan | 9 numbered answers | 4 fresh agents, parallel | `/m-scan` |
 | grilling | confirmed Goal · where it runs · boundary and data-state answers if asked · Not doing · decisions made alone | main chat | `/m-grilling` |
-| docs | 4 answers, each with a primary link | main chat | `/m-research` |
+| docs | 4 answers (5 in an autonomous run), each with a primary link | main chat | `/m-research` |
 | plan | ordered steps · blocking · design checks | main chat | `/m-plan` |
 | build | step branch · PR into the feature branch and its number, or a stop line | fresh agent | `/m-build` |
 | check | `STEP CHECK: PASS` or `FAIL`, per step | main chat, a script | `/m-review` |
@@ -68,6 +72,7 @@ Hand these to `/m-research`. No subject (e.g. no external call, so no vendor tim
 2. The documented timeout, as a number. `/m-build` gets it as a fact for code that calls out.
 3. Vendor security guidance: auth, secrets, what never to log.
 4. What changed in the installed version.
+5. Autonomous run only: each hard-to-undo decision grilling put under Assumed. The answer confirms it or revises it on the map.
 
 Post the reply as a comment on the map; links under Sources.
 
@@ -104,11 +109,11 @@ The agent has not seen this conversation. Hand it:
 | Stage | Inputs |
 |---|---|
 | scan A–D | the feature · the questions it owns |
-| docs | installed versions (scan) · the four questions · target infrastructure |
-| build | step issue number and Done when · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
-| build, fix mode | the fix step issue (claims, conditions, entry points) · the same scan and docs inputs · the fix branch it is on |
+| docs | installed versions (scan) · the questions under Docs · target infrastructure |
+| build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
+| build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan and docs inputs · the fix branch it is on |
 | review (main chat) | base `main` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `main` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
@@ -172,15 +177,19 @@ A re-cut step with the same Done when, even under a new issue number, is the sam
 
 # Autonomous run
 
-The human asked not to be asked: they are away, or told you to decide everything. The rest of this skill holds, except:
+The human asked not to be asked: `--auto`, or they are away, or told you to decide everything. The rest of this skill holds, except:
 
-- Every point that waits on the human takes your recommendation: a grilling answer, the plan's confirmation, a replan's revised list, a disputed finding, a decision nobody has made, Your call. Record each on the map with its reason; a decision goes under Assumed. Nothing waits, so nothing gets `needs:human` but the next line.
+- Every point that waits on the human takes your recommendation: a grilling answer, the plan's confirmation, a replan's revised list, a disputed finding, a decision nobody has made, Your call. Record each on the map with its reason; a decision goes under Assumed. Nothing waits, so nothing gets `needs:human` but the lines below.
+- A recommendation that is hard to undo, or one you would otherwise stop for, is grounded first: run `/m-research` on it (the standard, the vendor's guidance, what comparable products do), decide on what serves the product's users best, and put the sources beside it under Assumed.
 - A `credential?` line is never merged on your own: leave that step open with `needs:human` on its issue and say so on the map.
 - A replan still needs a trigger from Replan above, never taste.
-- Two Replans lines do not stop the run. Instead:
-  - A requirement that failed because of how it was worded, not because of what the code does: fix the wording you wrote (never the human's own words) on the map, say so under Decided, and prove that line again. No build, no replan.
-  - The same requirement not verified on two proves in a row, each after a step aimed at it: the approach is wrong. Stop as under Replan.
-  - A budget the human set (money, time, rounds) is spent: stop as under Replan.
+- Requirements hold still:
+  - Never narrow a requirement, drop a clause or extend Not doing to get past a failure. Not doing is fixed once plan is done.
+  - A requirement that failed only because of how you worded it (never the human's own words, nor an issue the request names) may be reworded without narrowing it. Keep `was: "<old>"` beside it on the map, say so under Assumed, and prove that line again: no build, no replan. The final PR stays a draft for the human to accept the new wording.
+- Two Replans lines do not stop the run. Stop as under Replan only when:
+  - The same requirement is not verified on two proves in a row, each after a step aimed at it, and `/m-research` on it found no other approach: the approach is wrong.
+  - Two re-proves in a row fail only on `new` breaks, every requirement verified; or prove has triggered three replans. List the breaks still open under the PR's What to watch; it stays Not verified.
+  - A budget the human set (money, time, rounds) is spent.
 - Say each replan in one line as it starts, with what broke: the human may look in.
 
 # Closing
@@ -192,10 +201,17 @@ After the review and any fix step:
 3. Write the final pull request body in [`references/github.md`](references/github.md), keeping the Proved section's placeholders as they are.
 4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body and the map number; after a replan, also the last verdict comment and that prove's tree, so it re-proves. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, and deletes its evidence dir. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
    - not verified on a requirement, or a `new` break: replan. The PR stays open at Not verified; the next prove updates it.
+   - `human check`: a line only the human can drive, as `/m-prove` defines it. No replan, no Your call: it goes in the closing message's To merge.
    - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and the step check), then prove again. Or the human ships with it listed in the PR: `gh pr ready <n>`; a do-not-merge first line comes out with `gh pr view <n> --json body --jq .body`, then `gh pr edit <n> --body-file -` without it; go to 5.
    - `pre-existing`, on a requirement or a break: no replan. It stays in the verdict comment and the pull request's Proved table.
    - `PR · not opened · tree changed`: the feature branch moved during prove; prove again.
-5. Tell the human in three lines: shipped, left out, what to watch in production. Stop.
+5. Tell the human, then stop:
+   ```
+   PR #<n> · <Proved | Not verified> · <draft | ready> · <link>
+   To merge · <each thing only the human can do: a human check, a command the harness refused, a reworded requirement to accept> | nothing, merge it
+   Shipped · Left out · What to watch in production   one line each
+   ```
+   A run that stopped before closing opens with `Stopped · <the question only the human can answer>` instead.
 
 # What the human sees after each stage
 

@@ -8,6 +8,7 @@ Build one step. The method is yours: how you design it, whether you write tests,
 # Inputs
 
 - The step issue: what to do, what you need to know, Done when.
+- Not doing, from the map issue you are given: hold your scope against it.
 - From `/m-scan`: what already exists, which installed library already does it, how the repo does similar things, what it calls them, how it tests, per-environment values, infrastructure limits, how it runs.
 - Vendor limits and timeouts (`/m-research`), or "not applicable". These are facts you cannot infer from the repo: use them where the code calls out.
 

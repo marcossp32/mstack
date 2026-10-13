@@ -15,6 +15,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 - A build step's Done when is not a requirement: it serves one that already is.
 - Not doing.
 - How the app runs: scan Q9; none: look where m-scan Q9 looks.
+- Credentials the human gave for driving (a store password, a test account), if any. Pass them to the drivers; never write them to the contract, a verdict comment or the pull request.
 - Base branch; none: the default branch.
 - Whether evidence is kept for a pull request: yes when you are handed the final pull request below, otherwise only when asked.
 - Re-prove: the last prove's verdict comment and its tree, when `/m-feature` proves again after a replan.
@@ -68,17 +69,19 @@ Read [`references/drive.md`](references/drive.md), then check both reports:
 - An R line is `pre-existing` when the base, driven the same way, fails it the same way: the change did not cause it. It is not a not verified, unless the Goal asks to change that existing behaviour.
 - A Q2 break is `new` when the base, driven the same way, behaves differently; `pre-existing` when the base fails the same way; `base not run` when the base could not be driven.
 
+A not driven line whose precondition only the human can meet is `human check`: a real account's login, a third-party admin setting, a bot check meant to stop automation, content not yet published. It names what to check by hand. A precondition you could meet locally (data, a flag, a server) is not one.
+
 A line failing a check goes back once to a fresh agent with the contract, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
 
 Evidence kept for a pull request, and nothing not verified: keep the evidence dir and, per requirement, pick what shows it best. A screenshot for anything visible, cropped to the element, viewport in its name, base and head side by side when it changed; otherwise the command and up to 15 lines of its output. Mask tokens, secrets and personal data first. In every other case, delete the evidence dir.
 
 # Final pull request
 
-Only when `/m-feature` handed you one. The verdict is **Proved** when every R line is verified or pre-existing, no line is not driven, and no B line is `new` or `base not run`; anything else is **Not verified**. A Not verified pull request is a draft, so nobody merges it by accident.
+Only when `/m-feature` handed you one. The verdict is **Proved** when every R line is verified, pre-existing or `human check`, no line is not driven, no requirement was reworded during the run (`was:` on the map), and no B line is `new` or `base not run`; anything else is **Not verified**. A Not verified pull request is a draft, so nobody merges it by accident.
 
 1. `git rev-parse HEAD^{tree}` still equals the contract's tree. Changed: open nothing, and return `PR · not opened · tree changed`.
 2. Comment your verdict on the map, without the Evidence line: `gh issue comment <map> --body-file -`. It prints the comment's URL; that is the body's Prove verdict link.
-3. Fill the body's Proved section: one table row per R line (requirement quoted, verdict, evidence), and one `<details>` block per output, holding the command and up to 15 lines of it. Then one line: `Also driven: <covered risk areas> · Not driven: <line · precondition, or none> · [Prove verdict](<comment URL>)`. Each verified line shows its evidence while the evidence dir is kept, so a PR Not verified only for a not driven or `base not run` line still carries it; a line not verified shows its verdict and value only. A carried line keeps its row, evidence included, from the pull request an earlier prove opened; its verdict cell adds `carried <sha>`. The body stays under 65,536 characters: trim outputs, never the verdict lines.
+3. Fill the body's Proved section: one table row per R line (requirement quoted, verdict, evidence), and one `<details>` block per output, holding the command and up to 15 lines of it. Then one line: `Also driven: <covered risk areas> · Not driven: <line · precondition, or none> · [Prove verdict](<comment URL>)`. Any `human check` line: a `### Check by hand before merging` list under it, one line each. A reworded requirement's row shows its `was:` wording. Each verified line shows its evidence while the evidence dir is kept, so a PR Not verified only for a not driven or `base not run` line still carries it; a line not verified shows its verdict and value only. A carried line keeps its row, evidence included, from the pull request an earlier prove opened; its verdict cell adds `carried <sha>`. The body stays under 65,536 characters: trim outputs, never the verdict lines.
 4. Look for one an earlier prove opened: `gh pr list --base main --head <feature branch> --state open --json number,isDraft --jq '.[0] // "none"'`. It prints `none` when there is none, else the PR's number and draft state.
    - Found: `gh pr edit <n> --body-file -`. The do-not-merge first line below is in the body only when the PR is Not verified and not a draft; step 5 settles which. `gh pr edit` has no `--attach` in 2.96.0: images become one line each, saying what it shows and at which viewport, unless the installed `gh pr edit --help` lists the flag.
    - None: `gh pr create --base main --head <feature branch> --title "<title>" --body-file -`, with `--draft` when Not verified. Attach each screenshot with `--attach "<path>#<alt text>"` where the installed `gh pr create --help` lists the flag; without it, one line per image as above.
@@ -95,6 +98,7 @@ R2 "<requirement>" — <verified | pre-existing> · carried <sha>               
 B1 <what broke> — <new | pre-existing | base not run> · <what was driven> → head <value> · base <value> · <file:line>
 Covered — <risk area> · <what was driven> | not driven · <two routes tried>
 Not driven — <line> · <precondition> · <routes tried>
+Human check — <line> · <what the human checks by hand>
 Harness — <launch> · <health check> · <traps hit>                          improvised only
 Evidence — R1 <file>#<alt text> · R2 <file>                                kept for a pull request only
 PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · verdict <comment URL>   final pull request only
