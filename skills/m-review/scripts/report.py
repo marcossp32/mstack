@@ -14,7 +14,7 @@ LIMITS = """Limits
 def main():
     data = load()
     rows = [f for f in data["findings"]
-            if f["state"] in ("confirmed", "fixed", "still-failing")]
+            if f["state"] in ("confirmed", "fixed", "still-failing", "stale")]
     counts = {}
     for f in data["findings"]:
         counts[f["state"]] = counts.get(f["state"], 0) + 1

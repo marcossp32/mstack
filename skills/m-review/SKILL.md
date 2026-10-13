@@ -18,7 +18,7 @@ python3 scripts/step_check.py baseline --test-cmd "<scan Q6 | none>"     # once,
 git fetch origin && python3 scripts/step_check.py check --base origin/feature/<name> --pr <n>
 ```
 
-Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` lines are for the human to look at and do not fail the step.
+Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` lines are for the human to look at and do not fail the step. A red suite runs up to three times: `intermittent` means red on some runs only, and still fails. `suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
 
 # Feature review
 
@@ -94,9 +94,17 @@ python3 scripts/gate.py recheck --id <id> --promote
 
 `fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. `still-failing` or `SUITE WORSE`: the fix did not hold.
 
+`stale`: the reproduction now fails before its assertion (the markup or API it set up against changed), so it says nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
+
+```bash
+python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
+```
+
+The writer gives up: the finding stays `stale`, and that is the answer. Never call a stale finding fixed yourself.
+
 # Never
 
-- Write `confirmed`, `fixed` or `still-failing` by any route but the gate.
+- Write `confirmed`, `fixed`, `still-failing` or `stale` by any route but the gate, or judge a finding fixed from the builder's checks.
 - Score confidence or severity, or count agreement between agents as evidence either way.
 - Edit a frozen reproduction, an existing test, the harness or the code under review.
 - Show the builder a reproduction: it gets the claim and the condition.

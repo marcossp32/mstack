@@ -128,10 +128,11 @@ Before a build, cut the step branch, then dispatch it.
 
 # Step results
 
-Run the step check on the step branch with the PR number, against `origin/feature/<name>` after `git fetch`: merges land on GitHub, so the local feature branch is stale.
+Run the step check on the step branch with the PR number, against `origin/feature/<name>` after `git fetch`: merges land on GitHub, so the local feature branch is stale. Run it alone and read its result before anything else: never chain a merge onto it or pipe its exit code away.
 
 - **PASS**: merge the step branch into the feature branch, close the step issue, add a line to Decided, start the next build.
-- **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again.
+- **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again. Running the check again without a build is not a fix: a FAIL is only cleared by a PASS after a change.
+- **FAIL suite · intermittent** on tests this step did not touch: a flaky test, not this step's fault. Merge only after a fix step for that test (Done when: it passes 3 runs in a row) passes its check; it does not count toward a second FAIL.
 - **Second FAIL** on one step: replan.
 - **`credential?`** line: show the human before merging.
 - **Suite "not comparable"**: the suite was red when the feature started, so the step check cannot judge it. Comment that on the map once, with the baseline's failing tests, and tell the human.
@@ -146,6 +147,7 @@ After the last step passes its check: `git switch feature/<name>`, `git pull --f
 - **No confirmed findings**, or no test suite to review with: go to Closing; prove is the judge left.
 - **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/fix-<n>`, dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. All `fixed`: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
 - **`still-failing` or `SUITE WORSE`**: one more round on the same branch, naming which claims still hold and the suite's failing tests, never the reproduction's output. Still failing: replan.
+- **`stale`**: `/m-review` rewrites that reproduction against the fix branch and rechecks it. It stays stale: list it on the map and in the final PR's What to watch. Never judge a finding fixed yourself, from the builder's checks or by reading the code.
 - **The builder disputes a finding**: the reproduction did fail, so the question is what the spec wants. Show the human the claim and the builder's reason; they decide.
 
 # Replan
