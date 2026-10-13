@@ -71,6 +71,8 @@ Read [`references/drive.md`](references/drive.md), then check both reports:
 
 A not driven line whose precondition only the human can meet is `human check`: a real account's login, a third-party admin setting, a bot check meant to stop automation, content not yet published. It names what to check by hand. A precondition you could meet locally (data, a flag, a server) is not one.
 
+**Recipe.** The contract's Run was improvised and the harness held (health check and control passed): write it down as a recipe at `~/.claude/skills/run-<repo name>/SKILL.md`, never in the checkout (prove needs it clean), from the drivers' reports: launch, health check, prerequisites, shared state, the traps they hit, teardown. Its description names the repo, so the next prove finds it (Contract, step 4). One already there: add the new traps to it. Name it on the Harness line.
+
 A line failing a check goes back once to a fresh agent with the contract, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
 
 Evidence kept for a pull request, and nothing not verified: keep the evidence dir and, per requirement, pick what shows it best. A screenshot for anything visible, cropped to the element, viewport in its name, base and head side by side when it changed; otherwise the command and up to 15 lines of its output. Mask tokens, secrets and personal data first. In every other case, delete the evidence dir (Cleanup, below).
@@ -103,7 +105,7 @@ B1 <what broke> — <new | pre-existing | base not run> · <what was driven> →
 Covered — <risk area> · <what was driven> | not driven · <two routes tried>
 Not driven — <line> · <precondition> · <routes tried>
 Human check — <line> · <what the human checks by hand>
-Harness — <launch> · <health check> · <traps hit>                          improvised only
+Harness — <launch> · <health check> · <traps hit> · recipe written <path>  improvised only
 Evidence — R1 <file>#<alt text> · R2 <file>                                kept for a pull request only
 PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · verdict <comment URL>   final pull request only
 ```

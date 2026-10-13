@@ -54,7 +54,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 | plan | ordered steps · blocking · design checks | main chat | `/m-plan` |
 | build | step branch · PR into the feature branch and its number, or a stop line | fresh agent | `/m-build` |
 | check | `STEP CHECK: PASS` or `FAIL`, per step | main chat, a script | `/m-review` |
-| review | confirmed findings, each failed by a frozen reproduction · counts | main chat, dispatches its own agents | `/m-review` |
+| review | `report.py`'s output: confirmed findings, each failed by a frozen reproduction · counts | fresh agent, dispatches its own agents | `/m-review` |
 | prove | a verdict per requirement · what else broke · at closing, the final PR open | fresh agent | `/m-prove` |
 
 Whenever the flow stops for the human's answer, add `needs:human` to the issue it waits on, and remove it when they answer ([`references/github.md`](references/github.md), Issues).
@@ -80,7 +80,7 @@ Post the reply as a comment on the map; links under Sources.
 
 ## Routing
 
-- grilling and plan need the human; docs and review dispatch their own agents. These four stay in the main chat.
+- grilling and plan need the human; docs dispatches its own agents. These three stay in the main chat. Review runs in a fresh agent so its hunt stays out of this conversation; it returns `Review · not run · no Agent tool`: run it here.
 - Run all four scan slices at once.
 - One build at a time: one step branch, one PR, one issue in flight.
 - When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's command.
@@ -95,13 +95,14 @@ Always a fresh agent, never a fork: a fork inherits the plan's reasoning and agr
 First line of every prompt (without it, the agent works without the stage's rules):
 
 ```
-Invoke the Skill tool with `<m-scan | m-build | m-prove>`. Then do the work below.
+Invoke the Skill tool with `<m-scan | m-build | m-review | m-prove>`. Then do the work below.
 ```
 
 | Stage | subagent_type |
 |---|---|
 | scan A–D | `Explore` |
 | build | `general-purpose` |
+| review | `general-purpose` |
 | prove | `general-purpose` |
 
 Pick each agent's model by [`references/models.md`](references/models.md).
@@ -114,7 +115,7 @@ The agent has not seen this conversation. Hand it:
 | docs | installed versions (scan) · the questions under Docs · target infrastructure |
 | build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan and docs inputs · the fix branch it is on |
-| review (main chat) | base `<base>` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
+| review | the feature review · base `<base>` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
 | prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `<base>` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
@@ -144,7 +145,7 @@ After each step, compare what you learned against the plan. The approach is wron
 
 # Review results
 
-After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, run the feature review. Post its report on the map. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is not hunted twice.
+After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, dispatch the feature review. Post its report on the map as it came back, and keep only its counts and finding ids here. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is not hunted twice.
 
 - **No confirmed findings**, or no test suite to review with: go to Closing; prove is the judge left.
 - **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/<name>-fix-<n>` (github.md, Branches), dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. All `fixed`: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.

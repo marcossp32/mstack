@@ -35,7 +35,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 | `m-research` | vendor limits, timeouts, security guidance, version changes | main chat |
 | `m-plan` | ordered build steps, design checks, one issue per step | main chat |
 | `m-build` | one step from its issue, method left to the builder, one pull request into the feature branch | subagent |
-| `m-review` | a script checks each step; one feature review reports only failures a frozen reproduction demonstrated | main chat, scripts and its own subagents |
+| `m-review` | a script checks each step; one feature review reports only failures a frozen reproduction demonstrated | main chat (scripts); the feature review in a subagent with its own subagents |
 | `m-prove` | drives the running app against the Goal and hunts what else broke, then evidences the pull request | subagent |
 
 Every skill except `m-feature` also works on its own.
