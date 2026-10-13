@@ -30,7 +30,7 @@ def main():
     else:
         targets = [os.path.realpath(sys.argv[1])]
     for t in targets:
-        if os.path.dirname(t) != root:
+        if os.path.normcase(os.path.dirname(t)) != os.path.normcase(root):
             sys.exit(f"ABORT: {t} is not a run dir under {root}")
         if os.path.isdir(t):
             shutil.rmtree(t)

@@ -18,10 +18,10 @@ Run one feature through GitHub: one map issue plus one issue per build step. You
 
 1. `gh --version` ≥ 2.94.0 and `gh auth status`.
 2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run, below), credentials, budgets. Run instructions are not the request.
-   - A credential stays in this conversation and reaches prove as its own input. It is never written to GitHub (issue, comment, PR body) or to a prompt that posts one.
+   - A credential stays in this conversation and reaches prove as its own input. It is never in text that gets posted: an issue, a comment, a PR body.
    - A budget goes on the map under Settled up front.
 3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
-4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every stage that takes a base gets this one.
+4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every stage that takes a base gets this one as `origin/<base>`: a local copy may be missing or stale.
 5. Create labels `feature:map`, `build` and `needs:human`.
 6. Cut and push `feature/<name>` from `<base>`.
 7. Create the map: the request verbatim as provisional Goal, without the run instructions, Base with the source issue, your provisional undo verdict, other headings empty.
@@ -115,8 +115,8 @@ The agent has not seen this conversation. Hand it:
 | docs | installed versions (scan) · the questions under Docs · target infrastructure |
 | build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan and docs inputs · the fix branch it is on |
-| review | the feature review · base `<base>` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `<base>` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
+| review | the feature review · base `origin/<base>`, after `git fetch` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
@@ -148,7 +148,7 @@ After each step, compare what you learned against the plan. The approach is wron
 After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, dispatch the feature review. Post its report on the map as it came back, and keep only its counts and finding ids here. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is not hunted twice.
 
 - **No confirmed findings**, or no test suite to review with: go to Closing; prove is the judge left.
-- **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/<name>-fix-<n>` (github.md, Branches), dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. All `fixed`: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
+- **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/<name>-fix-<n>` (github.md, Branches), dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. Every finding `fixed`, or `stale` after its rewrite: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
 - **`still-failing` or `SUITE WORSE`**: one more round on the same branch, naming which claims still hold and the suite's failing tests, never the reproduction's output. Still failing: replan.
 - **`stale`**: `/m-review` rewrites that reproduction against the fix branch and rechecks it. It stays stale: list it on the map and in the final PR's What to watch. Never judge a finding fixed yourself, from the builder's checks or by reading the code.
 - **The builder disputes a finding**: the reproduction did fail, so the question is what the spec wants. Show the human the claim and the builder's reason; they decide.
@@ -185,14 +185,14 @@ A re-cut step with the same Done when, even under a new issue number, is the sam
 The human asked not to be asked: `--auto`, or they are away, or told you to decide everything. The rest of this skill holds, except:
 
 - Every point that waits on the human takes your recommendation: a grilling answer, the plan's confirmation, a replan's revised list, a disputed finding, a decision nobody has made, Your call. Record each on the map with its reason; a decision goes under Assumed. Nothing waits, so nothing gets `needs:human` but the lines below.
-- A recommendation that is hard to undo, or one you would otherwise stop for, is grounded first: run `/m-research` on it (the standard, the vendor's guidance, what comparable products do), decide on what serves the product's users best, and put the sources beside it under Assumed.
-- A `credential?` line is never merged on your own: leave that step open with `needs:human` on its issue and say so on the map.
+- A recommendation that is hard to undo, or one you would otherwise stop for, is grounded first: run `/m-research` on it, asked as facts it can quote: what the standard or the vendor's docs say to do, and the alternatives they document. Decide on what serves the product's users best, and put the sources beside it under Assumed.
+- A `credential?` line is never merged on your own: leave that step open with `needs:human` on its issue, say so on the map, and go on with the steps that do not depend on it. Closing then runs with that step open, and the closing message puts it under To merge.
 - A replan still needs a trigger from Replan above, never taste.
 - Requirements hold still:
-  - Never narrow a requirement, drop a clause or extend Not doing to get past a failure. Not doing is fixed once plan is done.
+  - Never narrow a requirement, drop a clause or extend Not doing to get past a failure. Not doing is fixed once plan is done: a replan's `/m-plan` adds nothing to it.
   - A requirement that failed only because of how you worded it (never the human's own words, nor an issue the request names) may be reworded without narrowing it. Keep `was: "<old>"` beside it on the map, say so under Assumed, and prove that line again: no build, no replan. The final PR stays a draft for the human to accept the new wording.
 - Two Replans lines do not stop the run. Stop as under Replan only when:
-  - The same requirement is not verified on two proves in a row, each after a step aimed at it, and `/m-research` on it found no other approach: the approach is wrong.
+  - The same requirement is not verified on two proves in a row, each after a step aimed at it, and `/m-research` on it quotes no documented alternative you have not tried: the approach is wrong.
   - Two re-proves in a row fail only on `new` breaks, every requirement verified; or prove has triggered three replans. List the breaks still open under the PR's What to watch; it stays Not verified.
   - A budget the human set (money, time, rounds) is spent.
 - Say each replan in one line as it starts, with what broke: the human may look in.
@@ -201,7 +201,7 @@ The human asked not to be asked: `--auto`, or they are away, or told you to deci
 
 After the review and any fix step:
 
-1. Check every step issue is closed.
+1. Check every step issue is closed, but a `credential?` step left open in an autonomous run.
 2. Complete Decided and Sources.
 3. Write the final pull request body in [`references/github.md`](references/github.md), keeping the Proved section's placeholders as they are.
 4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body and the map number; after a replan, also the last verdict comment and that prove's tree, so it re-proves. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, and deletes its evidence dir with its cleanup script; refused, it returns the dir, and the closing message lists every such dir once. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
@@ -212,7 +212,7 @@ After the review and any fix step:
    - `PR · not opened · tree changed`: the feature branch moved during prove; prove again.
 5. Tell the human, then stop:
    ```
-   PR #<n> · <Proved | Not verified> · <draft | ready> · <link>
+   PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · <link>
    To merge · <each thing only the human can do: a human check, a command the harness refused, a reworded requirement to accept> | nothing, merge it
    Shipped · Left out · What to watch in production   one line each
    ```

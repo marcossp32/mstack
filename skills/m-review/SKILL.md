@@ -9,7 +9,7 @@ The step check and recheck run where they are called. The feature review dispatc
 
 Models are tiers: strong is the harness's most capable, standard its middle one. A tier that does not resolve runs on the session's model.
 
-Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout.
+Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout. `step_check.py`, `prepare.py` and `gate.py` run the whole suite, `step_check.py` up to three times: start each with the Bash tool's `run_in_background` and read its output when the harness says it exited, so no run hits the tool's 10-minute limit.
 
 # Step check
 
@@ -31,7 +31,7 @@ Once, after every step has passed its check, on the feature branch, before prove
 ## 0. Prepare
 
 ```bash
-python3 scripts/prepare.py --base <base branch> --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
+git fetch origin && python3 scripts/prepare.py --base origin/<base branch> --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
 ```
 
 The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` set to this checkout (to copy env files from). Take it from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout.
@@ -102,7 +102,7 @@ python3 scripts/gate.py recheck --id <id> --promote
 python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
 ```
 
-The writer gives up: the finding stays `stale`, and that is the answer. Never call a stale finding fixed yourself.
+The writer gives up: delete the files it lists that git does not track (`git ls-files --error-unmatch <path>` fails), and the finding stays `stale`: that is the answer. Never call a stale finding fixed yourself.
 
 # Never
 

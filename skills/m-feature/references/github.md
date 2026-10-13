@@ -134,7 +134,7 @@ Self-contained context: the builder has not seen the conversation. No checklists
 `Closes #n` only works on pull requests to the default branch.
 
 - Step PR body: `Part of #45`. After merging: `gh issue close 45 --comment "<what landed>"`.
-- Final PR to `<base>`: `Closes #<map>`, and `Closes #<source>` when the map has a source issue. Every step issue is closed before `/m-prove` opens it.
+- Final PR to `<base>`: `Closes #<map>`, and `Closes #<source>` when the map has a source issue. Every step issue is closed before `/m-prove` opens it, but a `credential?` step an autonomous run left open for the human.
 - `<base>` is not the default branch: those lines close nothing. The closing message's To merge then gives the human `gh issue close <map> <source> --comment "Merged in #<PR>"` to run after merging.
 
 ## Final pull request body

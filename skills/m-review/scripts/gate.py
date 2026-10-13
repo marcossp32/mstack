@@ -237,26 +237,31 @@ def recheck_rewritten(a, f, r):
     must reach their assertions and disagree on every run: the repro passing
     and the capture failing is fixed, the reverse is still-failing.
     """
-    files = {}
-    for role, rel in (("capture", a.capture), ("repro", a.repro)):
-        rel = rel.replace("\\", "/")
-        full = os.path.join(r, rel)
-        if not os.path.exists(full):
-            die(f"{role} not found: {rel}")
-        if git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0:
-            die(f"{role} is a tracked file; it must be new: {rel}")
-        frozen = os.path.join(frozen_dir(a.id), os.path.basename(rel) + f".{role}")
-        shutil.copy2(full, frozen)
-        files[role] = {"path": rel, "abs": full, "frozen": frozen,
-                       "sha256": sha(full)}
-    cap, rep = files["capture"], files["repro"]
-    watch = [(cap["abs"], cap["sha256"]), (rep["abs"], rep["sha256"])]
-
+    paths = {role: rel.replace("\\", "/")
+             for role, rel in (("capture", a.capture), ("repro", a.repro))}
+    # Each rewrite is frozen under its own name, so it never overwrites the
+    # copies an earlier confirm or recheck froze.
+    suffix = f"r{len(f.get('rechecks', [])) + 1}"
     keep = False
     try:
+        files = {}
+        for role, rel in paths.items():
+            full = os.path.join(r, rel)
+            if not os.path.exists(full):
+                die(f"{role} not found: {rel}")
+            if git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0:
+                die(f"{role} is a tracked file; it must be new: {rel}")
+            frozen = os.path.join(frozen_dir(a.id),
+                                  os.path.basename(rel) + f".{role}.{suffix}")
+            shutil.copy2(full, frozen)
+            files[role] = {"path": rel, "abs": full, "frozen": frozen,
+                           "sha256": sha(full)}
+        cap, rep = files["capture"], files["repro"]
+        watch = [(cap["abs"], cap["sha256"]), (rep["abs"], rep["sha256"])]
+
         cap_res = runs(a.cmd, cap["path"], r, a.runs, watch)
         rep_res = runs(a.cmd, rep["path"], r, a.runs, watch)
-        if any(setup_failure(x["full"]) for x in cap_res + rep_res):
+        if any(x["rc"] != 0 and setup_failure(x["full"]) for x in cap_res + rep_res):
             state = "stale"
         elif (all(x["rc"] == 0 for x in rep_res)
               and all(x["rc"] != 0 for x in cap_res)):
@@ -274,8 +279,12 @@ def recheck_rewritten(a, f, r):
                 "repro": {k: rep[k] for k in ("path", "frozen", "sha256")}})
         keep = state == "fixed" and a.promote
     finally:
-        for path in (cap["abs"], rep["abs"]):
-            if os.path.exists(path) and not (keep and path == rep["abs"]):
+        # Every outcome, aborts included: a leftover failing file turns
+        # later suite runs red. Tracked files were refused above, never removed.
+        for rel in paths.values():
+            path = os.path.join(r, rel)
+            tracked = git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0
+            if os.path.exists(path) and not tracked and not (keep and rel == paths["repro"]):
                 os.remove(path)
     return state, {"capture": strip(cap_res), "repro": strip(rep_res)}, rep["path"]
 
