@@ -1,15 +1,16 @@
 ---
 name: m-scan
-description: "Reads a repository to answer what its code can settle about a feature: installed versions, existing code, conventions, testing, how it runs, per-environment config, infrastructure limits. Use as the scan stage of /m-feature, or before changing an unfamiliar codebase."
+description: "Scans a repository for what its code can settle about a feature: installed versions, existing code, conventions, testing, how it runs, per-environment config, infrastructure limits. Use as the scan stage of /m-feature, or before changing an unfamiliar codebase."
 ---
 
 Answer questions about a feature by reading this repository. You run before anyone asks the human; every question you answer is one `/m-grilling` does not ask and `/m-research` does not look up.
 
-- No network.
-- Read only: no edits, new files or commits. Return the report; `/m-feature` posts it.
+- Offline and read-only: files and git history are your whole input, and the checkout ends as you found it. Return the report; `/m-feature` posts it.
 - Report what exists; choosing is someone else's job.
 
 # Questions
+
+Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 8. Alone: all nine, Q1 first.
 
 1. **Installed version**, from the lockfile (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`, `Pipfile.lock`, `go.sum`, `Cargo.lock`, `composer.lock`, `Gemfile.lock`), not the manifest. No lockfile: say so and give the manifest range.
 2. Does this already exist in the repo?
@@ -20,8 +21,6 @@ Answer questions about a feature by reading this repository. You run before anyo
 7. Which values differ between local and production, and which do not?
 8. Infrastructure limits: disk, outbound network, max run time, memory.
 9. How the app runs (start command, URL or entry point, prerequisites: seeded DB, env file, services), how a fresh checkout gets its dependencies, and whether PRs land squashed or merged, read from `git log` on the default branch.
-
-Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 8. Alone: all nine, Q1 first.
 
 # Searching
 
@@ -34,11 +33,11 @@ Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 
   - Similar work: the tests of the closest existing feature.
   - Tests: test directory, runner config, newest test file.
   - Running: `.claude/skills/run-*/` recipes, `package.json` scripts, `Makefile`, compose files, README quickstart, the CI job that boots the app.
-- Stop each question once answered.
+- Stop each question once a path answers it. Searched by meaning and through the places above with no answer: `Not found`.
 
 # Report
 
-One line per owned question, every one, with a path, or "Not found". Never fill a gap from memory.
+One line per owned question, every one, with a path, or "Not found": a gap stays a gap, never filled from memory.
 
 ```
 - Q1 Installed version — `axios 1.7.2` · package-lock.json:441

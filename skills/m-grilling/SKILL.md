@@ -1,9 +1,9 @@
 ---
 name: m-grilling
-description: "Asks the human only the hard-to-undo decisions that the repo and docs cannot settle. Use as the grilling stage of /m-feature, or to pin down one decision before a build."
+description: "Grills the human on only the hard-to-undo decisions that the repo and docs cannot settle. Use as the grilling stage of /m-feature, or to pin down one decision before a build."
 ---
 
-Interview the human in the main chat, only about decisions that are hard to undo. Decide the rest yourself.
+Grill the human in the main chat, only on decisions that are hard to undo. Decide the rest yourself.
 
 Inputs: the feature as asked · the `/m-scan` report, read before drafting any question · the undo verdict.
 
@@ -15,7 +15,7 @@ Ask only when all three hold:
 2. It is hard to undo, or decides something that is.
 3. Only the human knows it: intent, priorities, unwritten constraints.
 
-Otherwise decide it and state it, one line each, so they can object. Do not ask permission.
+Otherwise decide it and state it, one line each, so they can object.
 
 Default questions:
 

@@ -27,7 +27,7 @@ Told it is a recheck: a fix has landed since the finding was confirmed, and its 
 - One behaviour, one assertion that can fail.
 - Deterministic: no clock, network, randomness, file ordering or shared global state. Local only.
 - Never touch existing tests, fixtures, config, the harness or the code under test.
-- Once handed over, do not touch either file.
+- Once handed over, both files are frozen.
 
 ## Give up when
 

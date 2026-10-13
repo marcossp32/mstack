@@ -1,6 +1,6 @@
 ---
 name: m-plan
-description: "Turns /m-scan, /m-grilling and /m-research findings into ordered build steps and checks the design before code exists. Use as the plan stage of /m-feature, to revise a plan in flight, or to cut a change into buildable pieces."
+description: "Plans a change: turns /m-scan, /m-grilling and /m-research findings into ordered build steps and checks the design before code exists. Use as the plan stage of /m-feature, to revise a plan in flight, or to cut a change into buildable pieces."
 ---
 
 Cut the work into build steps and run the design checks before any code exists. Runs in the main chat; the human confirms the list before issues are created.
@@ -31,7 +31,15 @@ Record blocking only where B cannot start before A lands, never for preferred or
 
 # Design checks
 
-Run [`references/design-checks.md`](references/design-checks.md) against this plan, at the depth it sets. A check you cannot answer names a decision the plan has not made.
+Run them on this plan. Depth: hard to undo → all seven, report each. Easy → one pass, report only failures. A check you cannot answer names a decision the plan has not made. On the code, the review catches check 2 only where it shows: two copies of a decision that disagree for some input.
+
+1. Will other code use this? Yes → put it somewhere shared, outside the feature folder.
+2. If this decision changes, how many files change? More than 1–2 → keep the decision in one place. *(S)*
+3. Does the next similar case require editing existing code (the same `if`)? Yes → there is nowhere to extend (check 7 still applies). *(O)*
+4. Does any implementation leave methods empty or throw "not supported"? Yes → callers cannot rely on the interface it claims. *(L)*
+5. Does the caller use every method of the interface? Only some (e.g. 2 of 9) → split or narrow it. *(I)*
+6. How many fakes does a test of this need? Many → it depends on things it should not know. *(D)*
+7. Does this abstraction have two real cases yet? One → keep it concrete. This check overrides 3 and 6: no factories, interfaces or pass-through layers "just in case".
 
 # Output
 

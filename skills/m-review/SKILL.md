@@ -1,9 +1,9 @@
 ---
 name: m-review
-description: "Judges a change by execution, never by opinion: a script checks each build step, and a feature review reports only failures a frozen reproduction demonstrated. Use as the check and review stages of /m-feature, or on any branch with a runnable test suite before it merges."
+description: "Reviews a change by execution: a script checks each build step, and a feature review reports only failures a frozen reproduction demonstrated. Use as the check and review stages of /m-feature, or to review any branch with a runnable test suite before it merges."
 ---
 
-Judge a change only by what running code shows. A finding without a reproduction that failed at the gate does not exist: no confidence scores, no severity, no "possible issues". An empty report is the expected outcome; never pad it.
+Judge a change only by what running code shows. A finding without a reproduction that failed at the gate does not exist: no confidence scores, no severity, no "possible issues". An empty report is the expected outcome, and a complete one.
 
 The step check and recheck run where they are called. The feature review dispatches its own agents; from `/m-feature` it runs in a fresh agent, so its hunts stay out of the orchestrator's context, and returns only `report.py`'s output. With no Agent tool there, return `Review · not run · no Agent tool` and the caller runs it in its own chat.
 
@@ -48,7 +48,7 @@ then: the ledger command (`python3 <scripts>/ledger.py add`), the base and head 
 
 Over about 1,500 changed lines: split the files into groups by directory and give each group 2 hunters. Every hunter may read the whole repo.
 
-Mark a candidate `duplicate` only when its claim, condition and file match another's (`python3 scripts/ledger.py duplicate --id <id> --of <id>`). Never drop one for looking unlikely: the gate decides.
+Mark a candidate `duplicate` only when its claim, condition and file match another's (`python3 scripts/ledger.py duplicate --id <id> --of <id>`). Every other candidate goes on, however unlikely it looks: the gate decides.
 
 ## 2. Reproduce
 
@@ -102,12 +102,12 @@ python3 scripts/gate.py recheck --id <id> --promote
 python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
 ```
 
-The writer gives up: delete the files it lists that git does not track (`git ls-files --error-unmatch <path>` fails), and the finding stays `stale`: that is the answer. Never call a stale finding fixed yourself.
+The writer gives up: delete the files it lists that git does not track (`git ls-files --error-unmatch <path>` fails), and the finding stays `stale`: that is the answer.
 
-# Never
+# Rules
 
-- Write `confirmed`, `fixed`, `still-failing` or `stale` by any route but the gate, or judge a finding fixed from the builder's checks.
-- Score confidence or severity, or count agreement between agents as evidence either way.
-- Edit a frozen reproduction, an existing test, the harness or the code under review.
-- Show the builder a reproduction: it gets the claim and the condition.
-- Review outside the diff, or anything on Not doing.
+- Only the gate writes `confirmed`, `fixed`, `still-failing` or `stale`; the builder's checks and your own reading settle nothing.
+- Agreement between agents is evidence neither way.
+- Frozen reproductions, existing tests, the harness and the code under review stay exactly as they are.
+- The builder gets the claim and the condition; the reproduction stays with the review.
+- The review covers the diff, minus anything on Not doing.
