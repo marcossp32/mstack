@@ -25,7 +25,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 
 Read files and git; start nothing.
 
-1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base <base branch> HEAD`. Create the evidence dir `$(git rev-parse --path-format=absolute --git-common-dir)/mstack/prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id.
+1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base origin/<base branch> HEAD` after `git fetch origin` (a local branch may be missing or stale). Create the evidence dir `$(git rev-parse --path-format=absolute --git-common-dir)/mstack/prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id.
 2. **Requirements, before reading the diff.** One line per clause, quoted:
    - surface: where its user reaches it (page, HTTP endpoint, CLI command, public API from a script);
    - settled when: the observation that shows it, read back by a route that skips the code that wrote it (the record on a fresh read, the file on disk, the message off the queue). What the surface returns to its caller counts when that is the effect asked for. No such route: what the app itself shows, and the line says `via the app itself`.
@@ -73,7 +73,7 @@ A not driven line whose precondition only the human can meet is `human check`: a
 
 A line failing a check goes back once to a fresh agent with the contract, the credentials, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
 
-Evidence kept for a pull request, and nothing not verified: keep the evidence dir and, per requirement, pick what shows it best. A screenshot for anything visible, cropped to the element, viewport in its name, base and head side by side when it changed; otherwise the command and up to 15 lines of its output. Mask tokens, secrets and personal data first. In every other case, delete the evidence dir.
+Evidence kept for a pull request, and nothing not verified: keep the evidence dir and, per requirement, pick what shows it best. A screenshot for anything visible, cropped to the element, viewport in its name, base and head side by side when it changed; otherwise the command and up to 15 lines of its output. Mask tokens, secrets and personal data first. In every other case, delete the evidence dir (Cleanup, below).
 
 # Final pull request
 
@@ -82,12 +82,16 @@ Only when `/m-feature` handed you one. The verdict is **Proved** when every R li
 1. `git rev-parse HEAD^{tree}` still equals the contract's tree. Changed: open nothing, and return `PR · not opened · tree changed`.
 2. Comment your verdict on the map, without the Evidence line: `gh issue comment <map> --body-file -`. It prints the comment's URL; that is the body's Prove verdict link.
 3. Fill the body's Proved section: one table row per R line (requirement quoted, verdict, evidence), and one `<details>` block per output, holding the command and up to 15 lines of it. Then one line: `Also driven: <covered risk areas> · Not driven: <line · precondition, or none> · [Prove verdict](<comment URL>)`. Any `human check` line: a `### Check by hand before merging` list under it, one line each. A reworded requirement's row shows its `was:` wording. Each verified line shows its evidence while the evidence dir is kept, so a PR Not verified only for a not driven or `base not run` line still carries it; a line not verified shows its verdict and value only. A carried line keeps its row, evidence included, from the pull request an earlier prove opened; its verdict cell adds `carried <sha>`. The body stays under 65,536 characters: trim outputs, never the verdict lines.
-4. Look for one an earlier prove opened: `gh pr list --base main --head <feature branch> --state open --json number,isDraft --jq '.[0] // "none"'`. It prints `none` when there is none, else the PR's number and draft state.
-   - Found: `gh pr edit <n> --body-file -`. The do-not-merge first line below is in the body only when the PR is Not verified and not a draft; step 5 settles which. `gh pr edit` has no `--attach` in 2.96.0: images become one line each, saying what it shows and at which viewport, unless the installed `gh pr edit --help` lists the flag.
-   - None: `gh pr create --base main --head <feature branch> --title "<title>" --body-file -`, with `--draft` when Not verified. Attach each screenshot with `--attach "<path>#<alt text>"` where the installed `gh pr create --help` lists the flag; without it, one line per image as above.
+4. Look for one an earlier prove opened: `gh pr list --base <base branch> --head <feature branch> --state open --json number,isDraft --jq '.[0] // "none"'`. It prints `none` when there is none, else the PR's number and draft state.
+   - Found: `gh pr edit <n> --body-file -`. The do-not-merge first line below is in the body only when the PR is Not verified and not a draft; step 5 settles which. Images become one line each, saying what it shows and at which viewport, unless the installed `gh pr edit --help` lists `--attach`.
+   - None: `gh pr create --base <base branch> --head <feature branch> --title "<title>" --body-file -`, with `--draft` when Not verified. Attach each screenshot with `--attach "<path>#<alt text>"` where the installed `gh pr create --help` lists the flag; without it, one line per image as above.
    - `--draft` refused (drafts need a public repo or a GitHub Team or Enterprise plan): create it again without `--draft`, with `**Not verified: do not merge.** This repo cannot hold draft pull requests.` as the body's first line. The PR line says `draft unavailable`.
 5. Proved and a draft: `gh pr ready <n>`. Not verified and ready: `gh pr ready <n> --undo`; refused, the PR line says `draft unavailable`, as on create. Then the do-not-merge line: Not verified and still not a draft, it is the body's first line; a draft or Proved, it is not in the body. Change the body with `gh pr edit <n> --body-file -` when it does not match.
-6. Delete the evidence dir once the pull request holds what it needs.
+6. Delete the evidence dir once the pull request holds what it needs (Cleanup, below).
+
+# Cleanup
+
+`python3 <this skill's directory>/scripts/cleanup.py <evidence dir>` (`python` where `python3` is absent): it deletes only inside `mstack/prove/`. Never `rm -rf`. Refused or failed: leave the dir, put it on the return's Left line, and do not try again.
 
 Return:
 
@@ -101,5 +105,6 @@ Not driven — <line> · <precondition> · <routes tried>
 Human check — <line> · <what the human checks by hand>
 Harness — <launch> · <health check> · <traps hit>                          improvised only
 Evidence — R1 <file>#<alt text> · R2 <file>                                kept for a pull request only
+Left — <evidence dir cleanup could not delete>                            only then
 PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · verdict <comment URL>   final pull request only
 ```

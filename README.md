@@ -40,7 +40,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 
 Every skill except `m-feature` also works on its own.
 
-Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote and a `main` branch. `m-review` needs Python 3 and git 2.31 or newer. `m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser), and installs it globally with npm the first time a change has one.
+Needs `gh` 2.94.0 or newer, authenticated, in a repo with a GitHub remote. A feature branches from the branch its issue targets, else the default branch. `m-review` needs Python 3 and git 2.31 or newer. `m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser), and installs it globally with npm the first time a change has one.
 
 `m-feature` labels the map `feature:map`, each step `build`, and whichever issue is waiting on you `needs:human`. A GitHub Projects board is optional and the skills never touch it: to follow features there, turn on the board's built-in "Auto-add to project" workflow with a filter on those labels, and keep "Item closed" and "Pull request merged" on so cards reach Done by themselves.
 
