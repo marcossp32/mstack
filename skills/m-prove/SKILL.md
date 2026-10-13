@@ -71,13 +71,13 @@ Read [`references/drive.md`](references/drive.md), then check both reports:
 
 A not driven line whose precondition only the human can meet is `human check`: a real account's login, a third-party admin setting, a bot check meant to stop automation, content not yet published. It names what to check by hand. A precondition you could meet locally (data, a flag, a server) is not one.
 
-A line failing a check goes back once to a fresh agent with the contract, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
+A line failing a check goes back once to a fresh agent with the contract, the credentials, that line and the check it failed; passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified and not verified come only from a drive.
 
 Evidence kept for a pull request, and nothing not verified: keep the evidence dir and, per requirement, pick what shows it best. A screenshot for anything visible, cropped to the element, viewport in its name, base and head side by side when it changed; otherwise the command and up to 15 lines of its output. Mask tokens, secrets and personal data first. In every other case, delete the evidence dir.
 
 # Final pull request
 
-Only when `/m-feature` handed you one. The verdict is **Proved** when every R line is verified, pre-existing or `human check`, no line is not driven, no requirement was reworded during the run (`was:` on the map), and no B line is `new` or `base not run`; anything else is **Not verified**. A Not verified pull request is a draft, so nobody merges it by accident.
+Only when `/m-feature` handed you one. The verdict is **Proved** when every R line is verified, pre-existing or `human check`, no line is not driven other than `human check`, no requirement was reworded during the run (`was:` on the map), and no B line is `new` or `base not run`; anything else is **Not verified**. A Not verified pull request is a draft, so nobody merges it by accident.
 
 1. `git rev-parse HEAD^{tree}` still equals the contract's tree. Changed: open nothing, and return `PR · not opened · tree changed`.
 2. Comment your verdict on the map, without the Evidence line: `gh issue comment <map> --body-file -`. It prints the comment's URL; that is the body's Prove verdict link.
