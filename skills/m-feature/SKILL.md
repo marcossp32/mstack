@@ -21,7 +21,7 @@ Run one feature through GitHub: one map issue plus one issue per build step. You
    - A credential stays in this conversation and reaches prove as its own input. It is never in text that gets posted: an issue, a comment, a PR body.
    - A budget goes on the map under Settled up front.
 3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
-4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every stage that takes a base gets this one.
+4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every stage that takes a base gets this one as `origin/<base>`: a local copy may be missing or stale.
 5. Create labels `feature:map`, `build` and `needs:human`.
 6. Cut and push `feature/<name>` from `<base>`.
 7. Create the map: the request verbatim as provisional Goal, without the run instructions, Base with the source issue, your provisional undo verdict, other headings empty.
@@ -114,8 +114,8 @@ The agent has not seen this conversation. Hand it:
 | docs | installed versions (scan) · the questions under Docs · target infrastructure |
 | build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan and docs inputs · the fix branch it is on |
-| review (main chat) | base `<base>` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `<base>` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
+| review (main chat) | base `origin/<base>`, after `git fetch` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 
