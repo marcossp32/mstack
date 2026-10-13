@@ -61,4 +61,4 @@ Hand back:
 - Decisions you made, one line each, checked against the request the same way.
 - Not doing: what the human ruled out. If it did not come up, ask, even though it fails the three conditions: review and prove leave it out, and build holds its scope against it.
 
-Goal, Where it runs and Not doing go under their map headings. Decisions the human confirmed, by answering or by saying go after seeing them, go under Settled up front. Decisions nobody confirmed, as in an autonomous run, go under Assumed.
+Goal, Where it runs and Not doing go under their map headings. Decisions the human confirmed, by answering or by saying go after seeing them, go under Settled up front. Decisions nobody confirmed, as in an autonomous run, go under Assumed. In an autonomous run, each one that is hard to undo also becomes a docs question, so `/m-research` confirms or revises it before plan.
