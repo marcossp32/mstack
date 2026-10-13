@@ -6,22 +6,33 @@ disable-model-invocation: true
 
 Run one feature through GitHub: one map issue plus one issue per build step. You own order, routing, state and what the human sees; stage skills do the work. Spend depth where a change is hard to undo; move fast elsewhere.
 
-- A decision nobody has made that everything else waits on: stop and say so. Never invent a step to cover it.
 - Read [`references/github.md`](references/github.md) before the first command.
-- The human stays in this session until the final PR, unless they ask for an autonomous run (below).
-- To the human: result first, one line per finding or decision, no recap. Between steps, write only when they must see or decide something.
-- A turn that ends to wait on something running says the stage, step n of N, what runs and roughly how long.
-- Agent prompts carry the inputs listed below, never this conversation's reasoning.
-- Map sections reach an agent verbatim: name the map issue and the sections, and the agent reads them itself (`gh issue view <map> --json body --jq .body`). Never summarise, shorten or reword them in a prompt. A section that needs changing changes on the map first.
+- A decision nobody has made that everything else waits on: stop and say so. Never invent a step to cover it.
+- The human stays in this session until the final PR, unless they ask for an autonomous run (below): `--auto`, or they say they are away or to decide everything.
+
+# What the human sees
+
+Result first, one line per finding or decision, no recap. Between steps, write only when they must see or decide something. After each stage, short, no paragraphs:
+
+```
+Checked   · up to 5 lines, one per finding
+Decided   · up to 3 lines, one per decision, with why
+Your call · what is left to ask (usually one thing)
+Sources   · links
+```
+
+Always raise what changes the plan, even if a stage already settled it: it already exists, it breaks the repo's pattern, the infrastructure does not allow it. Say when a stage returned no answer.
+
+A turn that ends to wait on something running says the stage, step n of N, what runs and roughly how long.
 
 # Start
 
 1. `gh --version` ≥ 2.94.0 and `gh auth status`.
-2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run, below), credentials, budgets. Run instructions are not the request.
+2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run), credentials, budgets. Run instructions are not the request.
    - A credential stays in this conversation and reaches prove as its own input. It is never in text that gets posted: an issue, a comment, a PR body.
    - A budget goes on the map under Settled up front.
 3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
-4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every stage that takes a base gets this one as `origin/<base>`: a local copy may be missing or stale.
+4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every branch a stage compares against is the remote one, after `git fetch`: `origin/<base>`, `origin/feature/<name>`. Merges land on GitHub, so a local copy may be missing or stale.
 5. Create labels `feature:map`, `build` and `needs:human`.
 6. Cut and push `feature/<name>` from `<base>`.
 7. Create the map: the request verbatim as provisional Goal, without the run instructions, Base with the source issue, your provisional undo verdict, other headings empty.
@@ -90,7 +101,7 @@ Post the reply as a comment on the map; links under Sources.
 
 ## Dispatch
 
-Always a fresh agent, never a fork: a fork inherits the plan's reasoning and agrees with it.
+Always a fresh agent, never a fork: a fork inherits the plan's reasoning and agrees with it. The agent has not seen this conversation: its prompt carries only the inputs below. Map sections reach it verbatim: name the map issue and the sections, and the agent reads them itself (`gh issue view <map> --json body --jq .body`). A section that needs changing changes on the map first.
 
 First line of every prompt (without it, the agent works without the stage's rules):
 
@@ -98,16 +109,17 @@ First line of every prompt (without it, the agent works without the stage's rule
 Invoke the Skill tool with `<m-scan | m-build | m-review | m-prove>`. Then do the work below.
 ```
 
-| Stage | subagent_type |
-|---|---|
-| scan A–D | `Explore` |
-| build | `general-purpose` |
-| review | `general-purpose` |
-| prove | `general-purpose` |
+Each agent's model is a tier: cheap, standard or strong, the harness's quickest, middle and most capable, by its own names. A harness that offers no choice, or a tier that does not resolve, runs the agent on the session's model. Three judges stand after a build (step check, review, prove), so build runs on standard by default. `/m-research` and `/m-review` name the tier of the agents they dispatch.
 
-Pick each agent's model by [`references/models.md`](references/models.md).
+| Stage | subagent_type | Model |
+|---|---|---|
+| scan A | `Explore` | cheap |
+| scan B–D | `Explore` | standard |
+| build, fix mode included | `general-purpose` | standard; strong when the undo verdict is hard |
+| review | `general-purpose` | standard |
+| prove | `general-purpose` | strong |
 
-The agent has not seen this conversation. Hand it:
+Inputs:
 
 | Stage | Inputs |
 |---|---|
@@ -131,26 +143,26 @@ Before a build, cut the step branch, then dispatch it.
 
 # Step results
 
-Run the step check on the step branch with the PR number, against `origin/feature/<name>` after `git fetch`: merges land on GitHub, so the local feature branch is stale. Run it alone and read its result before anything else: never chain a merge onto it or pipe its exit code away.
+Run the step check on the step branch with the PR number, against `origin/feature/<name>` after `git fetch`. Run it as its own command, unpiped, and read its result before a merge or anything else.
 
 - **PASS**: merge the step branch into the feature branch, close the step issue, add a line to Decided, start the next build.
-- **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again. Running the check again without a build is not a fix: a FAIL is only cleared by a PASS after a change.
+- **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again. Only a PASS after a change clears a FAIL: running the check again without a build fixes nothing.
 - **FAIL suite · intermittent** on tests this step did not touch: a flaky test, not this step's fault. Merge only after a fix step for that test (Done when: it passes 3 runs in a row) passes its check; it does not count toward a second FAIL.
-- **Second FAIL** on one step: replan.
+- **Second FAIL** on one step: replan. A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 - **`credential?`** line: show the human before merging.
 - **Suite "not comparable"**: the suite was red when the feature started, so the step check cannot judge it. Comment that on the map once, with the baseline's failing tests, and tell the human.
 - **No PR**: a missing decision, ask the human; an unobservable Done when or a contradiction, replan.
 
-After each step, compare what you learned against the plan. The approach is wrong: replan. Never redesign without the human's confirmation.
+After each step, compare what you learned against the plan. The approach is wrong: replan. A redesign waits for the human's confirmation.
 
 # Review results
 
-After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, dispatch the feature review. Post its report on the map as it came back, and keep only its counts and finding ids here. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is not hunted twice.
+After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, dispatch the feature review. Post its report on the map as it came back, and keep only its counts and finding ids here. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is hunted once.
 
 - **No confirmed findings**, or no test suite to review with: go to Closing; prove is the judge left.
 - **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/<name>-fix-<n>` (github.md, Branches), dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. Every finding `fixed`, or `stale` after its rewrite: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
 - **`still-failing` or `SUITE WORSE`**: one more round on the same branch, naming which claims still hold and the suite's failing tests, never the reproduction's output. Still failing: replan.
-- **`stale`**: `/m-review` rewrites that reproduction against the fix branch and rechecks it. It stays stale: list it on the map and in the final PR's What to watch. Never judge a finding fixed yourself, from the builder's checks or by reading the code.
+- **`stale`**: `/m-review` rewrites that reproduction against the fix branch and rechecks it. It stays stale: list it on the map and in the final PR's What to watch. Only `/m-review`'s recheck calls a finding fixed; the builder's checks and your own reading of the code leave it as it is.
 - **The builder disputes a finding**: the reproduction did fail, so the question is what the spec wants. Show the human the claim and the builder's reason; they decide.
 
 # Replan
@@ -163,14 +175,12 @@ Triggers: two failed step checks on one step · build returns no PR for an unobs
    gh issue close 47 --comment "Replanned: <what broke>"
    gh issue edit 48 --remove-blocked-by 47
    ```
-2. Add a dated line under Replans: what broke, what changes. Count the lines in the map body, never from memory. Second line: stop (below), except in an autonomous run.
+2. Add a dated line under Replans: what broke, what changes. Count the lines in the map body as it stands, not from memory. Second line: stop (below), except in an autonomous run (below).
 3. Run `/m-plan` in the main chat with its four inputs, the fact that broke the plan, and the steps merged into the feature branch, read from `git log` (not issue state).
 4. The human confirms the revised list.
 5. Create, rewrite and re-link step issues; note the change under Decided.
 
 A replan's steps serve requirements already on the map: their Done when never becomes a prove requirement. What the feature must do changes only through the Goal or Settled up front, with the human, or Assumed in an autonomous run.
-
-A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 
 **Stop:**
 
@@ -184,12 +194,12 @@ A re-cut step with the same Done when, even under a new issue number, is the sam
 
 The human asked not to be asked: `--auto`, or they are away, or told you to decide everything. The rest of this skill holds, except:
 
-- Every point that waits on the human takes your recommendation: a grilling answer, the plan's confirmation, a replan's revised list, a disputed finding, a decision nobody has made, Your call. Record each on the map with its reason; a decision goes under Assumed. Nothing waits, so nothing gets `needs:human` but the lines below.
+- Every point that waits on the human takes your recommendation: a grilling answer, the plan's confirmation, a replan's revised list, a disputed finding, a decision nobody has made, Your call. Record each on the map with its reason; a decision goes under Assumed. Nothing waits, so `needs:human` goes only where the lines below put it.
 - A recommendation that is hard to undo, or one you would otherwise stop for, is grounded first: run `/m-research` on it, asked as facts it can quote: what the standard or the vendor's docs say to do, and the alternatives they document. Decide on what serves the product's users best, and put the sources beside it under Assumed.
-- A `credential?` line is never merged on your own: leave that step open with `needs:human` on its issue, say so on the map, and go on with the steps that do not depend on it. Closing then runs with that step open, and the closing message puts it under To merge.
-- A replan still needs a trigger from Replan above, never taste.
+- A `credential?` line stays unmerged for the human: leave that step open with `needs:human` on its issue, say so on the map, and go on with the steps that do not depend on it. Closing then runs with that step open, and the closing message puts it under To merge.
+- A replan still needs a trigger from Replan, never taste.
 - Requirements hold still:
-  - Never narrow a requirement, drop a clause or extend Not doing to get past a failure. Not doing is fixed once plan is done: a replan's `/m-plan` adds nothing to it.
+  - Every requirement keeps its full scope through a failure: no narrowing, no dropped clause, no addition to Not doing. Not doing is fixed once plan is done: a replan's `/m-plan` adds nothing to it.
   - A requirement that failed only because of how you worded it (never the human's own words, nor an issue the request names) may be reworded without narrowing it. Keep `was: "<old>"` beside it on the map, say so under Assumed, and prove that line again: no build, no replan. The final PR stays a draft for the human to accept the new wording.
 - Two Replans lines do not stop the run. Stop as under Replan only when:
   - The same requirement is not verified on two proves in a row, each after a step aimed at it, and `/m-research` on it quotes no documented alternative you have not tried: the approach is wrong.
@@ -217,16 +227,3 @@ After the review and any fix step:
    Shipped · Left out · What to watch in production   one line each
    ```
    A run that stopped before closing opens with `Stopped · <the question only the human can answer>` instead.
-
-# What the human sees after each stage
-
-Short, no paragraphs:
-
-```
-Checked   · up to 5 lines, one per finding
-Decided   · up to 3 lines, one per decision, with why
-Your call · what is left to ask (usually one thing)
-Sources   · links
-```
-
-Always raise what changes the plan, even if a stage already settled it: it already exists, it breaks the repo's pattern, the infrastructure does not allow it. Say when a stage returned no answer.

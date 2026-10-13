@@ -1,6 +1,6 @@
 ---
 name: m-build
-description: "Builds one step from its issue: the whole spec up front, the method left to the builder, scope held to what was asked, one pull request. Use as the build stage of /m-feature, for a fix step from /m-review, or for any change with an observable Done when."
+description: "Builds one step from its issue into one pull request, scope held to what was asked. Use as the build stage of /m-feature, for a fix step from /m-review, or for any change with an observable Done when."
 ---
 
 Build one step. The method is yours: how you design it, whether you write tests, how you check your work. Your final message is the PR number, or the stop line; the PR says what changed, not how you got there.
@@ -14,7 +14,7 @@ Build one step. The method is yours: how you design it, whether you write tests,
 
 # Scope
 
-Deliver what the issue asks, at the scope it intends. Make routine calls yourself. No features, options, refactors or cleanup it did not ask for. A better approach, or a request that looks mistaken: say so in one line in the PR and build what was asked.
+Deliver what the issue asks, at the scope it intends, and make routine calls yourself. Anything beyond that scope (a feature, an option, a refactor, cleanup), a better approach, or a request that looks mistaken: one line in the PR, and build what was asked.
 
 # Stop instead
 
@@ -30,6 +30,8 @@ Stopping is a finished answer. Never bend a test, the spec or the Done when to g
 
 A test that fails after your change is information about the change. Change or delete one only when the issue changes the behaviour it pins, and list it in the PR with the clause that changed it. A test that disagrees with the spec is a stop, not an edit.
 
+Tests changed lists every existing test file with M, D or R in `git diff --name-status -M origin/<feature branch>...HEAD`: the step check fails on any it misses.
+
 # How this is judged
 
 Nothing else checks your work:
@@ -42,11 +44,11 @@ What none of these can show locally rests on you alone: a timeout on every call 
 
 # Long commands
 
-A command that runs for minutes (a suite, a build, a render): start it with the Bash tool's `run_in_background` and do nothing else on it; the harness tells you when it exits. Waiting on something else to happen (a file, a port): the Monitor tool, loaded first with ToolSearch (`select:Monitor`). Never a loop in Bash, such as `until grep -q done log; do sleep 20; done`: it holds the turn, hits the tool's 10-minute limit and starts over.
+A command that runs for minutes (a suite, a build, a render): start it with the Bash tool's `run_in_background` and do nothing else on it; the harness tells you when it exits. Waiting on something else to happen (a file, a port): the Monitor tool, loaded first with ToolSearch (`select:Monitor`). These two are how you wait: a `sleep` or `until` loop in Bash holds the turn, hits the tool's 10-minute limit and starts over.
 
 # Fix mode
 
-The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds. The review re-runs its reproduction afterwards; do not look for it in the git dir or recreate it. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is.
+The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds, working from the claim and condition alone: the review re-runs its own frozen reproduction afterwards. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is.
 
 # Pull request
 
@@ -68,5 +70,3 @@ Part of #<n>
 ```
 
 `Part of`, never `Closes`: closing keywords are ignored on non-default branches.
-
-Tests changed lists every existing test file with M, D or R in `git diff --name-status -M origin/<feature branch>...HEAD`: the step check fails on any it misses.

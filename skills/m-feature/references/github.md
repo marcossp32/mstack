@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- `gh` ≥ 2.94.0 (`gh --version`); older versions lack `--parent` and `--blocked-by`. Tell the human to upgrade; no GraphQL workaround. Where `gh pr create --help` lists no `--attach`, the final pull request describes its screenshots in words instead.
+- `gh` ≥ 2.94.0 (`gh --version`); older versions lack `--parent` and `--blocked-by`. Tell the human to upgrade; no GraphQL workaround.
 - `gh auth status` clean, default repo set.
 - Once per repo, before trusting any `--json` field name here: `gh issue list --limit 1 --json bogus 2>&1 | head -40` prints the valid ones.
 - Every body goes on stdin: `--body-file -` with a quoted heredoc (`<<'EOF'` keeps backticks and `$` literal). Nothing is written to the repo.
@@ -58,7 +58,7 @@ EOF
 
 ## Map body
 
-Created with Goal, Base and How hard to undo filled, other headings empty. Re-read before every build and the review.
+Created with Goal, Base and How hard to undo filled, other headings empty.
 
 ```markdown
 ## Goal
@@ -92,11 +92,7 @@ Created with Goal, Base and How hard to undo filled, other headings empty. Re-re
 <!-- one dated line each: what broke, what changed. Two lines = stop, except in an autonomous run -->
 ```
 
-Open step issues are not listed in the map; query them:
-
-```bash
-gh issue list --state open --json number,title,labels --search "parent:<map>"
-```
+Open step issues are not listed in the map; `/m-feature` queries them before every build and the review.
 
 ## Step issue body
 
@@ -126,7 +122,7 @@ Self-contained context: the builder has not seen the conversation. No checklists
 - One step, one branch, one pull request. A failed step check: push fixes to the same branch.
 - A fix step is a step like any other.
 - A step branch name carries the feature's name, so two features never share one. Before cutting it, `git ls-remote --heads origin <branch>` must print nothing. It prints a line: take the next number; never push over a branch that exists.
-- No direct commits to `<base>` or the feature branch.
+- `<base>` and the feature branch change only through merges: steps into the feature branch, the final PR into `<base>`.
 - Blocking and progress use GitHub's blocked-by and sub-issues, not checklists in the body.
 
 ## Closing
@@ -172,11 +168,6 @@ Closes #<map>
 Closes #<source>   only when the map has a source issue
 ```
 
-- A screenshot is an image reference to its file in prove's evidence dir. `--attach "<path>#<alt text>"`, once per image, uploads it and rewrites that reference; nothing is committed. Where `--help` lists no `--attach`: replace each image with one line saying what it shows and at which viewport.
-- Before and after: a two-column table with the base screenshot beside the head one.
-- Mask tokens, secrets and personal data before attaching; in a public repo attachments are visible without signing in.
-- The body stays under 65,536 characters: trim outputs, never the verdict lines.
-
 ## Commands
 
 ```bash
@@ -194,17 +185,8 @@ gh issue edit 45 --add-blocked-by 44
 # each step
 git ls-remote --heads origin step/<name>-<n>                                 # must print nothing
 gh issue develop 45 --base feature/<name> --name step/<name>-<n> --checkout   # --name required
-gh pr create --base feature/<name> --title "<step>" --body-file -         # /m-build
 gh pr merge --squash --delete-branch                                       # or --merge, per scan Q9
 gh issue close 45 --comment "<what landed>"
 
-# replan
-gh pr close 45 --delete-branch
-gh issue close 45 --comment "Replanned: <what broke>"
-gh issue edit 46 --remove-blocked-by 45
-
-# end: /m-prove opens it, a draft unless Proved
-gh pr list --base <base> --head feature/<name> --state open --json number,isDraft --jq '.[0] // "none"'   # not none: an earlier prove opened it; edit it instead
-gh pr create --base <base> --head feature/<name> --title "<feature>" --body-file - [--draft]   # drafts refused: without it, a do-not-merge first line
-gh pr ready <n>            # Proved, or the human ships it; `gh pr ready <n> --undo` puts a Not verified one back to draft
+# replan: the commands are in SKILL.md, Replan
 ```
