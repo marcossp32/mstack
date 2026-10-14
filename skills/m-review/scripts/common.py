@@ -43,19 +43,50 @@ def die(msg, code=1):
     sys.exit(code)
 
 
-def sh(cmd, cwd=None, timeout=1800, env=None):
+CONTAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contain.py")
+
+
+def sh(cmd, cwd=None, timeout=None, env=None, contain=True):
+    """Runs a shell command, contained: when it exits, or this script dies,
+    everything it started ends too. On Windows, killing the shell alone leaves
+    its children running and holding the output pipes.
+
+    No timeout by default: a suite or a repro cut short reads as a failure it
+    never had. A timeout is for a quick call whose cut costs no verdict."""
+    argv = cmd
+    if contain:
+        argv = [sys.executable, CONTAIN, "--shell", cmd]
+        if timeout:
+            argv[2:2] = ["--timeout", str(timeout)]
     try:
-        p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True,
+        p = subprocess.run(argv, shell=not contain, cwd=cwd, capture_output=True,
                            text=True, encoding="utf-8", errors="replace",
-                           timeout=timeout,
+                           timeout=timeout + 60 if contain and timeout else timeout,
                            env={**os.environ, **env} if env else None)
-        return p.returncode, (p.stdout or "") + (p.stderr or "")
     except subprocess.TimeoutExpired:
         return 124, "TIMEOUT"
+    out = (p.stdout or "") + (p.stderr or "")
+    if contain and "contain: TIMEOUT" in out:
+        return 124, out + "\nTIMEOUT"
+    return p.returncode, out
+
+
+def sweep():
+    """Ends automation browsers an earlier run orphaned, so they neither slow
+    this run nor skew its timing. Returns contain.py's summary line."""
+    try:
+        p = subprocess.run([sys.executable, CONTAIN, "sweep", "--kill"],
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=180)
+        out = (p.stdout or "") + (p.stderr or "")
+    except subprocess.TimeoutExpired:
+        out = "timed out"
+    lines = [l for l in out.splitlines() if l.startswith("SWEEP:")]
+    return lines[-1] if lines else "SWEEP: not run · " + tail(out.strip(), 200)
 
 
 def git(args, cwd=None):
-    rc, out = sh(f"git {args}", cwd=cwd, timeout=120)
+    rc, out = sh(f"git {args}", cwd=cwd, timeout=120, contain=False)
     return rc, out.strip()
 
 

@@ -13,7 +13,8 @@ After the review and any fix step:
    - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and the step check), then prove again. Or the human ships with it listed in the PR: `gh pr ready <n>`; a do-not-merge first line comes out with `gh pr view <n> --json body --jq .body`, then `gh pr edit <n> --body-file -` without it; go to 5.
    - `pre-existing`, on a requirement or a break: no replan. It stays in the verdict comment and the pull request's Proved table.
    - `PR · not opened · tree changed`: the feature branch moved during prove; prove again.
-5. Tell the human, then stop:
+5. The feature builds nothing more: `/m-review` step check `clear --base feature/<name>` deletes its baseline.
+6. Tell the human, then stop:
    ```
    PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · <link>
    To merge · <each thing only the human can do: a human check, a command the harness refused, a reworded requirement to accept> | nothing, merge it

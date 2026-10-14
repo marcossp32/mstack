@@ -17,8 +17,9 @@ A caveat is not verified or not driven.
 - Start every command with `cd <your subdir> &&`, so tools that write where they run stay out of the checkout.
 - Change no file in the checkout, even temporarily, ignored files included. The supervisor already ran the recipe's installs and builds there; run none yourself, since the other driver may be using the same checkout. A launch that needs an edit, an install or a build: every line not driven, naming what it needs.
 - Environment: the shipped defaults; set an override only on the lines the contract lists it for. A line that passes only with a variable the contract does not list: not verified, naming the variable.
-- Start your own server from the checkout, output to `launch.txt`, on a port the other driver is not using (Q1 the recipe's port or the next free one, Q2 that plus 100); poll the health check for up to 2 minutes. Stop only processes you started.
-- That health check is the only loop you wait on. A long command (a suite, a build): start it with the Bash tool's `run_in_background` and do nothing else on it; the harness tells you when it exits. Never a `sleep` or `until` loop in Bash: it hits the tool's 10-minute limit and starts over.
+- **Contain** every command that starts a process: your server, a script that launches a browser, a suite. `python3 <this skill's directory>/scripts/contain.py -- <command>` (`--shell "<command line>"` for pipes and `&&`): when the command exits, or your shell or session ends, everything it started ends too. No `--timeout`: a cut-short drive is a false failure, and a server must live until teardown. Its first stderr line, `contain: pid <n>`, is the command's pid. A process started any other way outlives you if you stop early, and keeps loading the machine after you report. `agent-browser` commands are not wrapped: each session's daemon owns its browser.
+- Start your own server from the checkout, contained, output to `launch.txt`, on a port the other driver is not using (Q1 the recipe's port or the next free one, Q2 that plus 100); poll the health check for up to 2 minutes. Stop only processes you started.
+- That health check is the only loop you wait on. A long command (a suite, a build): start it contained with the Bash tool's `run_in_background` and do nothing else on it; the harness tells you when it exits. Never a `sleep` or `until` loop in Bash: it hits the tool's 10-minute limit and starts over.
 - **Control**: before anything else, drive one path the diff never touched and save it as `control.txt`.
 
 **Q1, does it do what was asked?**
@@ -41,12 +42,15 @@ A caveat is not verified or not driven.
 - Not doing stays out, even where you see a gap in it.
 - HTTP: `curl -sS -i`. CLI: keep the exit code.
 - Every value you report sits in a file in your subdir under the command that printed it: `{ echo '$ <cmd>'; <cmd>; } >> <file> 2>&1`, or a script saved there with its output beside it. The report gives the value, never the page or the log.
-- Shutdown on Windows: `process.kill()` and `taskkill` end the process without running its shutdown handlers. Start the app in its own console and send Ctrl+Break to its process group, or share a console and send Ctrl+C with `GenerateConsoleCtrlEvent` from PowerShell. The app handles neither signal: not driven, naming both.
+- A command that wants a login you were not given (a prompt for credentials, a sign-in page it opens in the default browser): stop it; that line is not driven, naming the login. Never complete, script or get around a login.
+- Shutdown on Windows: `process.kill()` and `taskkill` end the process without running its shutdown handlers. `contain.py` starts the command in its own process group, whose id is the pid it prints: send Ctrl+Break to that group with `GenerateConsoleCtrlEvent` from PowerShell. The app does not handle it: not driven, naming the signal.
 
 **Browser**: any line or area whose surface is a page.
 - `agent-browser`, which the supervisor installed. Before your first browser command, read `agent-browser skills get core` once: it matches the installed version. `agent-browser doctor --offline --quick` fails: `npx @playwright/cli` in its own named session, named in Harness; local only still holds without the allowlist. Never the repo's test files.
 - Your own session on every command: `--session <run id>-<q1 | q2>`, and `<run id>-q2-base` for the base, since localhost cookies do not separate by port and a session's cache would serve head's pages to the base. Never the default session and never `close --all`: the other driver's browser is live.
-- The first command of each session carries `--allowed-domains localhost,127.0.0.1`; the session keeps it. The control fails because the page loads from another host: allow only that host, named in Harness.
+- The first command of each session carries `--allowed-domains localhost,127.0.0.1 --idle-timeout 10m`; the session keeps both. The control fails because the page loads from another host: allow only that host, named in Harness.
+- Headless only: never `--headed`, `headless: false` or a visible window. Never hide automation from the page (flags such as `--disable-blink-features=AutomationControlled`, stealth plugins, a faked user agent to pass a check). A bot check, captcha or anti-automation wall: that line is not driven, naming it; the supervisor makes it a human check.
+- A script of your own that launches a browser (Playwright, Puppeteer, a library the recipe names): headless, the browser closed in a `finally`, and the script run contained.
 - Act on refs from `snapshot -i` and take a fresh one after every page change; `find` when a ref will not do. Wait on what you expect (`wait --text`, `wait --url`, `wait @ref`), never `wait <ms>`.
 - A page value is read back by a command whose output lands in the evidence file: `get text | value | url`, `is visible | enabled | checked`, `get count`, `snapshot -i --json`. A screenshot shows it; it never settles it.
 - Screenshot what a requirement makes visible: `set viewport <w> <h>`, then `screenshot <@ref | selector> <line>-<head | base>-<w>x<h>.png`, cropped to that element.
@@ -56,7 +60,7 @@ A caveat is not verified or not driven.
 1. Repeat it with the app restarted and a new run value.
 2. The control fails too: the harness is broken; every line is not driven.
 
-**Teardown**: stop the process trees you started (Windows: the port's owner from `netstat -ano`, then `taskkill //T //F //PID`) · `agent-browser --session <s> close` for each of your sessions, and `agent-browser session list` shows none of them (it can lag a close by a moment: check once more) · `git worktree remove` · port free · `git status --porcelain` empty.
+**Teardown**: stop each contained command by the pid `contain.py` printed (`taskkill //F //PID <pid>`, POSIX `kill <pid>`): the wrapper then ends everything it started. A process you started uncontained: its tree (Windows: the port's owner from `netstat -ano`, then `taskkill //T //F //PID`) · `agent-browser --session <s> close` for each of your sessions, and `agent-browser session list` shows none of them (it can lag a close by a moment: check once more) · `git worktree remove` · port free · `git status --porcelain` empty.
 
 ```
 HEAD <sha> · tree <sha> · checkout clean <yes | no: files> · driving <Q1 | Q2>

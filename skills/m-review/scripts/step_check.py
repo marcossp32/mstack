@@ -11,6 +11,9 @@
       After each build, on the step branch, with a clean checkout.
       Exit 0 = PASS, 1 = FAIL; an abort exits non-zero and prints no verdict.
 
+  step_check.py clear --base <feature branch>
+      When the feature ends. Deletes its baseline, nothing else.
+
 Checks:
   1. Suite no worse than at the feature's start (exit-code level). Red is run
      up to 3 times: red on some runs only is a FAIL marked intermittent. Every
@@ -28,10 +31,11 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 from common import (TEST_PATH, die, git, now, read_json, reached_assertion,
-                    root, setup_failure, sh, state_dir, tail, tracked_changes,
-                    write_json)
+                    root, setup_failure, sh, state_dir, sweep, tail,
+                    tracked_changes, write_json)
 
 SECRETS = [
     ("private key", r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
@@ -71,6 +75,7 @@ DOC_PATH = re.compile(r"\.(md|mdx|rst|txt|adoc)$|(^|/)(LICENSE|CHANGELOG)[^/]*$"
                       re.IGNORECASE)
 
 SUITE_RUNS = 3
+LOG_DAYS = 7
 
 
 def run_git(args, cwd):
@@ -81,9 +86,16 @@ def run_git(args, cwd):
 
 
 def save_log(pr, run, out):
-    """The suite's full output, kept so a FAIL never needs a rerun to read."""
+    """The suite's full output, kept so a FAIL never needs a rerun to read.
+    Logs older than LOG_DAYS go: by then their step was fixed or abandoned."""
+    d = state_dir("check")
+    cutoff = time.time() - LOG_DAYS * 86400
+    for name in os.listdir(d):
+        old = os.path.join(d, name)
+        if name.endswith(".log") and os.path.getmtime(old) < cutoff:
+            os.remove(old)
     stamp = now().replace(":", "")
-    path = os.path.join(state_dir("check"), f"{pr or 'nopr'}-{stamp}-run{run}.log")
+    path = os.path.join(d, f"{pr or 'nopr'}-{stamp}-run{run}.log")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(out)
     return path
@@ -110,7 +122,7 @@ def cmd_baseline(a):
         print("baseline: no test suite")
     else:
         print(f"running {a.test_cmd} ...")
-        rc, out = sh(a.test_cmd, cwd=r, timeout=3600)
+        rc, out = sh(a.test_cmd, cwd=r)
         data = {"cmd": a.test_cmd, "rc": rc, "head": head, "created": now(),
                 "tail": tail(out, 4000)}
         print(f"baseline: suite {'green' if rc == 0 else 'red'} at {head[:12]}")
@@ -133,7 +145,7 @@ def check_suite(a, base_info, r, fails, notes):
     if base_info["cmd"] is None:
         notes.append("suite · none in this repo")
         return
-    rc, out = sh(base_info["cmd"], cwd=r, timeout=3600)
+    rc, out = sh(base_info["cmd"], cwd=r)
     logs = [save_log(a.pr, 1, out)] if rc != 0 else []
     if rc == 0:
         notes.append("suite · green")
@@ -141,7 +153,7 @@ def check_suite(a, base_info, r, fails, notes):
         # Red once may be a flaky test: run it again before judging.
         reds = [out]
         for i in range(2, SUITE_RUNS + 1):
-            rc_i, out_i = sh(base_info["cmd"], cwd=r, timeout=3600)
+            rc_i, out_i = sh(base_info["cmd"], cwd=r)
             logs.append(save_log(a.pr, i, out_i))
             if rc_i != 0:
                 reds.append(out_i)
@@ -212,7 +224,7 @@ def check_credentials(a, r, diff, fails, notes):
             notes.append(f"credential? · literal assigned to a secret-like "
                          f"name · {current} · look before merging")
     if a.secrets_cmd:
-        rc, out = sh(a.secrets_cmd, cwd=r, timeout=600)
+        rc, out = sh(a.secrets_cmd, cwd=r)
         if rc != 0:
             fails.append("credential · secrets scanner failed\n" + tail(out, 1500))
             found = True
@@ -237,7 +249,7 @@ def pinned_files(section, r):
 
 
 def run_pinned(cmd, path, r):
-    return sh(cmd.replace("{test}", path), cwd=r, timeout=1800)
+    return sh(cmd.replace("{test}", path), cwd=r)
 
 
 def check_pinned(a, base_info, r, base, status, listed, fails, notes):
@@ -326,7 +338,7 @@ def cmd_check(a):
     tests_listed = pr_section(a.pr, "Tests changed") if a.pr else ""
     pinned_listed = pr_section(a.pr, "Pinned by") if a.pr else ""
 
-    fails, notes = [], []
+    fails, notes = [], [f"sweep · {sweep()}"]
     check_suite(a, base_info, r, fails, notes)
     check_listed(a, status, diff, tests_listed, fails, notes)
     check_credentials(a, r, diff, fails, notes)
@@ -338,6 +350,16 @@ def cmd_check(a):
         print(f"- FAIL {f}")
     print(f"\nSTEP CHECK: {'FAIL' if fails else 'PASS'}")
     sys.exit(1 if fails else 0)
+
+
+def cmd_clear(a):
+    """Deletes a finished feature's baseline, nothing else."""
+    path = baseline_path(a.base)
+    if os.path.exists(path):
+        os.remove(path)
+        print(f"deleted {path}")
+    else:
+        print("nothing to delete")
 
 
 def main():
@@ -355,6 +377,9 @@ def main():
                    "Pinned by sections")
     p.add_argument("--secrets-cmd", help="optional scanner; non-zero exit fails")
     p.set_defaults(fn=cmd_check)
+    p = sub.add_parser("clear")
+    p.add_argument("--base", required=True, help="the feature branch that ended")
+    p.set_defaults(fn=cmd_clear)
     a = ap.parse_args()
     a.fn(a)
 

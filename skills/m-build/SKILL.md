@@ -43,7 +43,7 @@ Nothing a test can pin (config, a build file, wiring only the running app shows)
 
 # Driven
 
-Prove drives the running app only after every step, so a step wrong in the app costs a whole round: a fix build, a review and a re-prove, an hour or more. Before the PR, drive your own Done when once where a user reaches it, when the app can be launched (the recipe, else scan Q9) and the Done when has a surface it reaches (a page, an endpoint, a command): launch it, check what the Done when names, and on a page look past it too (console errors, the layout at the recipe's viewport; `agent-browser` where it is installed, else fetch the page), then stop everything you started. Ten minutes at most; what you find wrong, fix before the PR. Wait as the recipe says, never a fixed sleep.
+Prove drives the running app only after every step, so a step wrong in the app costs a whole round: a fix build, a review and a re-prove, an hour or more. Before the PR, drive your own Done when once where a user reaches it, when the app can be launched (the recipe, else scan Q9) and the Done when has a surface it reaches (a page, an endpoint, a command): launch it, check what the Done when names, and on a page look past it too (console errors, the layout at the recipe's viewport; `agent-browser` where it is installed, else fetch the page), then stop everything you started. Launch contained (Contained, below); a browser runs headless, never hides its automation from the page, and a login or bot check you were not given a way through ends the drive there, named in Driven. Ten minutes at most; what you find wrong, fix before the PR. Wait as the recipe says, never a fixed sleep.
 
 This is your own look, not a verdict: prove still judges with agents that did not write the code. Nothing that launches, or nothing a drive reaches: `none · <why>` in Driven.
 
@@ -57,9 +57,13 @@ Nothing else checks your work:
 
 What none of these can show locally rests on you alone: a timeout on every call out of the process (with `/m-research`'s value), resources released on rare error paths, per-environment values read from the environment.
 
+# Contained
+
+Every command that starts processes (the suite, a server, a script that launches a browser) runs through `python3 <this skill's directory>/scripts/contain.py -- <command>` (`--shell "<command line>"` for pipes and `&&`). When it exits, or you or your session stop, everything it started ends too: a suite's workers and their browsers otherwise outlive a stop, and pile up under the next run until the machine crawls. Stop a contained command by the pid its first stderr line prints. `agent-browser` commands are not wrapped: each session's daemon owns its browser. Pass no `--timeout`: it cuts a slow run that was fine, and the cut reads as a failure.
+
 # Long commands
 
-A command that runs for minutes (a suite, a build, a render): start it with the Bash tool's `run_in_background` and do nothing else on it; the harness tells you when it exits. Waiting on something else to happen (a file, a port): the Monitor tool, loaded first with ToolSearch (`select:Monitor`). These two are how you wait: a `sleep` or `until` loop in Bash holds the turn, hits the tool's 10-minute limit and starts over.
+A command that runs for minutes (a suite, a build, a render): start it contained with the Bash tool's `run_in_background` and do nothing else on it; the harness tells you when it exits. Waiting on something else to happen (a file, a port): the Monitor tool, loaded first with ToolSearch (`select:Monitor`). These two are how you wait: a `sleep` or `until` loop in Bash holds the turn, hits the tool's 10-minute limit and starts over.
 
 # Fix mode
 

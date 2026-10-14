@@ -39,10 +39,12 @@ Update with `npx skills update`.
 | [Claude Code](https://claude.com/claude-code) | current | all |
 | [`gh`](https://cli.github.com/), authenticated | 2.94.0 or newer | `m-feature`, `m-plan`, `m-review`, `m-prove` |
 | git | 2.31 or newer | `m-review`, `m-prove` |
-| Python | 3.9 or newer | `m-review`, `m-prove` scripts |
+| Python | 3.9 or newer | `m-build`, `m-review`, `m-prove` scripts |
 | Node.js and npm | any current | `m-prove`, only for changes with a web page |
 
 The repo needs a GitHub remote. `m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser) and installs it globally with npm the first time a change has a page.
+
+Every test run, server and browser script the skills start goes through `contain.py`. When the command ends or the agent or script that started it stops, everything it started ends too. On Windows that is a job object; on POSIX, a process session. `step_check.py`, `prepare.py` and prove also end any automation browser an earlier run left orphaned. Set `MSTACK_CPU_CAP=<percent>` to cap the CPU those trees may use (Windows, off by default: the cap throttles in bursts and makes timing tests flaky).
 
 ## Quick start
 
@@ -195,6 +197,7 @@ Each folder installs on its own, so a skill never links outside itself. Some tex
 
 - The step issue template lives in `m-plan/SKILL.md` and `m-feature/references/github.md`.
 - The label names live in those files, in `m-feature/SKILL.md` and in this README.
+- `scripts/contain.py` is the same file in `m-build`, `m-prove` and `m-review`.
 
 The skills follow the writing-for-agents conventions: short rules, each with its reason, and no rule that does not change what the agent does.
 

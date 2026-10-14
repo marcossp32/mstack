@@ -12,10 +12,13 @@
 """
 import argparse
 import os
+import re
 import shutil
 
-from common import die, git, now, root, sh, tail, tracked_changes
+from common import die, git, now, root, sh, sweep, tail, tracked_changes
 from ledger import path, run_dir, save
+
+KEEP = 3
 
 
 def changed_files(base, r):
@@ -62,15 +65,22 @@ def main():
     if not files:
         die("the diff touches no lines")
 
-    # Keep the previous run for the record; one active run at a time.
+    # Keep the previous runs for the record, the last KEEP of them; one
+    # active run at a time.
     if os.path.exists(path()):
-        old = os.path.join(os.path.dirname(run_dir()),
-                           f"review-{now().replace(':', '')}")
+        parent = os.path.dirname(run_dir())
+        old = os.path.join(parent, f"review-{now().replace(':', '')}")
         shutil.move(run_dir(), old)
         print(f"previous run moved to {old}")
+        archived = sorted(d for d in os.listdir(parent)
+                          if re.fullmatch(r"review-\d{4}-\d\d-\d\dT\d{6}\+0000", d))
+        for d in archived[:-KEEP]:
+            shutil.rmtree(os.path.join(parent, d))
+            print(f"deleted {d}")
 
+    print(sweep())
     print(f"running {a.test_cmd} at {head[:12]} ...")
-    rc, out = sh(a.test_cmd, cwd=r, timeout=3600)
+    rc, out = sh(a.test_cmd, cwd=r)
     if rc != 0:
         print("NOTE: the suite is red at HEAD. Recheck compares against this.")
 

@@ -26,6 +26,7 @@ Told it is a recheck: a fix has landed since the finding was confirmed, and its 
 - Enter through the given entry point. Calling private internals to reach the condition proves nothing about real input.
 - One behaviour, one assertion that can fail.
 - Deterministic: no clock, network, randomness, file ordering or shared global state. Local only.
+- Run each file through `python3 <this skill's directory>/scripts/contain.py --shell "<cmd>"`: whatever it launched, a browser included, ends with it. No `--timeout`: a slow run cut short reads as a failure. A test that launches a browser runs it headless and closes it in a `finally`. The gate runs every file 11 times or more, and a promoted repro joins the suite every later run pays for: a browser only when the claim lives in a rendered page.
 - Never touch existing tests, fixtures, config, the harness or the code under test.
 - Once handed over, both files are frozen.
 

@@ -17,7 +17,7 @@ Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 
 3. Does an installed library already do it?
 4. How does the repo do similar things?
 5. What does the repo call these things?
-6. How does it test: framework, test file location and naming, assertion style, how fakes are set up, the exact command that runs the whole suite, and the one that runs a single test file.
+6. How does it test: framework, test file location and naming, assertion style, how fakes are set up, the exact command that runs the whole suite, and the one that runs a single test file. When test files launch a browser or a server, the suite command caps how many files run at once, at 4 or fewer (`node --test --test-concurrency=4`, or the runner's own flag): runners default to one file per core, and one browser each can stall the machine.
 7. Which values differ between local and production, and which do not?
 8. Infrastructure limits: disk, outbound network, max run time, memory.
 9. How the app runs (start command, URL or entry point, prerequisites: seeded DB, env file, services), how a fresh checkout gets its dependencies, and whether PRs land squashed or merged, read from `git log` on the default branch.

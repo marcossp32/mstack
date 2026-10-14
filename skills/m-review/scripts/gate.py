@@ -104,7 +104,7 @@ def base_run(data, f, rel, repro_abs, cmd, r):
         if rc != 0:
             die(f"cannot create the base worktree: {out}")
         if data.get("setup_cmd"):
-            rc, out = sh(data["setup_cmd"], cwd=wt, timeout=3600,
+            rc, out = sh(data["setup_cmd"], cwd=wt,
                          env={"MSTACK_ROOT": r})
             if rc != 0:
                 return None, "base not run: setup failed\n" + tail(out), "unjudgeable"
@@ -313,7 +313,7 @@ def cmd_recheck(a):
         state, res, path = recheck_rewritten(a, f, r)
     else:
         state, res, path = recheck_frozen(a, f, r)
-    rc_suite, out_suite = sh(data["test_cmd"], cwd=r, timeout=3600)
+    rc_suite, out_suite = sh(data["test_cmd"], cwd=r)
     worse = data["baseline"]["rc"] == 0 and rc_suite != 0
 
     f.setdefault("rechecks", []).append({

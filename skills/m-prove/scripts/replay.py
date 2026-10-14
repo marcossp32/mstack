@@ -26,6 +26,7 @@ import subprocess
 import sys
 
 TIMEOUT = 300
+CONTAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contain.py")
 
 for _stream in (sys.stdout, sys.stderr):
     try:
@@ -101,15 +102,21 @@ def cmd_run(a):
             results.append((line, "missing", "no replay for this line"))
             continue
         cmd = index[line]["cmd"]
+        # Contained: a timeout ends the browser or server the check started too.
+        argv = [sys.executable, CONTAIN, "--timeout", str(TIMEOUT), "--shell", cmd]
         try:
-            p = subprocess.run(cmd, shell=True, cwd=os.path.join(d, line), env=env,
+            p = subprocess.run(argv, cwd=os.path.join(d, line), env=env,
                                capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", timeout=TIMEOUT)
+                               errors="replace", timeout=TIMEOUT + 60)
             out = (p.stdout or "") + (p.stderr or "")
             state = "pass" if p.returncode == 0 else "fail"
+            if "contain: TIMEOUT" in out:
+                out += "\nTIMEOUT"
         except subprocess.TimeoutExpired:
             out, state = "TIMEOUT", "fail"
-        last = (out.strip().splitlines() or [""])[-1][:200]
+        lines = [l for l in out.strip().splitlines()
+                 if not l.startswith("contain: ") or l.startswith("contain: TIMEOUT")]
+        last = (lines or [""])[-1][:200]
         results.append((line, state, last))
         log.append(f"$ {cmd}  # {line}\n{out}\n")
     if a.out:
