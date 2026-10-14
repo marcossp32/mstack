@@ -59,7 +59,7 @@ What none of these can show locally rests on you alone: a timeout on every call 
 
 # Contained
 
-Every command that starts processes (the suite, a server, a script that launches a browser) runs through `python3 <this skill's directory>/scripts/contain.py -- <command>` (`--shell "<command line>"` for pipes and `&&`). When it exits, or you or your session stop, everything it started ends too: a suite's workers and their browsers otherwise outlive a stop, and pile up under the next run until the machine crawls. Stop a contained command by the pid its first stderr line prints. `agent-browser` commands are not wrapped: each session's daemon owns its browser. Pass no `--timeout`: it cuts a slow run that was fine, and the cut reads as a failure.
+Every command that starts processes (the suite, a test file, a server, a script that launches a browser) runs through `python3 <this skill's directory>/scripts/contain.py -- <command>` (`python` where `python3` is absent; `--env KEY=VALUE` for variables; `--shell "<command line>"` only for pipes and `&&`, cmd.exe on Windows). When it exits or is stopped, everything it started ends too: a suite's workers and their browsers otherwise outlive a stop, and pile up under the next run until the machine crawls. A server: start it contained with `run_in_background`, never `&` or `Start-Process`, and stop it by the pid its first stderr line prints. The next step check ends whatever you leave running. contain will not start: say so in Driven and run nothing uncontained. `agent-browser` commands are not wrapped: each session's daemon owns its browser. Pass no `--timeout`: it cuts a slow run that was fine, and the cut reads as a failure.
 
 # Long commands
 

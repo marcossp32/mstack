@@ -45,7 +45,7 @@ Risk · <area> · <file:line>
 
 # Prepare
 
-`python3 <this skill's directory>/scripts/contain.py sweep --kill` first, into `<evidence>/prepare.txt`: it ends automation browsers an earlier run left orphaned, which would slow both drives and skew their timings. Run the recipe's dependency install and build once in the checkout, contained (`contain.py --shell "<command>"`, see [`references/drive.md`](references/drive.md)), output to the same file. A line or risk area reached through a page also needs a browser, outside the checkout: `agent-browser --version`, missing: `npm i -g agent-browser`; then `agent-browser install` for its Chrome, both into the same file. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Drivers install and build nothing in the checkout, so two drives never write the same files.
+`python3 <this skill's directory>/scripts/contain.py sweep --kill --within <checkout> --within <git common dir>` first, into `<evidence>/prepare.txt`: it ends what earlier runs left in this repo, and orphaned automation browsers, which would slow both drives and skew their timings. Run the recipe's dependency install and build once in the checkout, contained (`contain.py --shell "<command>"`, see [`references/drive.md`](references/drive.md)), output to the same file. A line or risk area reached through a page also needs a browser, outside the checkout: `agent-browser --version`, missing: `npm i -g agent-browser`; then `agent-browser install` for its Chrome, both into the same file. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Drivers install and build nothing in the checkout, so two drives never write the same files.
 
 # Drive
 
@@ -62,8 +62,8 @@ No Agent tool: drive Q1, then Q2, yourself by that file; the header says `self-d
 
 Read [`references/drive.md`](references/drive.md), then check both reports:
 
-- HEAD and tree match the contract; checkout clean; teardown stopped everything, closed its browser sessions and freed the port. Then `contain.py sweep --kill`: an orphaned browser it ends is a teardown the drive missed, named on the Harness line.
-- No drive ran a visible browser or hid its automation from a page; a line that did is sent back.
+- HEAD and tree match the contract; checkout clean; teardown stopped everything, closed its browser sessions and freed the port. Then `contain.py sweep --kill --within <evidence dir>`: anything it ends is a teardown a drive missed, named on the Harness line.
+- No drive hid its automation from a page (stealth flags or plugins, a faked user agent, in its saved scripts and commands); a line that did is sent back. A visible browser is named on the Harness line.
 - Every R line has a result; every risk area is covered or not driven, with its routes.
 - Each reported value appears in its evidence file, in the output of the command or script saved there. A value with nothing printed behind it is not evidence, and neither is a page value only a screenshot shows.
 - Every variable set in the evidence is an override the contract lists for that line.

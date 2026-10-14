@@ -27,6 +27,9 @@ import sys
 
 TIMEOUT = 300
 CONTAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contain.py")
+# The interpreter itself, not a venv launcher in front of it: contain watches
+# its parent, and a launcher outlives the script that started it.
+PYTHON = getattr(sys, "_base_executable", None) or sys.executable
 
 for _stream in (sys.stdout, sys.stderr):
     try:
@@ -103,7 +106,8 @@ def cmd_run(a):
             continue
         cmd = index[line]["cmd"]
         # Contained: a timeout ends the browser or server the check started too.
-        argv = [sys.executable, CONTAIN, "--timeout", str(TIMEOUT), "--shell", cmd]
+        argv = [PYTHON, CONTAIN, "--with-parent", "--timeout", str(TIMEOUT),
+                "--shell", cmd]
         try:
             p = subprocess.run(argv, cwd=os.path.join(d, line), env=env,
                                capture_output=True, text=True, encoding="utf-8",

@@ -5,7 +5,8 @@
              [--setup-cmd "<cmd>"]
 
 --base       the diff is merge-base(HEAD, base)..HEAD
---test-cmd   runs the whole suite (scan Q6); a linter cannot satisfy the gate
+--test-cmd   runs the whole suite (scan Q6); a linter cannot satisfy the gate.
+             Its run is timed: the gate's ceilings are 3 times it or more
 --setup-cmd  prepares a fresh checkout of the base (install dependencies,
              copy env files) so a reproduction can run there. Needed when the
              suite does not run on a bare checkout
@@ -15,7 +16,8 @@ import os
 import re
 import shutil
 
-from common import die, git, now, root, sh, sweep, tail, tracked_changes
+from common import (FIRST_RUN, die, git, now, root, sweep, tail, timed,
+                    timed_out, tracked_changes)
 from ledger import path, run_dir, save
 
 KEEP = 3
@@ -80,14 +82,17 @@ def main():
 
     print(sweep())
     print(f"running {a.test_cmd} at {head[:12]} ...")
-    rc, out = sh(a.test_cmd, cwd=r)
+    rc, out, secs = timed(a.test_cmd, cwd=r, timeout=FIRST_RUN)
+    if timed_out(rc, out):
+        die(f"NOT RUN · the suite did not finish within {FIRST_RUN}s at HEAD: "
+            "the review cannot compare against it\n" + tail(out, 1500), 2)
     if rc != 0:
         print("NOTE: the suite is red at HEAD. Recheck compares against this.")
 
     save({
         "created": now(), "root": r, "base": base, "head": head,
         "test_cmd": a.test_cmd, "setup_cmd": a.setup_cmd,
-        "baseline": {"rc": rc, "tail": tail(out, 4000)},
+        "baseline": {"rc": rc, "seconds": round(secs, 1), "tail": tail(out, 4000)},
         "files": files, "findings": [], "next_id": 1,
     })
 

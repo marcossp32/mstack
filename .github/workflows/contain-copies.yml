@@ -1,0 +1,17 @@
+name: contain copies
+
+# contain.py is copied into each skill that runs commands, because each
+# skill installs on its own. The copies must stay identical.
+on:
+  push:
+  pull_request:
+
+jobs:
+  identical:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare the copies
+        run: |
+          sha256sum skills/*/scripts/contain.py
+          test "$(sha256sum skills/*/scripts/contain.py | cut -d' ' -f1 | sort -u | wc -l)" = 1

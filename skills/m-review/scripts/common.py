@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 
 for _stream in (sys.stdout, sys.stderr):
@@ -44,18 +45,41 @@ def die(msg, code=1):
 
 
 CONTAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contain.py")
+# The interpreter itself, not a venv or `py` launcher in front of it: contain
+# watches its parent, and a launcher outlives the script that started it.
+PYTHON = getattr(sys, "_base_executable", None) or sys.executable
+
+# Ceilings. Reaching one is never a failure: the run is reported as not
+# finished, and nothing is judged on it. They exist so a hung run ends
+# instead of holding the whole feature forever.
+FIRST_RUN = 7200    # seconds, when nothing has been measured yet
+SUITE_FLOOR = 1800  # a suite gets at least this, else 3 times its last run
+FILE_FLOOR = 300    # one test file gets at least this
+FACTOR = 3
+TIMEOUT_RC = 124
+
+
+def ceiling(measured, floor):
+    """FACTOR times a measured run, never under floor; FIRST_RUN if unmeasured."""
+    if measured is None:
+        return FIRST_RUN
+    return max(floor, int(FACTOR * measured))
+
+
+def timed_out(rc, out):
+    return rc == TIMEOUT_RC and "contain: TIMEOUT" in out
 
 
 def sh(cmd, cwd=None, timeout=None, env=None, contain=True):
-    """Runs a shell command, contained: when it exits, or this script dies,
-    everything it started ends too. On Windows, killing the shell alone leaves
-    its children running and holding the output pipes.
+    """Runs a shell command, contained: when it exits, times out, or this
+    script dies, everything it started ends too. On Windows, killing the shell
+    alone leaves its children running and holding the output pipes.
 
-    No timeout by default: a suite or a repro cut short reads as a failure it
-    never had. A timeout is for a quick call whose cut costs no verdict."""
+    A timeout here is a ceiling: check timed_out() and report the run as not
+    finished, never as a failure."""
     argv = cmd
     if contain:
-        argv = [sys.executable, CONTAIN, "--shell", cmd]
+        argv = [PYTHON, CONTAIN, "--with-parent", "--shell", cmd]
         if timeout:
             argv[2:2] = ["--timeout", str(timeout)]
     try:
@@ -64,25 +88,36 @@ def sh(cmd, cwd=None, timeout=None, env=None, contain=True):
                            timeout=timeout + 60 if contain and timeout else timeout,
                            env={**os.environ, **env} if env else None)
     except subprocess.TimeoutExpired:
-        return 124, "TIMEOUT"
-    out = (p.stdout or "") + (p.stderr or "")
-    if contain and "contain: TIMEOUT" in out:
-        return 124, out + "\nTIMEOUT"
-    return p.returncode, out
+        return TIMEOUT_RC, "contain: TIMEOUT · the wrapper itself did not return"
+    return p.returncode, (p.stdout or "") + (p.stderr or "")
+
+
+def timed(cmd, cwd=None, timeout=None, env=None):
+    """sh(), plus how long it took in seconds."""
+    start = time.monotonic()
+    rc, out = sh(cmd, cwd=cwd, timeout=timeout, env=env)
+    return rc, out, time.monotonic() - start
+
+
+class NotRun(Exception):
+    """A run hit its ceiling: report it as not finished and judge nothing."""
 
 
 def sweep():
-    """Ends automation browsers an earlier run orphaned, so they neither slow
-    this run nor skew its timing. Returns contain.py's summary line."""
+    """Ends what an earlier run left behind in this repo (contained trees whose
+    owner is gone) and orphaned automation browsers, so they neither slow this
+    run nor skew its timing. Returns contain.py's summary lines."""
     try:
-        p = subprocess.run([sys.executable, CONTAIN, "sweep", "--kill"],
+        _, common = git("rev-parse --path-format=absolute --git-common-dir")
+        p = subprocess.run([PYTHON, CONTAIN, "sweep", "--kill", "--within", root(),
+                            "--within", common],
                            capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=180)
         out = (p.stdout or "") + (p.stderr or "")
     except subprocess.TimeoutExpired:
         out = "timed out"
-    lines = [l for l in out.splitlines() if l.startswith("SWEEP:")]
-    return lines[-1] if lines else "SWEEP: not run · " + tail(out.strip(), 200)
+    lines = [l for l in out.splitlines() if l.startswith(("SWEEP:", "REAP:"))]
+    return " · ".join(lines) if lines else "SWEEP: not run · " + tail(out.strip(), 200)
 
 
 def git(args, cwd=None):

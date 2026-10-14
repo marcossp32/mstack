@@ -64,7 +64,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 | docs | 4 answers (5 in an autonomous run), each with a primary link | main chat | `/m-research` |
 | plan | ordered steps · blocking · design checks | main chat | `/m-plan` |
 | build | step branch · PR into the feature branch and its number, or a stop line | fresh agent | `/m-build` |
-| check | `STEP CHECK: PASS` or `FAIL`, per step | main chat, a script | `/m-review` |
+| check | `STEP CHECK: PASS`, `FAIL` or `NOT RUN`, per step | main chat, a script | `/m-review` |
 | review | `report.py`'s output: confirmed findings, each failed by a frozen reproduction · counts | fresh agent, dispatches its own agents | `/m-review` |
 | prove | a verdict per requirement · what else broke · at closing, the final PR open | fresh agent | `/m-prove` |
 
@@ -94,7 +94,7 @@ Post the reply as a comment on the map; links under Sources.
 - grilling and plan need the human; docs dispatches its own agents. These three stay in the main chat. Review runs in a fresh agent so its hunt stays out of this conversation; it returns `Review · not run · no Agent tool`: run it here.
 - Run all four scan slices at once.
 - One build at a time: one step branch, one PR, one issue in flight.
-- When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's two commands, the whole suite and one test file.
+- When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's two commands, the whole suite and one test file. Where scan says test files launch a browser or a server, the suite command caps the files run at once at half the machine's cores, 4 at most, with the runner's flag scan names: one browser per core stalls the machine.
 - A step check after every build, on its step branch.
 - One review, after the last step passes its check, on the whole feature diff. After a replan prove triggered, skip it when what landed since the last review is under 300 changed lines and How hard to undo is easy, and go to Closing: the step checks, the replays and the re-prove judge a small fix, and a review there costs a round of hunters for little.
 - prove after the review and any fix step, and it opens the final PR; again after any replan, as a re-prove: it drives only what the replan's diff can reach, and the rest keeps its verdict.
@@ -148,6 +148,7 @@ Run the step check on the step branch with the PR number, against `origin/featur
 - **PASS**: merge the step branch into the feature branch, close the step issue, add a line to Decided, start the next build.
 - **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again. Only a PASS after a change clears a FAIL: running the check again without a build fixes nothing.
 - **FAIL suite · intermittent** on tests this step did not touch: a flaky test, not this step's fault. Merge only after a fix step for that test (Done when: it passes 3 runs in a row) passes its check; it does not count toward a second FAIL.
+- **NOT RUN**: a run hit its ceiling, 3 times its baseline run: something hangs, and nothing was judged. Comment it on the step issue and tell the human (in an autonomous run, stop with it). It is not a FAIL and does not count toward a second one.
 - **Second FAIL** on one step: replan. A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 - **`credential?`** line: show the human before merging.
 - **`unpinned?`** line: the builder says no test can pin this step. Add its reason to the step's Decided line; prove judges the step alone.
