@@ -21,6 +21,10 @@ current HEAD, and the suite is no worse than when the review started. A repro
 that fails only before its assertion is stale: the code it set up against
 changed. A stale finding is rechecked with a capture and repro rewritten
 against the current code; both must reach their assertions and disagree.
+
+Every run has a ceiling, 3 times the review's suite run or more. A run that
+reaches it judges nothing: confirm closes the finding unjudgeable, recheck
+aborts with NOT RUN and leaves the state as it was.
 """
 import argparse
 import os
@@ -29,8 +33,9 @@ import shutil
 import sys
 import tempfile
 
-from common import (SETUP_FAILURE, die, git, now, reached_assertion, root, sh,
-                    setup_failure, sha, tail, tracked_changes)
+from common import (FILE_FLOOR, FIRST_RUN, SETUP_FAILURE, SUITE_FLOOR, ceiling,
+                    die, git, now, reached_assertion, root, sh, setup_failure,
+                    sha, tail, timed_out, tracked_changes)
 from ledger import find, load, run_dir, save
 
 RUNS = 5
@@ -43,11 +48,26 @@ def frozen_dir(fid):
     return d
 
 
-def runs(cmd, rel, cwd, n, watch):
-    """Run the test n times; abort if any watched file changes."""
+def file_limit(data):
+    """A ceiling for one test file: 3 times the review's suite run or more."""
+    return ceiling(data["baseline"].get("seconds"), FILE_FLOOR)
+
+
+def cut(results):
+    """The ceiling a run hit, or None: such a run judges nothing."""
+    return next((x["limit"] for x in results if x.get("timed_out")), None)
+
+
+def runs(cmd, rel, cwd, n, watch, limit):
+    """Run the test n times; abort if any watched file changes. A run that
+    hits its ceiling stops the series: nothing is judged on it."""
     out = []
     for i in range(n):
-        rc, text = sh(cmd.replace("{test}", rel), cwd=cwd)
+        rc, text = sh(cmd.replace("{test}", rel), cwd=cwd, timeout=limit)
+        if timed_out(rc, text):
+            out.append({"run": i + 1, "rc": rc, "tail": tail(text), "full": text,
+                        "timed_out": True, "limit": limit})
+            break
         for path, digest in watch:
             if not os.path.exists(path) or sha(path) != digest:
                 die(f"{path} changed during the gate", 3)
@@ -104,14 +124,21 @@ def base_run(data, f, rel, repro_abs, cmd, r):
         if rc != 0:
             die(f"cannot create the base worktree: {out}")
         if data.get("setup_cmd"):
-            rc, out = sh(data["setup_cmd"], cwd=wt, timeout=3600,
+            rc, out = sh(data["setup_cmd"], cwd=wt, timeout=FIRST_RUN,
                          env={"MSTACK_ROOT": r})
+            if timed_out(rc, out):
+                return None, (f"base not run: setup did not finish within "
+                              f"{FIRST_RUN}s"), "unjudgeable"
             if rc != 0:
                 return None, "base not run: setup failed\n" + tail(out), "unjudgeable"
         dst = os.path.join(wt, rel)
         os.makedirs(os.path.dirname(dst) or wt, exist_ok=True)
         shutil.copy2(repro_abs, dst)
-        rc, out = sh(cmd.replace("{test}", rel), cwd=wt)
+        limit = file_limit(data)
+        rc, out = sh(cmd.replace("{test}", rel), cwd=wt, timeout=limit)
+        if timed_out(rc, out):
+            return None, (f"base not run: the repro did not finish within "
+                          f"{limit}s at the base"), "unjudgeable"
         if rc == 0:
             return "regression", "passes at the base, fails at HEAD", None
         added = new_symbols(out, base, r) if setup_failure(out) else []
@@ -170,16 +197,24 @@ def cmd_confirm(a):
 
 
 def judge(a, data, f, r, cap, rep, watch, evidence, cleanup):
+    limit = file_limit(data)
+
     # 1. capture passes at HEAD, every run
-    res = runs(a.cmd, cap["path"], r, a.runs, watch)
+    res = runs(a.cmd, cap["path"], r, a.runs, watch, limit)
     evidence["capture_runs"] = strip(res)
+    if cut(res):
+        close(data, f, "unjudgeable", f"the capture did not finish within "
+              f"{cut(res)}s at HEAD", evidence, cleanup)
     if any(x["rc"] != 0 for x in res):
         close(data, f, "dead", "the capture fails at HEAD: the writer's model "
               "of the code is wrong, or the file does not set up", evidence, cleanup)
 
     # 2. repro fails at HEAD, every run, after reaching an assertion
-    res = runs(a.cmd, rep["path"], r, a.runs, watch)
+    res = runs(a.cmd, rep["path"], r, a.runs, watch, limit)
     evidence["repro_runs"] = strip(res)
+    if cut(res):
+        close(data, f, "unjudgeable", f"the repro did not finish within "
+              f"{cut(res)}s at HEAD: a hang is not an assertion", evidence, cleanup)
     if any(x["rc"] == 0 for x in res):
         close(data, f, "dead", "the repro passes at HEAD: the claim is false",
               evidence, cleanup)
@@ -213,7 +248,11 @@ def recheck_frozen(a, f, r):
 
     keep = False
     try:
-        res = runs(ev["cmd"], rep["path"], r, a.runs, [(full, rep["sha256"])])
+        res = runs(ev["cmd"], rep["path"], r, a.runs, [(full, rep["sha256"])],
+                   file_limit(load()))
+        if cut(res):
+            die(f"NOT RUN · the frozen repro did not finish within {cut(res)}s: "
+                f"{a.id} keeps its state", 2)
         if all(x["rc"] == 0 for x in res):
             state = "fixed"
         elif any(x["rc"] != 0 and not setup_failure(x["full"]) for x in res):
@@ -259,8 +298,12 @@ def recheck_rewritten(a, f, r):
         cap, rep = files["capture"], files["repro"]
         watch = [(cap["abs"], cap["sha256"]), (rep["abs"], rep["sha256"])]
 
-        cap_res = runs(a.cmd, cap["path"], r, a.runs, watch)
-        rep_res = runs(a.cmd, rep["path"], r, a.runs, watch)
+        limit = file_limit(load())
+        cap_res = runs(a.cmd, cap["path"], r, a.runs, watch, limit)
+        rep_res = runs(a.cmd, rep["path"], r, a.runs, watch, limit)
+        if cut(cap_res + rep_res):
+            die(f"NOT RUN · the rewritten repro did not finish within {limit}s: "
+                f"{a.id} stays stale", 2)
         if any(x["rc"] != 0 and setup_failure(x["full"]) for x in cap_res + rep_res):
             state = "stale"
         elif (all(x["rc"] == 0 for x in rep_res)
@@ -313,8 +356,10 @@ def cmd_recheck(a):
         state, res, path = recheck_rewritten(a, f, r)
     else:
         state, res, path = recheck_frozen(a, f, r)
-    rc_suite, out_suite = sh(data["test_cmd"], cwd=r, timeout=3600)
-    worse = data["baseline"]["rc"] == 0 and rc_suite != 0
+    limit = ceiling(data["baseline"].get("seconds"), SUITE_FLOOR)
+    rc_suite, out_suite = sh(data["test_cmd"], cwd=r, timeout=limit)
+    suite_cut = timed_out(rc_suite, out_suite)
+    worse = data["baseline"]["rc"] == 0 and rc_suite != 0 and not suite_cut
 
     f.setdefault("rechecks", []).append({
         "at": now(), "head": head, "rewritten": rewritten, "runs": res,
@@ -335,6 +380,9 @@ def cmd_recheck(a):
     if worse:
         print("SUITE WORSE: green when the review started, red now\n"
               + tail(out_suite, 2000))
+    if suite_cut:
+        print(f"SUITE NOT RUN: it did not finish within {limit}s, so whether it "
+              "got worse is unknown")
     sys.exit(0 if state == "fixed" and not worse else 1)
 
 

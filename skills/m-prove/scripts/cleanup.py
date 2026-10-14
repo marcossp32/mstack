@@ -2,6 +2,8 @@
 """Delete prove evidence dirs, and nothing else.
 
   cleanup.py <evidence dir>     one run's dir
+  cleanup.py --stale            every run's dir older than 24 hours: runs that
+                                stopped before their cleanup
   cleanup.py --all              every run's dir in this repo
 
 Only paths inside <git common dir>/mstack/prove/ are deleted, so one allow
@@ -11,6 +13,9 @@ import os
 import shutil
 import subprocess
 import sys
+import time
+
+STALE_HOURS = 24
 
 
 def prove_root():
@@ -25,8 +30,11 @@ def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
     root = prove_root()
-    if sys.argv[1] == "--all":
+    if sys.argv[1] in ("--all", "--stale"):
         targets = [os.path.join(root, d) for d in os.listdir(root)] if os.path.isdir(root) else []
+        if sys.argv[1] == "--stale":
+            cutoff = time.time() - STALE_HOURS * 3600
+            targets = [t for t in targets if os.path.getmtime(t) < cutoff]
     else:
         targets = [os.path.realpath(sys.argv[1])]
     for t in targets:

@@ -25,7 +25,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 
 Read files and git; start nothing.
 
-1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base origin/<base branch> HEAD` after `git fetch origin` (a local branch may be missing or stale). Create the evidence dir `$(git rev-parse --path-format=absolute --git-common-dir)/mstack/prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id.
+1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base origin/<base branch> HEAD` after `git fetch origin` (a local branch may be missing or stale). Create the evidence dir `$(git rev-parse --path-format=absolute --git-common-dir)/mstack/prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id. First `python3 <this skill's directory>/scripts/cleanup.py --stale`: it deletes the dirs of runs that stopped before their cleanup.
 2. **Requirements, before reading the diff.** One line per clause, quoted:
    - surface: where its user reaches it (page, HTTP endpoint, CLI command, public API from a script);
    - settled when: the observation that shows it, read back by a route that skips the code that wrote it (the record on a fresh read, the file on disk, the message off the queue). What the surface returns to its caller counts when that is the effect asked for. No such route: what the app itself shows, and the line says `via the app itself`.
@@ -45,7 +45,7 @@ Risk · <area> · <file:line>
 
 # Prepare
 
-Run the recipe's dependency install and build once in the checkout, output to `<evidence>/prepare.txt`. A line or risk area reached through a page also needs a browser, outside the checkout: `agent-browser --version`, missing: `npm i -g agent-browser`; then `agent-browser install` for its Chrome, both into the same file. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Drivers install and build nothing in the checkout, so two drives never write the same files.
+`python3 <this skill's directory>/scripts/contain.py sweep --kill --within <checkout> --within <git common dir>` first, into `<evidence>/prepare.txt`: it ends what earlier runs left in this repo, and orphaned automation browsers, which would slow both drives and skew their timings. Run the recipe's dependency install and build once in the checkout, contained (`contain.py --shell "<command>"`, see [`references/drive.md`](references/drive.md)), output to the same file. A line or risk area reached through a page also needs a browser, outside the checkout: `agent-browser --version`, missing: `npm i -g agent-browser`; then `agent-browser install` for its Chrome, both into the same file. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Drivers install and build nothing in the checkout, so two drives never write the same files.
 
 # Drive
 
@@ -62,7 +62,8 @@ No Agent tool: drive Q1, then Q2, yourself by that file; the header says `self-d
 
 Read [`references/drive.md`](references/drive.md), then check both reports:
 
-- HEAD and tree match the contract; checkout clean; teardown stopped everything, closed its browser sessions and freed the port.
+- HEAD and tree match the contract; checkout clean; teardown stopped everything, closed its browser sessions and freed the port. Then `contain.py sweep --kill --within <evidence dir>`: anything it ends is a teardown a drive missed, named on the Harness line.
+- No drive hid its automation from a page (stealth flags or plugins, a faked user agent, in its saved scripts and commands); a line that did is sent back. A visible browser is named on the Harness line.
 - Every R line has a result; every risk area is covered or not driven, with its routes.
 - Each reported value appears in its evidence file, in the output of the command or script saved there. A value with nothing printed behind it is not evidence, and neither is a page value only a screenshot shows.
 - Every variable set in the evidence is an override the contract lists for that line.
@@ -71,7 +72,7 @@ Read [`references/drive.md`](references/drive.md), then check both reports:
 - An R line is `pre-existing` when the base, driven the same way, fails it the same way: the change did not cause it. It is not a not verified, unless the Goal asks to change that existing behaviour.
 - A Q2 break is `new` when the base, driven the same way, behaves differently; `pre-existing` when the base fails the same way; `base not run` when the base could not be driven.
 
-A not driven line whose precondition only the human can meet is `human check`: a real account's login, a third-party admin setting, a bot check meant to stop automation, content not yet published. It names what to check by hand. A precondition you could meet locally (data, a flag, a server) is not one.
+A not driven line whose precondition only the human can meet is `human check`: a real account's login, a login a command wanted that you were not given, a third-party admin setting, a bot check meant to stop automation, content not yet published. It names what to check by hand. A precondition you could meet locally (data, a flag, a server) is not one.
 
 **Recipe.** The contract's Run was improvised and the harness held (health check and control passed): write it down as a recipe at `~/.claude/skills/run-<repo name>/SKILL.md`, never in the checkout (prove needs it clean), from the drivers' reports: launch, health check, prerequisites, shared state, the traps they hit, teardown. Its description names the repo, so the next prove finds it (Contract, step 4). One already there: add the new traps to it. Name it on the Harness line.
 

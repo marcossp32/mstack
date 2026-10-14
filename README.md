@@ -39,10 +39,14 @@ Update with `npx skills update`.
 | [Claude Code](https://claude.com/claude-code) | current | all |
 | [`gh`](https://cli.github.com/), authenticated | 2.94.0 or newer | `m-feature`, `m-plan`, `m-review`, `m-prove` |
 | git | 2.31 or newer | `m-review`, `m-prove` |
-| Python | 3.9 or newer | `m-review`, `m-prove` scripts |
+| Python | 3.9 or newer | `m-build`, `m-review`, `m-prove` scripts |
 | Node.js and npm | any current | `m-prove`, only for changes with a web page |
 
 The repo needs a GitHub remote. `m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser) and installs it globally with npm the first time a change has a page.
+
+Every test run, server and browser script the skills start goes through `contain.py`. When the command ends or is stopped, everything it started ends too: on Windows a job object, on POSIX a process session ended with SIGTERM then SIGKILL, plus a watchdog. `step_check.py`, `prepare.py` and prove first end what earlier runs left in the repo, and orphaned automation browsers. Contained commands get `BROWSER=none` and `PW_TEST_HTML_REPORT_OPEN=never`, so dev servers and test reports do not open your browser. Set `MSTACK_PRIORITY=low` to run them at below-normal priority (off by default: under load it makes timing tests flaky).
+
+Suites and test files have a ceiling, 3 times their last measured run (at least 30 minutes for a suite, 5 for one file). A run that reaches it is reported as not finished, never as a failure.
 
 ## Quick start
 
@@ -195,6 +199,7 @@ Each folder installs on its own, so a skill never links outside itself. Some tex
 
 - The step issue template lives in `m-plan/SKILL.md` and `m-feature/references/github.md`.
 - The label names live in those files, in `m-feature/SKILL.md` and in this README.
+- `scripts/contain.py` is the same file in `m-build`, `m-prove` and `m-review`; CI fails when the copies differ.
 
 The skills follow the writing-for-agents conventions: short rules, each with its reason, and no rule that does not change what the agent does.
 

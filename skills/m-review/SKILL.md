@@ -9,7 +9,7 @@ The step check and recheck run where they are called. The feature review dispatc
 
 Models are tiers: strong is the harness's most capable, standard its middle one. A tier that does not resolve runs on the session's model.
 
-Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout. `step_check.py`, `prepare.py` and `gate.py` run the whole suite, `step_check.py` up to three times: start each with the Bash tool's `run_in_background` and read its output when the harness says it exited, so no run hits the tool's 10-minute limit.
+Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout. `step_check.py`, `prepare.py` and `gate.py` run the whole suite, `step_check.py` up to three times: start each with the Bash tool's `run_in_background` and read its output when the harness says it exited, so no run hits the tool's 10-minute limit. `sweep` and `REAP` lines in their output are cleanup of earlier runs, not findings. A run that hits its ceiling (3 times its last measured run, 30 minutes at least for a suite, 5 for one file) judges nothing: the step check prints `STEP CHECK: NOT RUN` and exits 2, `prepare.py` aborts, and the gate closes the finding `unjudgeable`. Report a NOT RUN as it is; never rerun it to get a verdict.
 
 # Step check
 
@@ -18,6 +18,7 @@ After each build, on the step branch. No model judgement.
 ```bash
 python3 scripts/step_check.py baseline --test-cmd "<scan Q6 suite | none>" --test-file-cmd "<scan Q6 one file, {test} for its path>"   # once, before the first step
 git fetch origin && python3 scripts/step_check.py check --base origin/feature/<name> --pr <n>
+python3 scripts/step_check.py clear --base feature/<name>   # once, when the feature ends
 ```
 
 Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` and `unpinned?` lines are for the human to look at and do not fail the step. The check reverts the step's non-test changes in place to run the Pinned by tests, so it aborts on a checkout with tracked changes and restores HEAD before it exits; `pinned · not run` names what it lacked. A red suite runs up to three times: `intermittent` means red on some runs only, and still fails. `suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
