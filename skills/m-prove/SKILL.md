@@ -34,12 +34,12 @@ Read files and git; start nothing.
 3. **Environment**: the shipped defaults plus what the recipe or `.env.example` sets. Any other variable is an override, listed with the lines that need it and why. A requirement that names development, local or default settings is driven with no override.
 4. **Run**: a recipe in the repo (`.claude/skills/run-*/SKILL.md`, `.claude/skills/verify/SKILL.md`) or a `~/.claude/skills/*/SKILL.md` whose description names this repo; else scan Q9. Launch · health check (no server: the entry point run once) · prerequisites. **Shared state**: whether two servers from this checkout would share a database, data dir, queue or fixed port the recipe cannot move. Any: the drives run one after the other.
 5. **Risk areas**, now from `git diff <base>...HEAD`: where else this change can reach. Check each kind: callers of what changed, data it shares, start and shutdown, integrations, configuration and defaults, platform. One line per area that applies, with its `file:line`. Leave out Not doing.
-6. **Re-prove only**: read `git diff <last tree> HEAD` the same way. A requirement that diff cannot reach keeps its last verdict, verified or pre-existing, as `carried <last short sha>` and is not driven again. Lines last not verified or not driven are driven, and so is every risk area the new diff reaches. Nothing the diff touches stays carried.
+6. **Re-prove only**: read `git diff <last tree> HEAD` the same way. A line last verified that has a **replay** (`python3 <this skill's directory>/scripts/replay.py list --feature <branch>`) is replayed by Q1, reachable or not: a replay is a check an earlier driver saved, so running it costs seconds and catches what a fix broke. Without a replay, a requirement that diff cannot reach keeps its last verdict, verified or pre-existing, as `carried <last short sha>` and is not driven again. Lines last not verified or not driven are driven, and so is every risk area the new diff reaches. Nothing the diff touches stays carried.
 
 ```
 HEAD <sha> · tree <sha> · base <sha> · checkout <path> · evidence <dir>
 Run  · <recipe path | none> · <launch> · <health check> · <prerequisites> · overrides <VAR=value → R2 | none> · shared state <none → parallel | what → Q1 then Q2>
-R1 "<clause>" · surface <…> · settled when <observation> via <route> | carried <sha>
+R1 "<clause>" · surface <…> · settled when <observation> via <route> | carried <sha> | replay
 Risk · <area> · <file:line>
 ```
 
@@ -51,8 +51,10 @@ Run the recipe's dependency install and build once in the checkout, output to `<
 
 Dispatch both at once (one after the other when the contract names shared state), each a fresh `general-purpose` agent, prompt `Read <this skill's directory>/references/drive.md and follow it as <Q1 | Q2>.`, then the contract:
 
-- **Q1, does it do what was asked?** You judge its evidence: a drive that reports without evidence costs one send-back, not a wrong verdict.
-- **Q2, what else broke?** Inventing routes is its job.
+- **Q1, does it do what was asked?** Model standard (the harness's middle tier; the session's model where tiers do not resolve): you judge its evidence, so a drive that reports without evidence costs one send-back, not a wrong verdict.
+- **Q2, what else broke?** Model strong (its most capable): inventing routes is its job, and nothing checks the routes it missed.
+
+Re-prove with shared state, so Q1 before Q2: Q1 returns not verified on a line verified before, and your check accepts it. That is a regression a replan will fix first, so Q2 is not dispatched; its risk areas are not driven, naming the regression, and the next prove drives them.
 
 No Agent tool: drive Q1, then Q2, yourself by that file; the header says `self-driven`.
 
@@ -83,6 +85,8 @@ Only when `/m-feature` handed you one: read [`references/pull-request.md`](refer
 
 # Cleanup
 
+Before the evidence dir goes, keep the replays of the lines you accepted as verified this run: `python3 <this skill's directory>/scripts/replay.py save --feature <branch> --from <evidence dir>/q1/replay --lines <those lines>`. They live outside the evidence dir, per feature branch, for the next re-prove. A final pull request opened as **Proved** ends the feature: `replay.py clear --feature <branch>` instead.
+
 `python3 <this skill's directory>/scripts/cleanup.py <evidence dir>` (`python` where `python3` is absent): it deletes only inside `mstack/prove/`. Never `rm -rf`. Refused or failed: leave the dir, put it on the return's Left line, and do not try again.
 
 Return:
@@ -90,7 +94,7 @@ Return:
 ```
 HEAD <sha> · tree <sha> · recipe <path | improvised> | self-driven
 R1 "<requirement>" — <verdict> · <what was driven, where> (asked <surface>, if different) → <value> via <route>
-R2 "<requirement>" — <verified | pre-existing> · carried <sha>                                  re-prove only
+R2 "<requirement>" — <verified | pre-existing> · carried <sha> | verified · replay <sha>        re-prove only
 B1 <what broke> — <new | pre-existing | base not run> · <what was driven> → head <value> · base <value> · <file:line>
 Covered — <risk area> · <what was driven> | not driven · <two routes tried>
 Not driven — <line> · <precondition> · <routes tried>

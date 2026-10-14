@@ -8,14 +8,14 @@ Every answer is a **quote** from a **primary source**, with the link it was read
 # Dispatch
 
 1. **Pin the version** of each library or API, from the caller or the lockfile. A question with no subject is **not applicable** and gets no search.
-2. **One fresh subagent per question**, all in parallel, in the background: `general-purpose`, model standard (the harness's middle tier; the session's model where that does not resolve): you check every reply. The prompt opens with `Invoke the Skill tool with m-research, then follow "Answer one question".` and carries the question verbatim, the pinned version, and the owner's docs domain when known.
+2. **One fresh subagent per owner**, all in parallel, in the background: questions answered from the same owner's docs (one library, one service) go to one subagent, which reads those pages once. `general-purpose`, model standard (the harness's middle tier; the session's model where that does not resolve): you check every reply. The prompt opens with `Invoke the Skill tool with m-research, then follow "Answer the questions".` and carries each question verbatim, the pinned version, and the owner's docs domain when known.
 3. **Check every reply.**
    - An answer with no quote goes back.
    - Every number code will use — limit, timeout, size — you find on its page yourself. Not there: **not found**.
    - Two primary sources in conflict: run that question once more.
 4. **Return** the blocks in question order, then **Sources**.
 
-# Answer one question
+# Answer the questions
 
 - **The primary source is the owner of the fact**: its docs for the pinned version, API reference, changelog, spec, source at the installed tag. Blogs, Q&A, tutorials, aggregators and top-ranked results are **leads**: follow them to the owner and cite the owner.
 - **Versioned library or API**: first read this skill's own [`references/versions.md`](references/versions.md) — how to find the docs for the installed version.

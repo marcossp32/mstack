@@ -16,11 +16,11 @@ Scripts are in this skill's `scripts/` directory; run them with `python3` (`pyth
 After each build, on the step branch. No model judgement.
 
 ```bash
-python3 scripts/step_check.py baseline --test-cmd "<scan Q6 | none>"     # once, before the first step
+python3 scripts/step_check.py baseline --test-cmd "<scan Q6 suite | none>" --test-file-cmd "<scan Q6 one file, {test} for its path>"   # once, before the first step
 git fetch origin && python3 scripts/step_check.py check --base origin/feature/<name> --pr <n>
 ```
 
-Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` lines are for the human to look at and do not fail the step. A red suite runs up to three times: `intermittent` means red on some runs only, and still fails. `suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
+Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` and `unpinned?` lines are for the human to look at and do not fail the step. The check reverts the step's non-test changes in place to run the Pinned by tests, so it aborts on a checkout with tracked changes and restores HEAD before it exits; `pinned · not run` names what it lacked. A red suite runs up to three times: `intermittent` means red on some runs only, and still fails. `suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
 
 # Feature review
 
@@ -38,7 +38,7 @@ The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` s
 
 ## 1. Hunt
 
-Dispatch 3 fresh `general-purpose` agents at once, model strong: nothing downstream checks what they miss. They do not see each other. Prompt:
+Dispatch fresh `general-purpose` agents at once, model strong: nothing downstream checks what they miss. They do not see each other. How many: 1 when the map's How hard to undo is easy and the diff is under 300 changed lines, since hunters overlap most on a small diff and an easy miss costs a later fix; otherwise 3, and 3 when no verdict was given. Prompt:
 
 ```
 Read <this skill's directory>/references/hunt.md and follow it.

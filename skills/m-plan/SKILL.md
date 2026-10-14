@@ -23,7 +23,7 @@ Each step, in priority order:
 3. Fits one subagent. Split it if not, unless splitting breaks rule 1.
 4. Riskiest first: the step that could prove the approach wrong.
 
-Name steps after what a person can see or do, in the repo's words. Each has an observable **Done when**: what a user or caller sees (`GET /drafts/<id>` returns the saved draft, `report --month 2026-09` prints one line per account), not "implemented X" and not how to verify it. One or two steps: say it may not need a plan.
+Name steps after what a person can see or do, in the repo's words. Each has an observable **Done when**: what a user or caller sees (`GET /drafts/<id>` returns the saved draft, `report --month 2026-09` prints one line per account), not "implemented X" and not how to verify it. A Done when over a set (every page, matches the kit) names the reference and the whole set, a table of values where there is one: prove checks the whole set, and a step that met a sample comes back one slice per round. One or two steps: say it may not need a plan.
 
 Every behaviour in the Goal, Settled up front and Assumed (data state on failure, defaults, limits) lands in some step's Done when.
 
