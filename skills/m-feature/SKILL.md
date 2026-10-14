@@ -94,9 +94,9 @@ Post the reply as a comment on the map; links under Sources.
 - grilling and plan need the human; docs dispatches its own agents. These three stay in the main chat. Review runs in a fresh agent so its hunt stays out of this conversation; it returns `Review · not run · no Agent tool`: run it here.
 - Run all four scan slices at once.
 - One build at a time: one step branch, one PR, one issue in flight.
-- When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's command.
+- When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's two commands, the whole suite and one test file.
 - A step check after every build, on its step branch.
-- One review, after the last step passes its check, on the whole feature diff.
+- One review, after the last step passes its check, on the whole feature diff. After a replan prove triggered, skip it when what landed since the last review is under 300 changed lines and How hard to undo is easy, and go to Closing: the step checks, the replays and the re-prove judge a small fix, and a review there costs a round of hunters for little.
 - prove after the review and any fix step, and it opens the final PR; again after any replan, as a re-prove: it drives only what the replan's diff can reach, and the rest keeps its verdict.
 
 ## Dispatch
@@ -125,9 +125,9 @@ Inputs:
 |---|---|
 | scan A–D | the feature · the questions it owns |
 | docs | installed versions (scan) · the questions under Docs · target infrastructure |
-| build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the step branch it is on |
-| build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan and docs inputs · the fix branch it is on |
-| review | the feature review · base `origin/<base>`, after `git fetch` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, Settled up front, Assumed and Not doing from |
+| build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the run recipe's path (`~/.claude/skills/run-<repo>/SKILL.md`), else scan Q9 · the step branch it is on |
+| build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan, docs and recipe inputs · the fix branch it is on |
+| review | the feature review · base `origin/<base>`, after `git fetch` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, How hard to undo, Settled up front, Assumed and Not doing from |
 | prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
@@ -150,6 +150,8 @@ Run the step check on the step branch with the PR number, against `origin/featur
 - **FAIL suite · intermittent** on tests this step did not touch: a flaky test, not this step's fault. Merge only after a fix step for that test (Done when: it passes 3 runs in a row) passes its check; it does not count toward a second FAIL.
 - **Second FAIL** on one step: replan. A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 - **`credential?`** line: show the human before merging.
+- **`unpinned?`** line: the builder says no test can pin this step. Add its reason to the step's Decided line; prove judges the step alone.
+- **`pinned · not run`**: the check lacked what it names. Comment that on the map once and tell the human, as for a suite not comparable.
 - **Suite "not comparable"**: the suite was red when the feature started, so the step check cannot judge it. Comment that on the map once, with the baseline's failing tests, and tell the human.
 - **No PR**: a missing decision, ask the human; an unobservable Done when or a contradiction, replan.
 
@@ -157,38 +159,13 @@ After each step, compare what you learned against the plan. The approach is wron
 
 # Review results
 
-After the last step passes its check: `git switch feature/<name>`, `git pull --ff-only`, dispatch the feature review. Post its report on the map as it came back, and keep only its counts and finding ids here. After a replan, review only what landed since the last review: `--base <the head that review reported>`; code already reviewed is hunted once.
-
-- **No confirmed findings**, or no test suite to review with: go to Closing; prove is the judge left.
-- **Confirmed findings**: create one fix step issue (label `build`, parent = map) listing each finding's claim, condition and entry point, never the reproduction; Done when: no listed condition holds. Cut `step/<name>-fix-<n>` (github.md, Branches), dispatch `/m-build` in fix mode, run the step check, then `/m-review` recheck with `--promote` on each finding. Every finding `fixed`, or `stale` after its rewrite: commit the promoted reproductions on the fix branch and merge it. No second review: prove judges the result.
-- **`still-failing` or `SUITE WORSE`**: one more round on the same branch, naming which claims still hold and the suite's failing tests, never the reproduction's output. Still failing: replan.
-- **`stale`**: `/m-review` rewrites that reproduction against the fix branch and rechecks it. It stays stale: list it on the map and in the final PR's What to watch. Only `/m-review`'s recheck calls a finding fixed; the builder's checks and your own reading of the code leave it as it is.
-- **The builder disputes a finding**: the reproduction did fail, so the question is what the spec wants. Show the human the claim and the builder's reason; they decide.
+Read [`references/review-results.md`](references/review-results.md) when the review returns, then act on its report by it.
 
 # Replan
 
 Triggers: two failed step checks on one step · build returns no PR for an unobservable Done when or a contradiction · a finding still failing after two fix rounds · a step shows the approach is wrong · prove returns not verified on a requirement or a `new` break. Scan findings feed grilling and plan, not replan.
 
-1. Tell the human in one line what the failed step's branch contained, then clear it (nothing to clear when prove triggered):
-   ```bash
-   gh pr close 47 --delete-branch
-   gh issue close 47 --comment "Replanned: <what broke>"
-   gh issue edit 48 --remove-blocked-by 47
-   ```
-2. Add a dated line under Replans: what broke, what changes. Count the lines in the map body as it stands, not from memory. Second line: stop (below), except in an autonomous run (below).
-3. Run `/m-plan` in the main chat with its four inputs, the fact that broke the plan, and the steps merged into the feature branch, read from `git log` (not issue state).
-4. The human confirms the revised list.
-5. Create, rewrite and re-link step issues; note the change under Decided.
-
-A replan's steps serve requirements already on the map: their Done when never becomes a prove requirement. What the feature must do changes only through the Goal or Settled up front, with the human, or Assumed in an autonomous run.
-
-**Stop:**
-
-- Leave the feature branch and merged steps as they are.
-- Leave remaining step issues open, each commented that the plan is being re-cut.
-- Open no PR to `<base>`. One prove already opened stays open at Not verified, as a draft or with its do-not-merge line; comment on it that the plan is being re-cut.
-- Add `needs:human` to the map.
-- Tell the human in four lines: what shipped, what is unbuilt, the two things that broke the plan, the question only they can answer.
+A trigger fires: read [`references/replan.md`](references/replan.md), then replan by it.
 
 # Autonomous run
 
@@ -201,7 +178,7 @@ The human asked not to be asked: `--auto`, or they are away, or told you to deci
 - Requirements hold still:
   - Every requirement keeps its full scope through a failure: no narrowing, no dropped clause, no addition to Not doing. Not doing is fixed once plan is done: a replan's `/m-plan` adds nothing to it.
   - A requirement that failed only because of how you worded it (never the human's own words, nor an issue the request names) may be reworded without narrowing it. Keep `was: "<old>"` beside it on the map, say so under Assumed, and prove that line again: no build, no replan. The final PR stays a draft for the human to accept the new wording.
-- Two Replans lines do not stop the run. Stop as under Replan only when:
+- Two Replans lines do not stop the run. Stop as [`references/replan.md`](references/replan.md) says, under Stop, only when:
   - The same requirement is not verified on two proves in a row, each after a step aimed at it, and `/m-research` on it quotes no documented alternative you have not tried: the approach is wrong.
   - Two re-proves in a row fail only on `new` breaks, every requirement verified; or prove has triggered three replans. List the breaks still open under the PR's What to watch; it stays Not verified.
   - A budget the human set (money, time, rounds) is spent.
@@ -209,21 +186,4 @@ The human asked not to be asked: `--auto`, or they are away, or told you to deci
 
 # Closing
 
-After the review and any fix step:
-
-1. Check every step issue is closed, but a `credential?` step left open in an autonomous run.
-2. Complete Decided and Sources.
-3. Write the final pull request body in [`references/github.md`](references/github.md), keeping the Proved section's placeholders as they are.
-4. `git switch feature/<name>` and `git pull --ff-only`. Run prove with that body and the map number; after a replan, also the last verdict comment and that prove's tree, so it re-proves. It comments its verdict on the map, opens the final PR (or edits the one an earlier prove opened) with the link to that comment, and deletes its evidence dir with its cleanup script; refused, it returns the dir, and the closing message lists every such dir once. A Not verified PR is a draft, or carries a do-not-merge first line where the repo cannot hold drafts. A green suite is not prove.
-   - not verified on a requirement, or a `new` break: replan. The PR stays open at Not verified; the next prove updates it.
-   - `human check`: a line only the human can drive, as `/m-prove` defines it. No replan, no Your call: it goes in the closing message's To merge.
-   - not driven, or `base not run`: Your call, naming the precondition. Clear it without changing app code (code changes go through build and the step check), then prove again. Or the human ships with it listed in the PR: `gh pr ready <n>`; a do-not-merge first line comes out with `gh pr view <n> --json body --jq .body`, then `gh pr edit <n> --body-file -` without it; go to 5.
-   - `pre-existing`, on a requirement or a break: no replan. It stays in the verdict comment and the pull request's Proved table.
-   - `PR · not opened · tree changed`: the feature branch moved during prove; prove again.
-5. Tell the human, then stop:
-   ```
-   PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · <link>
-   To merge · <each thing only the human can do: a human check, a command the harness refused, a reworded requirement to accept> | nothing, merge it
-   Shipped · Left out · What to watch in production   one line each
-   ```
-   A run that stopped before closing opens with `Stopped · <the question only the human can answer>` instead.
+After the review and any fix step: read [`references/closing.md`](references/closing.md), then close by it. The run ends on its message to the human.

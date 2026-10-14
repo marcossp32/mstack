@@ -55,7 +55,7 @@ Stop when nothing hard to undo is open. Confirm you share an understanding; work
 
 Hand back:
 
-- **Goal**: 1–2 lines of what done looks like, concrete enough to watch: what comes out, in what shape, what the empty case does. Confirm it with the human together with your last question. `/m-prove` judges the feature against it.
+- **Goal**: 1–2 lines of what done looks like, concrete enough to watch: what comes out, in what shape, what the empty case does. A clause with an absolute (never, any, every, always) names its domain, the inputs it covers: prove drives a clause as written, so an unbounded one fails on the next input it tries, round after round. No domain from the request or scan: ask it, with the domain you recommend. Confirm it with the human together with your last question. `/m-prove` judges the feature against it.
 - Where it runs, and what that limits.
 - Module boundary and data state on failure, if asked.
 - Decisions you made, one line each, checked against the request the same way.

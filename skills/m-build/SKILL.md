@@ -3,7 +3,7 @@ name: m-build
 description: "Builds one step from its issue into one pull request, scope held to what was asked. Use as the build stage of /m-feature, for a fix step from /m-review, or for any change with an observable Done when."
 ---
 
-Build one step. The method is yours: how you design it, whether you write tests, how you check your work. Your final message is the PR number, or the stop line; the PR says what changed, not how you got there.
+Build one step. The method is yours: how you design it, how you test it, how you check your work. One result is not: a test that fails without your change pins what the step delivers. Your final message is the PR number, or the stop line; the PR says what changed, not how you got there.
 
 # Inputs
 
@@ -11,6 +11,7 @@ Build one step. The method is yours: how you design it, whether you write tests,
 - Not doing, from the map issue you are given: hold your scope against it.
 - From `/m-scan`: what already exists, which installed library already does it, how the repo does similar things, what it calls them, how it tests, per-environment values, infrastructure limits, how it runs.
 - Vendor limits and timeouts (`/m-research`), or "not applicable". These are facts you cannot infer from the repo: use them where the code calls out.
+- The run recipe (launch, health check, teardown, traps), or how the app runs from scan Q9: for Driven.
 
 # Scope
 
@@ -30,13 +31,27 @@ Stopping is a finished answer. Never bend a test, the spec or the Done when to g
 
 A test that fails after your change is information about the change. Change or delete one only when the issue changes the behaviour it pins, and list it in the PR with the clause that changed it. A test that disagrees with the spec is a stop, not an edit.
 
-Tests changed lists every existing test file with M, D or R in `git diff --name-status -M origin/<feature branch>...HEAD`: the step check fails on any it misses.
+Tests changed lists every existing test file with M or D in `git diff --name-status --no-renames origin/<feature branch>...HEAD`, and every file where you add a skip, a focus (`.only`) or a suppression (`@ts-ignore`, `eslint-disable`, `# noqa`, `|| true`): each one stops a check from checking, so each needs the clause that asks for it. The step check fails on any it misses.
+
+# Pinned
+
+A green suite says nothing the old suite did not: the step's behaviour is pinned only by a test that fails without the step. Pinned by lists those test files. The step check runs each one at your HEAD, where it must pass, then with your non-test changes reverted, where it must fail. A test that passes either way pins nothing, and fails the step.
+
+A test's worth is its assertion: assert the value the Done when names, through the entry point a caller uses. A fake stands in only for what leaves the process (network, clock, another service); a test whose fakes stand in for the code under test passes whatever that code does.
+
+Nothing a test can pin (config, a build file, wiring only the running app shows): `none · <why>` in Pinned by. Prove then judges it alone.
+
+# Driven
+
+Prove drives the running app only after every step, so a step wrong in the app costs a whole round: a fix build, a review and a re-prove, an hour or more. Before the PR, drive your own Done when once where a user reaches it, when the app can be launched (the recipe, else scan Q9) and the Done when has a surface it reaches (a page, an endpoint, a command): launch it, check what the Done when names, and on a page look past it too (console errors, the layout at the recipe's viewport; `agent-browser` where it is installed, else fetch the page), then stop everything you started. Ten minutes at most; what you find wrong, fix before the PR. Wait as the recipe says, never a fixed sleep.
+
+This is your own look, not a verdict: prove still judges with agents that did not write the code. Nothing that launches, or nothing a drive reaches: `none · <why>` in Driven.
 
 # How this is judged
 
 Nothing else checks your work:
 
-- **Step check** (a script, after you push): the suite is no worse than when the feature started; every existing test file you changed or deleted is listed in the PR; no credentials in the added lines.
+- **Step check** (a script, after you push, on a clean checkout): the suite is no worse than when the feature started; every existing test file you changed or deleted, and every skip, focus or suppression you added, is listed in the PR; each Pinned by file fails without your change; no credentials in the added lines.
 - **Feature review** (once all steps are in): only failures demonstrated by running code count.
 - **Prove**: fresh agents drive the running app against the feature's Goal.
 
@@ -48,7 +63,7 @@ A command that runs for minutes (a suite, a build, a render): start it with the 
 
 # Fix mode
 
-The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds, working from the claim and condition alone: the review re-runs its own frozen reproduction afterwards. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is.
+The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds, working from the claim and condition alone: the review re-runs its own frozen reproduction afterwards. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is. The review's reproductions pin the fix once they pass: Pinned by says `none · pinned by the review's reproductions` unless you add a test of your own.
 
 # Pull request
 
@@ -61,7 +76,13 @@ You are on the step branch. Target the feature branch.
 - <one bullet per behaviour, most important first>
 
 ## Tests changed
-- <existing test file · what changed · the issue clause that changed it>, or "none"
+- <existing test file, or file with a skip, focus or suppression added · what changed · the issue clause that asks for it>, or "none"
+
+## Driven
+- <what you drove, where → what you saw>, or "none · <why>"
+
+## Pinned by
+- <test file that fails without this change · the Done when clause it pins>, or "none · <why nothing can>"
 
 ## What to watch
 - <risk, assumption, anything the Done when does not cover>

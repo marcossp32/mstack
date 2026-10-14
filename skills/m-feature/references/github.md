@@ -140,6 +140,8 @@ Self-contained context: the builder has not seen the conversation. No checklists
 ```markdown
 <what a user can now do, one sentence>
 
+**How hard to undo:** <hard | easy> · <why, from the map>
+
 ## Why
 <the problem and the approach, 2–4 sentences>
 
@@ -188,5 +190,5 @@ gh issue develop 45 --base feature/<name> --name step/<name>-<n> --checkout   # 
 gh pr merge --squash --delete-branch                                       # or --merge, per scan Q9
 gh issue close 45 --comment "<what landed>"
 
-# replan: the commands are in SKILL.md, Replan
+# replan: the commands are in replan.md, beside this file
 ```

@@ -22,7 +22,10 @@ A caveat is not verified or not driven.
 - **Control**: before anything else, drive one path the diff never touched and save it as `control.txt`.
 
 **Q1, does it do what was asked?**
+- Re-prove: right after the control, run the contract's `replay` lines: `python3 <this skill's directory>/scripts/replay.py run --feature <branch> --url <your server> --lines <those lines> --out replay.txt`. A pass is that line's result, verified, with `replay.txt` as its evidence. A fail or a missing replay: drive that line like any other.
 - For each R line choose the values and steps yourself; put the run id in every value you create.
+- A clause over a set (each, every, all, matches a reference) is checked over the whole set by a script, never a sample: a not verified names every member that fails, so one fix round can cover them all.
+- Each line you verify gets a replay: the script you checked it with, in `replay/R<n>/`, reading the app's URL from `MSTACK_URL`, exiting 0 only when settled when holds, its last line the observed value; and its command in `replay/replay.json` (`{"R<n>": {"cmd": "<command run from replay/R<n>/>"}}`). A line whose check needs a step no script can take gets none.
 - A line comes back not verified: drive the same observation on the base, set up as Q2 does below. It fails the same way there: `pre-existing`, with head and base values. The base cannot run: keep not verified and add `base not run`.
 - A timing requirement: report the raw numbers you measured. Judge only the tolerance the clause states; what you observe lags what the app does, so a value within your measurement gap of the bound meets it.
 
