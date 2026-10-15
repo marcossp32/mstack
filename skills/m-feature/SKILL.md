@@ -126,7 +126,7 @@ Inputs:
 |---|---|
 | scan A–D | the feature · the questions it owns |
 | docs | installed versions (scan) · the questions under Docs · target infrastructure |
-| build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the run recipe's path (`~/.claude/skills/run-<repo>/SKILL.md`), else scan Q9 · the step branch it is on |
+| build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the run recipe's path: scan Q9's, else a `SKILL.md` under `~/.claude/skills/` or `~/.agents/skills/` whose description names this repo (where `/m-prove` writes one), else scan Q9 · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan, docs and recipe inputs · the fix branch it is on |
 | review | the feature review · base `origin/<base>`, after `git fetch` · the step check baseline's suite command (Routing) · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, How hard to undo, Settled up front, Assumed and Not doing from |
 | prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |

@@ -2,18 +2,23 @@
 """Replays: the checks a Q1 driver verified, kept per feature and run again.
 
   replay.py save --feature <branch> --from <evidence dir>/q1/replay [--lines R1,R3]
-      After Judge accepts Q1, naming the lines it accepted as verified. Copies each one's replay into
-      <git common dir>/mstack/replay/<feature>/, replacing that line's older one.
+      After Judge accepts Q1, naming the lines it accepted as verified. Copies each one's replay,
+      its clause included, into <git common dir>/mstack/replay/<feature>/, replacing that line's older one.
   replay.py list --feature <branch>
-      The lines that have a replay, one per line, or `none`.
-  replay.py run --feature <branch> --url <app url> [--lines R1,R3] [--out <file>]
-      With the app up. Runs each replay with MSTACK_URL set, from its own dir.
-      Exit 0 = every replay passed, 1 = some failed or could not run.
+      The lines that have a replay, one per line with its command and clause, or `none`.
+  replay.py run --feature <branch> --url <app url> [--clauses <file>] [--run <id>] [--lines R1,R3] [--out <file>]
+      With the app up. Runs each replay from its own dir with MSTACK_URL and MSTACK_RUN set.
+      --clauses: JSON, {"R3": "<the R line's requirement as the contract quotes it>"}. A replay saved
+      for another clause is not run (`stale · clause changed`, or `stale · clause gone` when the file
+      lacks the line): its pass would verify a requirement it never checked. A replay saved without
+      a clause runs unchecked.
+      --run: the run id, for the values a replay creates; default replay-<unix time>.
+      Exit 0 = every replay passed, 1 = some failed, went stale or could not run.
   replay.py clear --feature <branch>
       At the end of the feature. Deletes that feature's replays, nothing else.
 
-A replay dir holds replay.json, {"R3": {"cmd": "node check.mjs"}, ...}, and one
-subdir per line (R3/) with the files its command uses; the command runs there.
+A replay dir holds replay.json, {"R3": {"cmd": "node check.mjs", "clause": "\"each wait doubles\""}, ...},
+and one subdir per line (R3/) with the files its command uses; the command runs there.
 It exits 0 when the line's observation holds and prints the observed value on
 its last line.
 """
@@ -24,6 +29,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 TIMEOUT = 300
 CONTAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contain.py")
@@ -64,6 +70,13 @@ def write_index(d, index):
         json.dump(index, fh, indent=2, ensure_ascii=False)
 
 
+def same_clause(a, b):
+    # Quotes and spacing are how a clause was copied, not what it says.
+    def norm(s):
+        return " ".join(str(s).strip().strip('"“”').split())
+    return norm(a) == norm(b)
+
+
 def cmd_save(a):
     src = os.path.realpath(a.source)
     new = load_index(src)
@@ -86,7 +99,10 @@ def cmd_save(a):
             shutil.rmtree(line_dir)
         shutil.copytree(line_src, line_dir)
         index[line] = {"cmd": entry["cmd"]}
-        print(f"saved {line} · {entry['cmd']}")
+        if entry.get("clause"):
+            index[line]["clause"] = entry["clause"]
+        print(f"saved {line} · {entry['cmd']}"
+              + ("" if entry.get("clause") else " · no clause: runs unchecked"))
     write_index(dst, index)
 
 
@@ -98,12 +114,30 @@ def cmd_run(a):
     if not index:
         print("REPLAY: none · no replays for this feature")
         sys.exit(1)
-    env = {**os.environ, "MSTACK_URL": a.url}
+    clauses = {}
+    if a.clauses:
+        try:
+            with open(a.clauses, encoding="utf-8") as fh:
+                clauses = json.load(fh)
+        except (OSError, ValueError) as e:
+            sys.exit(f"ABORT: --clauses {a.clauses}: {e}")
+        if not isinstance(clauses, dict):
+            sys.exit('ABORT: --clauses needs {"R<n>": "<clause>"}')
+    env = {**os.environ, "MSTACK_URL": a.url,
+           "MSTACK_RUN": a.run or f"replay-{int(time.time())}"}
     results, log = [], []
     for line in wanted:
         if line not in index:
             results.append((line, "missing", "no replay for this line"))
             continue
+        saved = index[line].get("clause")
+        if a.clauses and saved:
+            why = ("clause gone" if line not in clauses
+                   else None if same_clause(saved, clauses[line]) else "clause changed")
+            if why:
+                results.append((line, "stale", why))
+                log.append(f"# {line} stale · {why}\n")
+                continue
         cmd = index[line]["cmd"]
         # Contained: a timeout ends the browser or server the check started too.
         argv = [PYTHON, CONTAIN, "--with-parent", "--timeout", str(TIMEOUT),
@@ -137,7 +171,8 @@ def cmd_run(a):
 def cmd_list(a):
     index = load_index(feature_dir(a.feature))
     for line in sorted(index, key=lambda k: int(k[1:])):
-        print(f"{line} · {index[line]['cmd']}")
+        c = index[line].get("clause")
+        print(f"{line} · {index[line]['cmd']}" + (f" · {c}" if c else ""))
     if not index:
         print("none")
 
@@ -164,6 +199,8 @@ def main():
     p = sub.add_parser("run")
     p.add_argument("--feature", required=True)
     p.add_argument("--url", required=True)
+    p.add_argument("--clauses")
+    p.add_argument("--run")
     p.add_argument("--lines")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_run)

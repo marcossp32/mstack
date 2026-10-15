@@ -20,7 +20,7 @@ Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 
 6. How does it test: framework, test file location and naming, assertion style, how fakes are set up, the exact command that runs the whole suite, and the one that runs a single test file. Whether test files launch a browser or a server, and the runner's flag for how many files run at once (`--test-concurrency` for `node --test`, `--maxWorkers` for Jest and Vitest, `--workers` for Playwright, `-n` for pytest-xdist).
 7. Which values differ between local and production, and which do not?
 8. Infrastructure limits: disk, outbound network, max run time, memory.
-9. How the app runs (start command, URL or entry point, prerequisites: seeded DB, env file, services), how a fresh checkout gets its dependencies, and whether PRs land squashed or merged, read from `git log` on the default branch.
+9. How the app runs (start command, URL or entry point, prerequisites: seeded DB, env file, services), the path of a launch recipe in the repo (a `SKILL.md` under `.claude/skills/` or `.agents/skills/` whose name or description says it launches the app), how a fresh checkout gets its dependencies, and whether PRs land squashed or merged, read from `git log` on the default branch.
 
 # Searching
 
@@ -32,7 +32,7 @@ Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 
   - Limits: `Dockerfile`, Kubernetes `resources.limits`, `serverless.yml`, Terraform, CI runner settings.
   - Similar work: the tests of the closest existing feature.
   - Tests: test directory, runner config, newest test file.
-  - Running: `.claude/skills/run-*/` recipes, `package.json` scripts, `Makefile`, compose files, README quickstart, the CI job that boots the app.
+  - Running: `SKILL.md` recipes under `.claude/skills/` or `.agents/skills/`, `package.json` scripts, `Makefile`, compose files, README quickstart, the CI job that boots the app.
 - Stop each question once a path answers it. Searched by meaning and through the places above with no answer: `Not found`.
 
 # Report

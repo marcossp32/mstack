@@ -110,7 +110,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 - **Q1** checks each requirement of the Goal, with evidence saved for each verdict.
 - **Q2** looks for anything else the change broke, and compares it with the base branch.
 
-Each check Q1 verifies is saved as a **replay**. On a re-prove after a fix, the replays run first, in seconds, and catch what the fix broke.
+Each check Q1 verifies is saved as a **replay**. On a re-prove after a fix, the replays run first, in seconds, and catch what the fix broke. A replay saved for a requirement whose wording has changed is not run; that requirement is driven again.
 
 ### Replan
 
@@ -155,7 +155,7 @@ When it stops, its message opens with `Stopped ·` and the one question only you
 
 ### Before you leave
 
-An unattended run merges step pull requests into the feature branch, runs the review scripts and commits the review's reproductions. Claude Code's auto mode refuses some of these by default ("Merge Without Review", "CI Bypass"), and a permission you type in the chat does not lift that. `m-feature` checks your settings at the start of an autonomous run and stops there, while you are still around, when this is missing from `~/.claude/settings.json` (the classifier reads `autoMode` only from your user settings, never from the repo's):
+An unattended run merges step pull requests into the feature branch, runs the review scripts, commits the review's reproductions and writes prove's run recipe under `~/.claude/skills/`. Claude Code's auto mode refuses some of these by default ("Merge Without Review", "CI Bypass"), and a permission you type in the chat does not lift that. `m-feature` checks your settings at the start of an autonomous run and stops there, while you are still around, when this is missing from `~/.claude/settings.json` (the classifier reads `autoMode` only from your user settings, never from the repo's):
 
 ```json
 {
@@ -164,7 +164,8 @@ An unattended run merges step pull requests into the feature branch, runs the re
       "$defaults",
       "mstack step merges: `gh pr merge` of a step pull request into a `feature/*` branch, never into the base or default branch, after mstack's step_check.py printed `STEP CHECK: PASS` for it. The step check and the review are the user's chosen review for step pull requests; a feature branch reaches the base only through a final pull request a human merges. Not Merge Without Review.",
       "mstack review scripts: running mstack's scripts (step_check.py, prepare.py, gate.py, ledger.py, report.py, contain.py, cleanup.py, replay.py) from an installed `m-*/scripts` skill directory, including `gate.py recheck --promote`. They run the test suite and record verdicts; they skip, disable or loosen no check. Not CI Bypass.",
-      "mstack regression tests: committing and pushing, on a `step/*` fix branch, the reproduction test files gate.py left in the checkout after `recheck --promote` printed `fixed`. This adds tests and removes none. Not CI Bypass or Security Test Removal."
+      "mstack regression tests: committing and pushing, on a `step/*` fix branch, the reproduction test files gate.py left in the checkout after `recheck --promote` printed `fixed`. This adds tests and removes none. Not CI Bypass or Security Test Removal.",
+      "mstack run recipes: m-prove writing, or appending to, a run recipe `SKILL.md` under `~/.claude/skills/` (how to launch, health-check and stop the repo under test, and the traps its drivers hit), from commands its drivers ran. It grants no permission and changes no setting or other skill."
     ]
   }
 }
@@ -221,6 +222,7 @@ Each folder installs on its own, so a skill never links outside itself. Some tex
 - The `autoMode.allow` block lives in `m-feature/references/unattended.md` and in this README.
 - The fix-mode test rule in `m-build/SKILL.md` matches the recheck in `m-feature/references/review-results.md`: the review's reproductions become the regression tests.
 - `scripts/contain.py` is the same file in `m-build`, `m-prove` and `m-review`; CI fails when the copies differ.
+- Where a run recipe is looked for lives in `m-prove/SKILL.md` (Contract step 4, Recipe), `m-scan/SKILL.md` (Q9) and `m-feature/SKILL.md` (build inputs).
 
 The skills follow the writing-for-agents conventions: short rules, each with its reason, and no rule that does not change what the agent does.
 
