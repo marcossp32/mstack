@@ -99,7 +99,7 @@ Only when `/m-feature` handed you one: read [`references/pull-request.md`](refer
 
 Before the evidence dir goes, keep the replays of the lines you accepted as verified from Q1's drive this run (one verified by its replay keeps that replay): `python3 <this skill's directory>/scripts/replay.py save --feature <branch> --from <evidence dir>/q1/replay --lines <those lines>`. They live outside the evidence dir, per feature branch, for the next re-prove. A final pull request opened as **Proved** ends the feature: `replay.py clear --feature <branch>` instead.
 
-A base worktree on the header: `git worktree remove --force <evidence dir>/base`, then `git worktree prune`, first: git keeps a worktree's record until it is pruned. Then `python3 <this skill's directory>/scripts/cleanup.py <evidence dir>` (`python` where `python3` is absent): it deletes only inside `mstack/prove/`. Never `rm -rf`. Refused or failed: leave the dir, put it on the return's Left line, and do not try again.
+`python3 <this skill's directory>/scripts/cleanup.py <evidence dir>` (`python` where `python3` is absent), then, with a base worktree on the header, `git worktree prune`: git keeps a worktree's record until it is pruned, and `git worktree remove` fails on a dependency tree deeper than Windows' path limit, which the script handles. The script deletes only inside `mstack/prove/`. Never `rm -rf`. Refused or failed: leave the dir, put it on the return's Left line, and do not try again.
 
 Return:
 
