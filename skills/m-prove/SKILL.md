@@ -10,12 +10,13 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 # Inputs
 
 - Requirements verbatim: the Goal's numbered clauses, or what the human asked. Never take them from the diff. Given a map issue, read them from its body, never from a summary in your prompt. None: ask; as a subagent, return `Not driven · no requirements`.
-- Settled up front: decisions the human confirmed. Each one with an observable effect (data state on failure, a default, a limit) is a requirement: the Goal clause that quotes it, else an R line of its own after the Goal's.
+- Settled up front: the human's answers to grilling's questions. Each one with an observable effect (data state on failure, a default, a limit) is a requirement: the Goal clause that quotes it, else an R line of its own after the Goal's.
 - Assumed: decisions made without the human. Context, never requirements: no R line quotes one. A Goal clause whose bound is Assumed still binds: drive it within that bound, and the bound goes to the human to accept. Q2 may take the behaviour one describes as a risk area.
 - A build step's Done when is not a requirement: it serves one that already is.
 - Not doing.
+- Review findings still `stale`, from `/m-feature`: each is a Q2 risk area, its claim and condition driven like any other.
 - How the app runs: scan Q9; none: look where m-scan Q9 looks.
-- Credentials the human gave for driving (a store password, a test account), if any. Pass them to the drivers; never write them to the contract, a verdict comment or the pull request. The contract names each by its variable, `MSTACK_SECRET_<NAME>`.
+- Credentials for driving (a store password, a test account), if any: given by the human, or the repo's seed or fixture credentials grilling named. Pass them to the drivers; never write them to the contract, a verdict comment or the pull request. The contract names each by its variable, `MSTACK_SECRET_<NAME>`.
 - Base branch; none: the default branch.
 - Whether evidence is kept for a pull request: yes when you are handed the final pull request below, otherwise only when asked.
 - Re-prove: the last prove's verdict comment and its tree, when `/m-feature` proves again after a replan.

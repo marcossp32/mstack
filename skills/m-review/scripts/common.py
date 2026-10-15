@@ -68,7 +68,10 @@ def ceiling(measured, floor):
 
 
 def timed_out(rc, out):
-    return rc == TIMEOUT_RC and "contain: TIMEOUT" in out
+    """Cut short, so nothing was judged: its ceiling, or another run's sweep
+    ended it (contain.py exits 123 with `contain: REAPED`)."""
+    return ((rc == TIMEOUT_RC and "contain: TIMEOUT" in out)
+            or (rc == 123 and "contain: REAPED" in out))
 
 
 def sh(cmd, cwd=None, timeout=None, env=None, contain=True):

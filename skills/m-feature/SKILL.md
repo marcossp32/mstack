@@ -163,8 +163,9 @@ Run the step check on the step branch with the PR number, against `origin/featur
 - **Second FAIL** on one step: replan. A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 - **`credential?`** line: show the human before merging.
 - **`unpinned?`** line: the builder says no test can pin this step. Add its reason to the step's Decided line; prove judges the step alone.
-- **`pinned · not run`**: the check lacked what it names. Comment that on the map once and tell the human, as for a suite not comparable.
-- **Suite "not comparable"**: the suite was red when the feature started, so the step check cannot judge it. Comment that on the map once, with the baseline's failing tests, and tell the human.
+- **`credential placeholder`** line: a key-shaped value that says it is not real. It holds no merge; it stays in the step check output.
+- **`pinned · not run`**: the check lacked what it names. Comment that on the map once and tell the human.
+- **Baseline red**: the suite was red when the feature started. The step check fails a step only on files outside the baseline's failing set, so comment that set on the map once and tell the human.
 - **No PR**: a missing decision, ask the human; an unobservable Done when or a contradiction, replan.
 
 After each step, compare what you learned against the plan. The approach is wrong: replan. A redesign waits for the human's confirmation.

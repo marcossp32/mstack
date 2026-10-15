@@ -21,7 +21,7 @@ git fetch origin && python3 scripts/step_check.py check --base origin/feature/<n
 python3 scripts/step_check.py clear --base feature/<name>   # once, when the feature ends
 ```
 
-Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` (a secret-like literal, a password in a URL, a committed `.env`, a key-shaped placeholder such as AWS's `…EXAMPLE`), `unpinned?` and `flaky` lines are for the human to look at and do not fail the step.
+Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` (a secret-like literal, a password in a URL to another host, a committed `.env`), `credential placeholder` (a key-shaped value that says it is not real, such as AWS's `…EXAMPLE`), `unpinned?` and `flaky` lines are for the human to look at and do not fail the step.
 
 The baseline aborts when the suite fails before its tests run (a missing module, a service refusing connections): start the prerequisites or fix the test command, and record it again, since every step would be judged against a suite that never ran. A suite red for other reasons records its failing files; a step then fails only on a file failing beyond those.
 

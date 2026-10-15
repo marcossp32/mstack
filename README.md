@@ -102,10 +102,10 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 
 | Check | Fails when |
 |---|---|
-| Suite | More tests fail than when the feature started. Failing files run alone first, so a real failure needs no suite rerun; files that fail only under load, a different set each run, give **not run · unstable under load** and the suite is switched to fewer files at once. A file the step did not touch that fails on one run only and passes alone is noted **flaky** and listed under the final pull request's What to watch |
-| Tests changed | An existing test file was changed or deleted, or a skip, `.only`, suppression or `\|\| true` was added, without being listed in the pull request |
+| Suite | A test file fails that did not fail when the feature started. Failing files run alone first, so a real failure needs no suite rerun; files that fail only under load, a different set each run, give **not run · unstable under load** and the suite is switched to fewer files at once. A file the step did not touch that fails on one run only and passes alone is noted **flaky** and listed under the final pull request's What to watch |
+| Tests changed | An existing test file or snapshot was changed or deleted, or a skip, `.only`, suppression, `\|\| true` or a runner exclusion (`--deselect`, `testPathIgnorePatterns`) was added, without being listed in the pull request |
 | Pinned | A test the pull request names under Pinned by does not pass at HEAD, or still passes with the step's code reverted |
-| Credentials | An added line looks like a secret |
+| Credentials | An added line holds a known key format. A secret-like literal, a password in a URL to another host or a committed `.env` is shown to you as `credential?` and not merged unattended |
 
 **Feature review.** Hunter agents look for failures across the whole feature: 1 for a small, easy-to-undo change, 3 otherwise. A finding counts only when a frozen reproduction fails on the branch. Confirmed findings become fix steps.
 

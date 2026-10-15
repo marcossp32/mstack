@@ -51,7 +51,7 @@ This is your own look, not a verdict: prove still judges with agents that did no
 
 Nothing else checks your work:
 
-- **Step check** (a script, after you push, on a clean checkout): the suite is no worse than when the feature started; every existing test file you changed or deleted, and every skip, focus or suppression you added, is listed in the PR; each Pinned by file fails without your change; no credentials in the added lines.
+- **Step check** (a script, after you push, on a clean checkout): no test file fails that did not when the feature started; every existing test file or snapshot you changed or deleted, and every skip, focus, suppression or runner exclusion you added, is listed in the PR; each Pinned by file fails without your change; no credentials in the added lines.
 - **Feature review** (once all steps are in): only failures demonstrated by running code count.
 - **Prove**: fresh agents drive the running app against the feature's Goal.
 

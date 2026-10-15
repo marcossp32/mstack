@@ -75,6 +75,9 @@ CONFIG_FILE = re.compile(r"(^|/)\.env(\.[^/]*)?$|\.(ya?ml|ini|cfg|conf|propertie
                          r"|toml|env)$", re.IGNORECASE)
 URL_CREDENTIAL = re.compile(r"(?i)\b[a-z][a-z0-9+.\-]*://[^\s:/@'\"]*:"
                             r"([^\s@'\"/$%{]{3,})@")
+# A password for a database on this machine (docker-compose, a dev .env) is
+# a dev default, not a secret; a parked step would cost an unattended run.
+LOCAL_HOST = re.compile(r"(?i)(localhost|127\.0\.0\.1|\[::1\])(?![.\w-])")
 ENV_FILE = re.compile(r"(^|/)\.env(\.[^/]+)?$")
 ENV_TEMPLATE = re.compile(r"\.(example|sample|template)$", re.IGNORECASE)
 
@@ -184,7 +187,10 @@ def cmd_baseline(a):
         if timed_out(rc, out):
             die(f"NOT RUN · the suite did not finish within {FIRST_RUN}s: no "
                 "baseline recorded\n" + tail(out, 1500), 2)
-        if rc != 0 and (setup_failure(out) or PREREQUISITE.search(out)):
+        # A setup failure in one file among others is a red test like any
+        # other; one no test file shows means the suite never ran.
+        if rc != 0 and (PREREQUISITE.search(out)
+                        or (setup_failure(out) and not failing_files(out, r))):
             # Every later step would be red for the same reason, and judged
             # against a suite that never ran.
             die("the suite fails before its tests run at the feature's start (a "
@@ -426,6 +432,12 @@ def check_credentials(a, r, status, diff, fails, notes):
         if line not in suspects:
             suspects.append(line)
 
+    def placeholder(what, path):
+        # Says it is not real, so it holds no merge; still shown.
+        line = f"credential placeholder · {what} · {path}"
+        if line not in suspects:
+            suspects.append(line)
+
     for code, path in status:
         name = path.rsplit("/", 1)[-1]
         if code == "A" and ENV_FILE.search(name) and not ENV_TEMPLATE.search(name):
@@ -439,7 +451,7 @@ def check_credentials(a, r, status, diff, fails, notes):
         for name, pat in SECRETS:
             for m in re.finditer(pat, line):
                 if PLACEHOLDER.search(m.group(0)):
-                    suspect(f"{name} with a placeholder value", current)
+                    placeholder(name, current)
                 else:
                     fails.append(f"credential · {name} · {current}")
                     found = True
@@ -448,7 +460,8 @@ def check_credentials(a, r, status, diff, fails, notes):
             values += [m.group(2) for m in SUSPECT_BARE.finditer(line)]
         if any(not PLACEHOLDER.search(v) for v in values):
             suspect("literal assigned to a secret-like name", current)
-        if any(not PLACEHOLDER.search(m.group(1)) for m in URL_CREDENTIAL.finditer(line)):
+        if any(not PLACEHOLDER.search(m.group(1)) and not LOCAL_HOST.match(line, m.end())
+               for m in URL_CREDENTIAL.finditer(line)):
             suspect("password in a URL", current)
     notes.extend(suspects)
     if a.secrets_cmd:
