@@ -110,7 +110,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 - **Q1** checks each requirement of the Goal, with evidence saved for each verdict.
 - **Q2** looks for anything else the change broke, and compares it with the base branch.
 
-Each check Q1 verifies is saved as a **replay**. On a re-prove after a fix, the replays run first, in seconds, and catch what the fix broke. A replay saved for a requirement whose wording has changed is not run; that requirement is driven again.
+Each check Q1 verifies is saved as a **replay**. On a re-prove after a fix, prove runs the replays itself first, in seconds, and they catch what the fix broke; Q1 drives only what failed or went stale, and is not started when nothing did. A replay saved for a requirement whose wording has changed is not run; that requirement is driven again.
 
 ### Replan
 
