@@ -6,8 +6,9 @@
       its clause included, into <git common dir>/mstack/replay/<feature>/, replacing that line's older one.
   replay.py list --feature <branch>
       The lines that have a replay, one per line with its command and clause, or `none`.
-  replay.py run --feature <branch> --url <app url> [--clauses <file>] [--run <id>] [--lines R1,R3] [--out <file>]
-      With the app up. Runs each replay from its own dir with MSTACK_URL and MSTACK_RUN set.
+  replay.py run --feature <branch> --url <app url> [--data <dir>] [--clauses <file>] [--run <id>] [--lines R1,R3] [--out <file>]
+      With the app up. Runs each replay from its own dir with MSTACK_URL and MSTACK_RUN set, and
+      MSTACK_DATA: --data, the dir the server under test runs in, where its relative files land.
       --clauses: JSON, {"R3": "<the R line's requirement as the contract quotes it>"}. A replay saved
       for another clause is not run (`stale · clause changed`, or `stale · clause gone` when the file
       lacks the line): its pass would verify a requirement it never checked. A replay saved without
@@ -125,6 +126,8 @@ def cmd_run(a):
             sys.exit('ABORT: --clauses needs {"R<n>": "<clause>"}')
     env = {**os.environ, "MSTACK_URL": a.url,
            "MSTACK_RUN": a.run or f"replay-{int(time.time())}"}
+    if a.data:
+        env["MSTACK_DATA"] = os.path.realpath(a.data)
     results, log = [], []
     for line in wanted:
         if line not in index:
@@ -199,6 +202,7 @@ def main():
     p = sub.add_parser("run")
     p.add_argument("--feature", required=True)
     p.add_argument("--url", required=True)
+    p.add_argument("--data")
     p.add_argument("--clauses")
     p.add_argument("--run")
     p.add_argument("--lines")
