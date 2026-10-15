@@ -31,15 +31,15 @@ Stopping is a finished answer. Never bend a test, the spec or the Done when to g
 
 A test that fails after your change is information about the change. Change or delete one only when the issue changes the behaviour it pins, and list it in the PR with the clause that changed it. A test that disagrees with the spec is a stop, not an edit.
 
-Tests changed lists every existing test file with M or D in `git diff --name-status --no-renames origin/<feature branch>...HEAD`, and every file where you add a skip, a focus (`.only`) or a suppression (`@ts-ignore`, `eslint-disable`, `# noqa`, `|| true`): each one stops a check from checking, so each needs the clause that asks for it. The step check fails on any it misses.
+Tests changed lists every existing test file with M or D in `git diff --name-status --no-renames origin/<feature branch>...HEAD` (snapshots included: an updated snapshot changes what its test accepts), and every file where you add a skip, a focus (`.only`), a suppression (`@ts-ignore`, `eslint-disable`, `# noqa`, `|| true`) or an exclusion (`--deselect`, `--ignore`, `-k "not …"`, `collect_ignore`, `testPathIgnorePatterns`, `exclude` in a test runner's config): each one stops a check from checking, so each needs the clause that asks for it. The step check fails on any it misses.
 
 # Pinned
 
-A green suite says nothing the old suite did not: the step's behaviour is pinned only by a test that fails without the step. Pinned by lists those test files. The step check runs each one at your HEAD, where it must pass, then with your non-test changes reverted, where it must fail. A test that passes either way pins nothing, and fails the step.
+A green suite says nothing the old suite did not: the step's behaviour is pinned only by a test that fails without the step. Pinned by lists those test files; the check reads only test paths from it (a `::` test id names its file), so the clause may name code. The step check runs each one at your HEAD, where it must exit 0, then with your non-test changes reverted, where it must fail. A test that passes either way pins nothing, and fails the step.
 
 A test's worth is its assertion: assert the value the Done when names, through the entry point a caller uses. A fake stands in only for what leaves the process (network, clock, another service); a test whose fakes stand in for the code under test passes whatever that code does.
 
-Nothing a test can pin (config, a build file, wiring only the running app shows): `none · <why>` in Pinned by. Prove then judges it alone.
+Nothing a test can pin (config, a build file, wiring only the running app shows): `none · <why>` in Pinned by. Prove then judges it alone. A step that changes only manifests and lockfiles (a dependency bump) is not judged by the revert, since reverting them leaves what they installed: the check notes it, and prove judges it.
 
 # Driven
 
@@ -80,7 +80,7 @@ You are on the step branch. Target the feature branch.
 - <one bullet per behaviour, most important first>
 
 ## Tests changed
-- <existing test file, or file with a skip, focus or suppression added · what changed · the issue clause that asks for it>, or "none"
+- <existing test file, or file with a skip, focus, suppression or exclusion added · what changed · the issue clause that asks for it>, or "none"
 
 ## Driven
 - <what you drove, where → what you saw>, or "none · <why>"
