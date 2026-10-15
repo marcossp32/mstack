@@ -31,6 +31,7 @@ A turn that ends to wait on something running says the stage, step n of N, what 
 2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run), credentials, budgets. Run instructions are not the request.
    - A credential stays in this conversation and reaches prove as its own input. It is never in text that gets posted: an issue, a comment, a PR body.
    - A budget goes on the map under Settled up front.
+   - An autonomous run: read [`references/unattended.md`](references/unattended.md) and run its check now, while the human is still here.
 3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
 4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every branch a stage compares against is the remote one, after `git fetch`: `origin/<base>`, `origin/feature/<name>`. Merges land on GitHub, so a local copy may be missing or stale.
 5. Create labels `feature:map`, `build` and `needs:human`.
@@ -94,7 +95,7 @@ Post the reply as a comment on the map; links under Sources.
 - grilling and plan need the human; docs dispatches its own agents. These three stay in the main chat. Review runs in a fresh agent so its hunt stays out of this conversation; it returns `Review · not run · no Agent tool`: run it here.
 - Run all four scan slices at once.
 - One build at a time: one step branch, one PR, one issue in flight.
-- When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's two commands, the whole suite and one test file. Where scan says test files launch a browser or a server, the suite command caps the files run at once at half the machine's cores, 4 at most, with the runner's flag scan names: one browser per core stalls the machine.
+- When scan returns, record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's two commands, the whole suite and one test file. Where scan says test files launch a browser or a server, the suite command caps the files run at once at half the machine's cores, 4 at most, with the runner's flag scan names: one browser per core stalls the machine. A baseline recorded without that cap (a feature started before this rule) gets it with `step_check.py set-cmd` before the next step check. That baseline command is the suite command every later stage gets, the review included.
 - A step check after every build, on its step branch.
 - One review, after the last step passes its check, on the whole feature diff. After a replan prove triggered, skip it when what landed since the last review is under 300 changed lines and How hard to undo is easy, and go to Closing: the step checks, the replays and the re-prove judge a small fix, and a review there costs a round of hunters for little.
 - prove after the review and any fix step, and it opens the final PR; again after any replan, as a re-prove: it drives only what the replan's diff can reach, and the rest keeps its verdict.
@@ -127,7 +128,7 @@ Inputs:
 | docs | installed versions (scan) · the questions under Docs · target infrastructure |
 | build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the run recipe's path (`~/.claude/skills/run-<repo>/SKILL.md`), else scan Q9 · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan, docs and recipe inputs · the fix branch it is on |
-| review | the feature review · base `origin/<base>`, after `git fetch` · scan Q6's test command · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, How hard to undo, Settled up front, Assumed and Not doing from |
+| review | the feature review · base `origin/<base>`, after `git fetch` · the step check baseline's suite command (Routing) · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, How hard to undo, Settled up front, Assumed and Not doing from |
 | prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions, if any · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
@@ -148,7 +149,8 @@ Run the step check on the step branch with the PR number, against `origin/featur
 - **PASS**: merge the step branch into the feature branch, close the step issue, add a line to Decided, start the next build.
 - **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again. Only a PASS after a change clears a FAIL: running the check again without a build fixes nothing.
 - **FAIL suite · intermittent** on tests this step did not touch: a flaky test, not this step's fault. Merge only after a fix step for that test (Done when: it passes 3 runs in a row) passes its check; it does not count toward a second FAIL.
-- **NOT RUN**: a run hit its ceiling, 3 times its baseline run: something hangs, and nothing was judged. Comment it on the step issue and tell the human (in an autonomous run, stop with it). It is not a FAIL and does not count toward a second one.
+- **NOT RUN · suite unstable under load**: each suite run failed on different files, all passing alone: the machine runs too many at once. `step_check.py set-cmd` with the suite command running half as many files at once (scan's flag), then check again; it does not count toward a second FAIL. Still unstable at one file at a time: tell the human (in an autonomous run, stop with it).
+- **NOT RUN**, any other: a run hit its ceiling, 3 times its baseline run: something hangs, and nothing was judged. Comment it on the step issue and tell the human (in an autonomous run, stop with it). It is not a FAIL and does not count toward a second one.
 - **Second FAIL** on one step: replan. A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
 - **`credential?`** line: show the human before merging.
 - **`unpinned?`** line: the builder says no test can pin this step. Add its reason to the step's Decided line; prove judges the step alone.
@@ -164,7 +166,7 @@ Read [`references/review-results.md`](references/review-results.md) when the rev
 
 # Replan
 
-Triggers: two failed step checks on one step · build returns no PR for an unobservable Done when or a contradiction · a finding still failing after two fix rounds · a step shows the approach is wrong · prove returns not verified on a requirement or a `new` break. Scan findings feed grilling and plan, not replan.
+Triggers: two failed step checks on one step · build returns no PR for an unobservable Done when or a contradiction · a finding still failing after two fix rounds · a patching loop: a new finding or `new` break in a non-test file that two repair steps of this feature already changed (review fix steps, and steps a replan added after a prove break) · a step shows the approach is wrong · prove returns not verified on a requirement or a `new` break. Scan findings feed grilling and plan, not replan.
 
 A trigger fires: read [`references/replan.md`](references/replan.md), then replan by it.
 

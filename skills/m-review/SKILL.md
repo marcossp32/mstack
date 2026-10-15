@@ -21,7 +21,13 @@ git fetch origin && python3 scripts/step_check.py check --base origin/feature/<n
 python3 scripts/step_check.py clear --base feature/<name>   # once, when the feature ends
 ```
 
-Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` and `unpinned?` lines are for the human to look at and do not fail the step. The check reverts the step's non-test changes in place to run the Pinned by tests, so it aborts on a checkout with tracked changes and restores HEAD before it exits; `pinned · not run` names what it lacked. A red suite runs up to three times: `intermittent` means red on some runs only, and still fails. `suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
+Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` and `unpinned?` lines are for the human to look at and do not fail the step. The check reverts the step's non-test changes in place to run the Pinned by tests, so it aborts on a checkout with tracked changes and restores HEAD before it exits; `pinned · not run` names what it lacked. A red suite first runs the files its output names as failing on their own: one that fails alone fails the step without more suite runs. Otherwise the suite runs again: `intermittent` means red on one run only, and still fails; `NOT RUN · suite unstable under load` means each run failed on different files, all passing alone and none changed by the step, so the machine is overloaded and nothing was judged. Then switch the baseline to a command that runs fewer files at once, and check again:
+
+```bash
+python3 scripts/step_check.py set-cmd --base feature/<name> --test-cmd "<suite command, fewer files at once>"
+```
+
+`suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
 
 # Feature review
 
@@ -89,13 +95,13 @@ Return its output verbatim. Stop: no second round, no suggestions.
 
 # Recheck
 
-After a fix step for confirmed findings has passed its step check, on the fix branch:
+After a fix step for confirmed findings has passed its step check, on the fix branch, every finding in one call: the suite runs once for all of them.
 
 ```bash
-python3 scripts/gate.py recheck --id <id> --promote
+python3 scripts/gate.py recheck --id F-001 --id F-002 --promote
 ```
 
-`fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. `still-failing` or `SUITE WORSE`: the fix did not hold.
+`fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. A copy an interrupted recheck left behind, identical to the frozen one, is removed by the gate itself: never delete a reproduction by hand. `still-failing` or `SUITE WORSE`: the fix did not hold.
 
 `stale`: the reproduction now fails before its assertion (the markup or API it set up against changed), so it says nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
 

@@ -67,7 +67,7 @@ A command that runs for minutes (a suite, a build, a render): start it contained
 
 # Fix mode
 
-The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds, working from the claim and condition alone: the review re-runs its own frozen reproduction afterwards. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is. The review's reproductions pin the fix once they pass: Pinned by says `none · pinned by the review's reproductions` unless you add a test of your own.
+The issue lists confirmed findings from `/m-review`: each a claim and the condition that shows it. Each one failed a frozen reproduction on your branch's code. Fix the code until the condition no longer holds, working from the claim and condition alone: the review re-runs its own frozen reproduction afterwards. A finding you believe is wrong: say why in the PR, with the code that shows it, and leave that code as is. The review's reproductions pin the fix once they pass, and become its regression tests: Pinned by says `none · pinned by the review's reproductions` unless you add a test of your own. Tests you write to check a listed finding stay out of the commit (keep them in your scratchpad): committed, they would test the same condition twice and slow every later suite run. Commit a test of your own only for behaviour no listed finding covers, and list it under Pinned by.
 
 # Pull request
 
