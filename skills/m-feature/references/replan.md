@@ -17,7 +17,7 @@ Whatever fired, count for each non-test file the failure names the repair steps 
 4. The human confirms the revised list.
 5. Create, rewrite and re-link step issues; note the change under Decided.
 
-A replan's steps serve requirements already on the map: their Done when never becomes a prove requirement. What the feature must do changes only through the Goal or Settled up front, with the human, or Assumed in an autonomous run.
+A replan's steps serve requirements already on the map: their Done when never becomes a prove requirement. What the feature must do changes only through the Goal or Settled up front, with the human, or Assumed in an autonomous run. A decision the human settles here with an observable effect becomes a new Goal clause, quoting it, with the next unused number: prove judges the Goal's clauses.
 
 **Stop:**
 

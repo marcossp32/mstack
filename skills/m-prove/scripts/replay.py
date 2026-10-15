@@ -17,7 +17,7 @@
   replay.py clear --feature <branch>
       At the end of the feature. Deletes that feature's replays, nothing else.
 
-A replay dir holds replay.json, {"R3": {"cmd": "node check.mjs", "clause": "\"each wait doubles\""}, ...},
+A replay dir holds replay.json, {"R3": {"cmd": "node check.mjs", "clause": "\"each wait doubles\" · bound —"}, ...},
 and one subdir per line (R3/) with the files its command uses; the command runs there.
 It exits 0 when the line's observation holds and prints the observed value on
 its last line.
