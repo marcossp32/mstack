@@ -2,7 +2,7 @@
 """The gate. The only route to confirmed, fixed, still-failing and stale.
 
   gate.py confirm --id F-001 --capture <path> --repro <path> --cmd "<cmd with {test}>"
-  gate.py recheck --id F-001 [--promote]
+  gate.py recheck --id F-001 [--id F-002 ...] [--promote]
   gate.py recheck --id F-001 --capture <path> --repro <path> --cmd "<cmd>" [--promote]   stale only
 
 confirm, all mandatory:
@@ -17,9 +17,11 @@ checkout afterwards, aborts included. The frozen copies live in the git dir, out
 builder's way.
 
 recheck: the frozen repro, restored at its path, passes on every run at the
-current HEAD, and the suite is no worse than when the review started. A repro
-that fails only before its assertion is stale: the code it set up against
-changed. A stale finding is rechecked with a capture and repro rewritten
+current HEAD, and the suite is no worse than when the review started. Several
+--id run their repros one after another, then the suite once for all of them.
+An exact untracked copy of a frozen repro, left by an interrupted recheck, is
+removed. A repro that fails only before its assertion is stale: the code it
+set up against changed. A stale finding is rechecked with a capture and repro rewritten
 against the current code; both must reach their assertions and disagree.
 
 Every run has a ceiling, 3 times the review's suite run or more. A run that
@@ -238,11 +240,16 @@ def recheck_frozen(a, f, r):
     ev = f["evidence"]
     rep = ev["repro"]
     full = os.path.join(r, rep["path"])
-    if os.path.exists(full):
-        die(f"{rep['path']} exists in the checkout. The repro is restored by the "
-            "gate only; remove that file")
     if sha(rep["frozen"]) != rep["sha256"]:
         die("the frozen repro changed on disk", 3)
+    if os.path.exists(full):
+        tracked = git(f"ls-files --error-unmatch -- {rep['path']}", cwd=r)[0] == 0
+        if tracked or sha(full) != rep["sha256"]:
+            die(f"{rep['path']} exists in the checkout. The repro is restored by the "
+                "gate only; remove that file")
+        # An exact untracked copy is what an interrupted recheck left behind.
+        os.remove(full)
+        print(f"{a.id}: removed {rep['path']}, a copy an interrupted recheck left")
     os.makedirs(os.path.dirname(full) or r, exist_ok=True)
     shutil.copy2(rep["frozen"], full)
 
@@ -335,55 +342,69 @@ def recheck_rewritten(a, f, r):
 def cmd_recheck(a):
     r = root()
     data = load()
-    f = find(data, a.id)
+    ids = list(dict.fromkeys(a.id))
+    findings = [find(data, i) for i in ids]
     rewritten = bool(a.capture or a.repro)
     if rewritten:
+        if len(ids) > 1:
+            die("a rewritten recheck takes one --id")
+        f = findings[0]
         if not (a.capture and a.repro and a.cmd):
             die("a rewritten recheck needs --capture, --repro and --cmd")
         if "{test}" not in a.cmd:
             die("--cmd must contain {test}, replaced by the file to run")
         if f["state"] != "stale":
-            die(f"{a.id} is {f['state']}; only a stale finding takes a rewritten repro")
+            die(f"{f['id']} is {f['state']}; only a stale finding takes a rewritten repro")
         if tracked_changes(r):
             die("tracked files changed: a repro writer may only add new files")
-    elif f["state"] == "stale":
-        die(f"{a.id} is stale: recheck it with a rewritten --capture, --repro and --cmd")
-    elif f["state"] not in ("confirmed", "still-failing"):
-        die(f"{a.id} is {f['state']}; only confirmed or still-failing can be rechecked")
+    for f in findings if not rewritten else []:
+        if f["state"] == "stale":
+            die(f"{f['id']} is stale: recheck it with a rewritten --capture, --repro "
+                "and --cmd")
+        if f["state"] not in ("confirmed", "still-failing"):
+            die(f"{f['id']} is {f['state']}; only confirmed or still-failing can be "
+                "rechecked")
 
     _, head = git("rev-parse HEAD", cwd=r)
-    if rewritten:
-        state, res, path = recheck_rewritten(a, f, r)
-    else:
-        state, res, path = recheck_frozen(a, f, r)
+    results = []
+    for f in findings:
+        a.id = f["id"]
+        if rewritten:
+            results.append((f, *recheck_rewritten(a, f, r)))
+        else:
+            results.append((f, *recheck_frozen(a, f, r)))
+    # One suite run judges every finding rechecked here: it is the slow part.
     limit = ceiling(data["baseline"].get("seconds"), SUITE_FLOOR)
     rc_suite, out_suite = sh(data["test_cmd"], cwd=r, timeout=limit)
     suite_cut = timed_out(rc_suite, out_suite)
     worse = data["baseline"]["rc"] == 0 and rc_suite != 0 and not suite_cut
 
-    f.setdefault("rechecks", []).append({
-        "at": now(), "head": head, "rewritten": rewritten, "runs": res,
-        "suite_rc": rc_suite, "suite_tail": tail(out_suite)})
-    f["state"] = state
+    for f, state, res, _ in results:
+        f.setdefault("rechecks", []).append({
+            "at": now(), "head": head, "rewritten": rewritten, "runs": res,
+            "suite_rc": rc_suite, "suite_tail": tail(out_suite)})
+        f["state"] = state
     save(data)
 
-    if state == "fixed" and a.promote:
-        print(f"{a.id} -> fixed. Repro left at {path}: commit it as a "
-              "regression test")
-    elif state == "stale":
-        print(f"{a.id} -> stale: the repro fails before any assertion on this "
-              "code, so it cannot tell whether the claim still holds. A fresh "
-              "repro writer gets the claim and condition; recheck its files with "
-              "--capture, --repro and --cmd")
-    else:
-        print(f"{a.id} -> {state}")
+    for f, state, _, path in results:
+        if state == "fixed" and a.promote:
+            print(f"{f['id']} -> fixed. Repro left at {path}: commit it as a "
+                  "regression test")
+        elif state == "stale":
+            print(f"{f['id']} -> stale: the repro fails before any assertion on "
+                  "this code, so it cannot tell whether the claim still holds. A "
+                  "fresh repro writer gets the claim and condition; recheck its "
+                  "files with --capture, --repro and --cmd")
+        else:
+            print(f"{f['id']} -> {state}")
     if worse:
         print("SUITE WORSE: green when the review started, red now\n"
               + tail(out_suite, 2000))
     if suite_cut:
         print(f"SUITE NOT RUN: it did not finish within {limit}s, so whether it "
               "got worse is unknown")
-    sys.exit(0 if state == "fixed" and not worse else 1)
+    fixed = all(state == "fixed" for _, state, _, _ in results)
+    sys.exit(0 if fixed and not worse else 1)
 
 
 def main():
@@ -400,7 +421,8 @@ def main():
     p.add_argument("--runs", type=int, default=RUNS)
     p.set_defaults(fn=cmd_confirm)
     p = sub.add_parser("recheck")
-    p.add_argument("--id", required=True)
+    p.add_argument("--id", required=True, action="append",
+                   help="repeat for each finding: one suite run judges them all")
     p.add_argument("--promote", action="store_true",
                    help="leave a passing repro in the checkout to be committed")
     p.add_argument("--capture", help="stale only: rewritten capture, a new file")

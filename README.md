@@ -98,7 +98,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 
 | Check | Fails when |
 |---|---|
-| Suite | More tests fail than when the feature started |
+| Suite | More tests fail than when the feature started. Failing files run alone first, so a real failure needs no suite rerun; files that fail only under load, a different set each run, give **not run · unstable under load** and the suite is switched to fewer files at once |
 | Tests changed | An existing test file was changed or deleted, or a skip, `.only`, suppression or `\|\| true` was added, without being listed in the pull request |
 | Pinned | A test the pull request names under Pinned by does not pass at HEAD, or still passes with the step's code reverted |
 | Credentials | An added line looks like a secret |
@@ -153,6 +153,25 @@ It stops, leaving the pull request as Not verified with `needs:human` on the map
 
 When it stops, its message opens with `Stopped ·` and the one question only you can answer.
 
+### Before you leave
+
+An unattended run merges step pull requests into the feature branch, runs the review scripts and commits the review's reproductions. Claude Code's auto mode refuses some of these by default ("Merge Without Review", "CI Bypass"), and a permission you type in the chat does not lift that. `m-feature` checks your settings at the start of an autonomous run and stops there, while you are still around, when this is missing from `~/.claude/settings.json` (the classifier reads `autoMode` only from your user settings, never from the repo's):
+
+```json
+{
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "mstack step merges: `gh pr merge` of a step pull request into a `feature/*` branch, never into the base or default branch, after mstack's step_check.py printed `STEP CHECK: PASS` for it. The step check and the review are the user's chosen review for step pull requests; a feature branch reaches the base only through a final pull request a human merges. Not Merge Without Review.",
+      "mstack review scripts: running mstack's scripts (step_check.py, prepare.py, gate.py, ledger.py, report.py, contain.py, cleanup.py, replay.py) from an installed `m-*/scripts` skill directory, including `gate.py recheck --promote`. They run the test suite and record verdicts; they skip, disable or loosen no check. Not CI Bypass.",
+      "mstack regression tests: committing and pushing, on a `step/*` fix branch, the reproduction test files gate.py left in the checkout after `recheck --promote` printed `fixed`. This adds tests and removes none. Not CI Bypass or Security Test Removal."
+    ]
+  }
+}
+```
+
+Keep `"$defaults"`: without it the list replaces Claude Code's built-in exceptions. Run `claude auto-mode config` to see what is in effect. The final merge into the base branch stays yours.
+
 **Credentials** you pass, such as a store password or a test account, are used only to drive the app. They are never written to an issue, a comment or a pull request.
 
 **Budgets** are recorded on the map under Settled up front. Set one: without it, only the first two stop rules apply.
@@ -199,6 +218,8 @@ Each folder installs on its own, so a skill never links outside itself. Some tex
 
 - The step issue template lives in `m-plan/SKILL.md` and `m-feature/references/github.md`.
 - The label names live in those files, in `m-feature/SKILL.md` and in this README.
+- The `autoMode.allow` block lives in `m-feature/references/unattended.md` and in this README.
+- The fix-mode test rule in `m-build/SKILL.md` matches the recheck in `m-feature/references/review-results.md`: the review's reproductions become the regression tests.
 - `scripts/contain.py` is the same file in `m-build`, `m-prove` and `m-review`; CI fails when the copies differ.
 
 The skills follow the writing-for-agents conventions: short rules, each with its reason, and no rule that does not change what the agent does.

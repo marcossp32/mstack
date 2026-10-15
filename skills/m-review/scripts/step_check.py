@@ -12,13 +12,22 @@
       Exit 0 = PASS, 1 = FAIL, 2 = NOT RUN (a run hit its ceiling: no
       verdict, report it); an abort exits non-zero and prints no verdict.
 
+  step_check.py set-cmd --base <feature branch> --test-cmd "<cmd>"
+      Swaps the suite command of the recorded baseline (e.g. fewer files at
+      once after an unstable-under-load NOT RUN); keeps its verdict.
+
   step_check.py clear --base <feature branch>
       When the feature ends. Deletes its baseline, nothing else.
 
 Checks:
-  1. Suite no worse than at the feature's start (exit-code level). Red is run
-     up to 3 times: red on some runs only is a FAIL marked intermittent. Every
-     run's full output is saved under the git dir and its path printed.
+  1. Suite no worse than at the feature's start (exit-code level). On red,
+     the files the output names as failing run alone first: one that fails
+     alone fails the step. All pass alone: a second suite run. Green then is a
+     FAIL marked intermittent; red on the same files is a FAIL; red on other
+     files, each passing alone and none changed by the step, is NOT RUN ·
+     suite unstable under load. No failing file found: the suite runs up to 3
+     times, as red on some runs only is intermittent. Every run's full output
+     is saved under the git dir and its path printed.
   2. Every existing test file changed or deleted, and every file where the
      step adds a skip, a focus or a suppression, is listed in the PR's Tests
      changed section.
@@ -78,6 +87,11 @@ DOC_PATH = re.compile(r"\.(md|mdx|rst|txt|adoc)$|(^|/)(LICENSE|CHANGELOG)[^/]*$"
 
 SUITE_RUNS = 3
 LOG_DAYS = 7
+# A red suite's failing files are run alone first, up to this many.
+MAX_ALONE = 30
+FAIL_MARK = re.compile(r"(?i)\b(fail|failed|failing|failures?|error)\b|[✖✗×]")
+PASS_MARK = re.compile(r"\b(PASS|PASSED)\b|^\s*ok\b|[✔✓]")
+FAIL_WINDOW = 3
 
 
 def run_git(args, cwd):
@@ -147,42 +161,123 @@ def pr_section(pr, title):
     return m.group(1) if m else ""
 
 
-def check_suite(a, base_info, r, fails, notes):
+def failing_files(out, r):
+    """Tracked test files the suite's output names near a failure marker.
+    Runner-agnostic and heuristic: a passing file caught here only costs one
+    run on its own; none found falls back to whole-suite reruns."""
+    _, tracked = run_git(["ls-files"], r)
+    tests = [p for p in tracked.splitlines() if TEST_PATH.search(p)]
+    lines = out.splitlines()
+    near = set()
+    for i, line in enumerate(lines):
+        if FAIL_MARK.search(line):
+            near.update(range(max(0, i - FAIL_WINDOW), i + FAIL_WINDOW + 1))
+    # A line that reports a pass names a file that did not fail there.
+    text = "\n".join(lines[i] for i in sorted(near)
+                     if i < len(lines) and not PASS_MARK.search(lines[i]))
+    return sorted(p for p in tests
+                  if p in text or p.replace("/", "\\") in text)
+
+
+def alone(cmd, files, r, limit):
+    """Each file run on its own: the ones that fail (or hang) that way."""
+    bad = []
+    for path in files:
+        rc, out, _ = run_pinned(cmd, path, r, limit)
+        if rc != 0 or timed_out(rc, out):
+            bad.append(path)
+    return bad
+
+
+def check_suite(a, base_info, r, changed, fails, notes):
     if base_info["cmd"] is None:
         notes.append("suite · none in this repo")
         return
     limit = ceiling(base_info.get("seconds"), SUITE_FLOOR)
 
     def suite(run):
-        rc, out = sh(base_info["cmd"], cwd=r, timeout=limit)
+        rc, out, secs = timed(base_info["cmd"], cwd=r, timeout=limit)
         if timed_out(rc, out):
             raise NotRun(f"the suite did not finish within {limit}s, 3 times its "
                          f"baseline run or more · log {save_log(a.pr, run, out)}")
+        if base_info.get("seconds") is None:
+            # set-cmd cleared it: the first finished run sets the ceiling.
+            base_info["seconds"] = round(secs, 1)
+            write_json(baseline_path(a.base), base_info)
         return rc, out
 
     rc, out = suite(1)
     logs = [save_log(a.pr, 1, out)] if rc != 0 else []
     if rc == 0:
         notes.append("suite · green")
-    elif base_info["rc"] == 0:
-        # Red once may be a flaky test: run it again before judging.
-        reds = [out]
-        for i in range(2, SUITE_RUNS + 1):
-            rc_i, out_i = suite(i)
-            logs.append(save_log(a.pr, i, out_i))
-            if rc_i != 0:
-                reds.append(out_i)
-        runs = f"red {len(reds)} of {SUITE_RUNS} runs"
-        if len(reds) == SUITE_RUNS:
-            fails.append(f"suite · {runs}, was green at the feature's start\n"
-                         + tail(out, 2500))
-        else:
-            fails.append(f"suite · intermittent · {runs}, was green at the "
-                         "feature's start\n" + tail(reds[0], 2500))
-        notes.append("suite logs · " + " · ".join(logs))
-    else:
+        return
+    if base_info["rc"] != 0:
         notes.append("suite · red, was already red at the feature's start: "
                       "not comparable, record it on the map · log " + logs[0])
+        return
+
+    first = failing_files(out, r)
+    file_cmd = base_info.get("file_cmd")
+    if not file_cmd or not first or len(first) > MAX_ALONE:
+        rerun_suite(suite, out, logs, fails, notes, a.pr)
+        return
+
+    # Run the failing files on their own first: a file that fails alone is a
+    # real failure, found without two more whole-suite runs.
+    file_limit = ceiling(base_info.get("seconds"), FILE_FLOOR)
+    bad = alone(file_cmd, first, r, file_limit)
+    if bad:
+        fails.append("suite · red, and fails alone too: " + ", ".join(bad)
+                     + "\n" + tail(out, 2500))
+        notes.append("suite logs · " + " · ".join(logs))
+        return
+
+    rc2, out2 = suite(2)
+    if rc2 == 0:
+        fails.append("suite · intermittent · red 1 of 2 runs, was green at the "
+                     f"feature's start; {', '.join(first)} pass alone\n"
+                     + tail(out, 2500))
+        notes.append("suite logs · " + " · ".join(logs))
+        return
+    logs.append(save_log(a.pr, 2, out2))
+    notes.append("suite logs · " + " · ".join(logs))
+    second = failing_files(out2, r)
+    if not second or set(second) == set(first):
+        fails.append("suite · red 2 of 2 runs on the same files, which pass "
+                     "alone: they depend on running together · "
+                     + ", ".join(first) + "\n" + tail(out2, 2500))
+        return
+    bad = alone(file_cmd, sorted(set(second) - set(first)), r, file_limit)
+    touched = sorted((set(first) | set(second)) & changed)
+    if bad:
+        fails.append("suite · red, and fails alone too: " + ", ".join(bad)
+                     + "\n" + tail(out2, 2500))
+    elif touched:
+        fails.append("suite · red on 2 runs, on files this step changed: "
+                     + ", ".join(touched) + "\n" + tail(out2, 2500))
+    else:
+        raise NotRun("suite unstable under load: each run fails on different "
+                     f"files ({', '.join(first)} · then {', '.join(second)}), "
+                     "every one passes alone, and this step changed none of "
+                     "them. Run fewer test files at once: set-cmd")
+
+
+def rerun_suite(suite, out, logs, fails, notes, pr):
+    """No failing file to run alone: run the whole suite again, up to 3 times."""
+    reds = [out]
+    for i in range(2, SUITE_RUNS + 1):
+        rc_i, out_i = suite(i)
+        logs.append(save_log(pr, i, out_i))
+        if rc_i != 0:
+            reds.append(out_i)
+    runs = f"red {len(reds)} of {SUITE_RUNS} runs"
+    if len(reds) == SUITE_RUNS:
+        fails.append(f"suite · {runs}, was green at the feature's start\n"
+                     + tail(out, 2500))
+    else:
+        fails.append(f"suite · intermittent · {runs}, was green at the "
+                     "feature's start\n" + tail(reds[0], 2500))
+    notes.append("suite logs · " + " · ".join(logs))
 
 
 def check_listed(a, status, diff, listed, fails, notes):
@@ -367,7 +462,7 @@ def cmd_check(a):
 
     fails, notes = [], [f"sweep · {sweep()}"]
     try:
-        check_suite(a, base_info, r, fails, notes)
+        check_suite(a, base_info, r, {p for _, p in status}, fails, notes)
         check_listed(a, status, diff, tests_listed, fails, notes)
         check_credentials(a, r, diff, fails, notes)
         check_pinned(a, base_info, r, base, status, pinned_listed, fails, notes)
@@ -383,6 +478,20 @@ def cmd_check(a):
         print(f"- FAIL {f}")
     print(f"\nSTEP CHECK: {'FAIL' if fails else 'PASS'}")
     sys.exit(1 if fails else 0)
+
+
+def cmd_set_cmd(a):
+    """Swaps the suite command of a recorded baseline, keeping its verdict and
+    head; the next finished run measures the new command's time."""
+    path = baseline_path(a.base)
+    data = read_json(path)
+    if data is None:
+        die(f"no baseline for {a.base}: record one with baseline")
+    if data.get("cmd") is None:
+        die("this baseline has no test suite")
+    print(f"suite command: {data['cmd']} -> {a.test_cmd}")
+    data.update({"cmd": a.test_cmd, "seconds": None, "cmd_set": now()})
+    write_json(path, data)
 
 
 def cmd_clear(a):
@@ -410,6 +519,11 @@ def main():
                    "Pinned by sections")
     p.add_argument("--secrets-cmd", help="optional scanner; non-zero exit fails")
     p.set_defaults(fn=cmd_check)
+    p = sub.add_parser("set-cmd")
+    p.add_argument("--base", required=True, help="the feature branch")
+    p.add_argument("--test-cmd", required=True,
+                   help="the new command that runs the whole suite")
+    p.set_defaults(fn=cmd_set_cmd)
     p = sub.add_parser("clear")
     p.add_argument("--base", required=True, help="the feature branch that ended")
     p.set_defaults(fn=cmd_clear)

@@ -17,6 +17,6 @@ After the review and any fix step:
 6. Tell the human, then stop:
    ```
    PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · <link>
-   To merge · <each thing only the human can do: a human check, a command the harness refused, a reworded requirement to accept> | nothing, merge it
+   To merge · <each thing only the human can do: a human check, a command the harness refused (with the `unattended.md` entry that would allow it), a reworded requirement to accept> | nothing, merge it
    Shipped · Left out · What to watch in production   one line each
    ```
