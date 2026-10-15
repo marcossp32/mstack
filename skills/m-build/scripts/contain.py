@@ -5,7 +5,13 @@
   contain.py [options] --shell "<command line>"
       Runs the command and exits with its exit code. When it exits or is
       stopped, every process it started ends too: servers, test workers,
-      browsers. The first stderr line, `contain: pid <n>`, is the command's pid.
+      browsers. The first stderr line, `contain: pid <n>`, is the pid to give
+      `stop`. On Windows it is often a launcher, not the program: cmd.exe for
+      npm and other .cmd shims, the app-execution alias for python. `stop`
+      reaches the whole process group, so that is enough; never use it to
+      find or kill the program itself.
+      Exit 123 with `contain: REAPED` means another run's `sweep --within`
+      ended the tree: not a result of the command.
       --env KEY=VALUE  sets a variable for the command (repeatable), so no
                        shell syntax is needed; `--shell` is cmd.exe on Windows.
       --with-parent    also ends the tree when the process that started this
@@ -17,12 +23,16 @@
   contain.py stop <pid>
       Asks a contained command to shut down, by the pid it printed: Ctrl+Break
       to its process group on Windows (Node sees SIGBREAK), SIGTERM on POSIX.
+      What the command leaves running gets up to 5 s to finish shutting down
+      before it is ended.
   contain.py sweep [--kill] [--within <dir>]...
       Lists, and with --kill ends: contained trees whose owner is gone;
-      with --within, every contained tree started in that directory; and
-      automation browsers (a debugging port or pipe, headless or an automation
-      profile) whose parent is gone. A browser a live process still owns, and
-      a browser without automation flags, is never touched.
+      with --within, every contained tree started in that directory, except
+      in another git worktree nested inside it; and automation browsers (a
+      debugging port or pipe, and a profile named for an automation tool, or
+      headless on a profile in the temp dir) whose parent is gone. A browser
+      a live process still owns, and a browser without those signs, is never
+      touched.
 
 Windows: this process joins a kill-on-close job object before it starts the
 command, so every descendant is in the job and the OS ends them all when this
@@ -54,7 +64,8 @@ import time
 WINDOWS = os.name == "nt"
 TIMEOUT_RC = 124
 PARENT_GONE_RC = 125
-GRACE = 5          # seconds between SIGTERM and SIGKILL on POSIX
+REAPED_RC = 123    # ended by another run's sweep, printed as `contain: REAPED`
+GRACE = 5          # seconds a stopped tree gets before it is killed
 STALE = 24 * 3600  # a registry entry older than this is only deleted
 REGISTRY = os.path.join(tempfile.gettempdir(), "mstack-contain")
 DEFAULT_ENV = {"BROWSER": "none", "PW_TEST_HTML_REPORT_OPEN": "never"}
@@ -136,6 +147,12 @@ if WINDOWS:
     _k32.AttachConsole.argtypes = [wintypes.DWORD]
     _k32.SetConsoleCtrlHandler.argtypes = [ctypes.c_void_p, wintypes.BOOL]
     _k32.GenerateConsoleCtrlEvent.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    _k32.CreateEventW.restype = wintypes.HANDLE
+    _k32.CreateEventW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.BOOL,
+                                  wintypes.LPCWSTR]
+    _k32.OpenEventW.restype = wintypes.HANDLE
+    _k32.OpenEventW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
+    _k32.SetEvent.argtypes = [wintypes.HANDLE]
 
     _KILL_ON_JOB_CLOSE = 0x2000
     _BREAKAWAY_OK = 0x800
@@ -148,6 +165,11 @@ if WINDOWS:
     _STILL_ACTIVE = 259
     _CREATE_NEW_PROCESS_GROUP = 0x200
     _CTRL_BREAK = 1
+    _CTRL_EXIT = 0xC000013A  # STATUS_CONTROL_C_EXIT: ended by Ctrl+C/Break
+    _EVENT_MODIFY = 0x0002
+
+    def _reap_event(pid):
+        return f"Local\\mstack-contain-reap-{pid}"
 
     def _job(low_priority):
         """A kill-on-close job holding this process, or None if Windows refuses."""
@@ -197,10 +219,17 @@ if WINDOWS:
     def _self_started():
         return _started(_k32.GetCurrentProcess())
 
-    def _terminate(pid):
-        h = _k32.OpenProcess(_TERMINATE, False, pid)
+    def _end_wrapper(pid):
+        """Asks a live wrapper to end its tree as reaped, so its caller sees
+        REAPED_RC and a `contain: REAPED` line; kills it if it cannot."""
+        h = _k32.OpenProcess(_TERMINATE | _SYNCHRONIZE, False, pid)
+        ev = _k32.OpenEventW(_EVENT_MODIFY, False, _reap_event(pid))
+        if ev:
+            _k32.SetEvent(ev)
+            _k32.CloseHandle(ev)
         if h:
-            _k32.TerminateProcess(h, 1)
+            if not ev or _k32.WaitForSingleObject(h, GRACE * 1000) != 0:
+                _k32.TerminateProcess(h, REAPED_RC)
             _k32.CloseHandle(h)
 
 
@@ -282,6 +311,11 @@ def _register(child_pid, cmd):
         return None
 
 
+def _stop_marker(child_pid):
+    """Left by `stop`, so the wrapper knows its command was asked to stop."""
+    return os.path.join(REGISTRY, f"stop-{child_pid}")
+
+
 def _unregister(path):
     if path:
         try:
@@ -313,6 +347,8 @@ def run(argv, shell, timeout, with_parent, extra_env):
     def end(rc):
         """End the whole tree, this process included, with this exit code."""
         _unregister(reg)
+        if child is not None:
+            _unregister(_stop_marker(child.pid))
         if WINDOWS:
             if job is not None:
                 _k32.TerminateJobObject(job, rc)
@@ -338,9 +374,24 @@ def run(argv, shell, timeout, with_parent, extra_env):
         end(127)
     keep = _watchdog(child.pid) if not WINDOWS else None  # noqa: F841
     reg = _register(child.pid, argv if shell else " ".join(argv))
-    if not WINDOWS:
+
+    def reaped():
+        try:
+            note("REAPED · another run's sweep ended this tree: not a result "
+                 "of the command")
+        finally:
+            end(REAPED_RC)
+    if WINDOWS:
+        reap_ev = _k32.CreateEventW(None, True, False, _reap_event(os.getpid()))
+        if reap_ev:
+            def wait_reap():
+                _k32.WaitForSingleObject(reap_ev, 0xFFFFFFFF)
+                reaped()
+            threading.Thread(target=wait_reap, daemon=True).start()
+    else:
         for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
             signal.signal(sig, lambda s, _f: end(128 + s))
+        signal.signal(signal.SIGUSR1, lambda _s, _f: reaped())
     note(f"pid {child.pid}{' · job' if job is not None else ''}"
          f"{f' · timeout {timeout:g}s' if timeout else ''}")
 
@@ -375,6 +426,15 @@ def run(argv, shell, timeout, with_parent, extra_env):
         end(130)
     if job is not None:
         left = _active(job) - 1  # this process is in the job too
+        if left > 0 and (rc == _CTRL_EXIT or os.path.exists(_stop_marker(child.pid))):
+            # Stopped: Ctrl+Break often ends a launcher (cmd.exe for npm) at
+            # once while the program it started is still in its shutdown
+            # handler. Give the rest the grace POSIX gives, then end them.
+            note(f"stopped: waiting up to {GRACE}s for {left} process(es) to exit")
+            deadline = time.monotonic() + GRACE
+            while _active(job) > 1 and time.monotonic() < deadline:
+                time.sleep(0.1)
+            left = _active(job) - 1
         if left > 0:
             note(f"ending {left} process(es) the command left running")
     try:
@@ -396,8 +456,14 @@ def stop(pid):
         return
     # Ctrl+Break reaches only processes on the sender's console: join the
     # command's console, ignore the event here, send it to its group.
+    try:
+        with open(_stop_marker(pid), "w"):
+            pass
+    except OSError:
+        pass
     _k32.FreeConsole()
     if not _k32.AttachConsole(pid):
+        _unregister(_stop_marker(pid))
         sys.exit(f"contain: cannot attach to the console of {pid} "
                  f"(error {ctypes.get_last_error()})")
     _k32.SetConsoleCtrlHandler(None, True)
@@ -405,6 +471,7 @@ def stop(pid):
     err = ctypes.get_last_error()
     _k32.FreeConsole()
     if not ok:
+        _unregister(_stop_marker(pid))
         sys.exit(f"contain: Ctrl+Break to {pid} failed (error {err})")
     print(f"STOP: Ctrl+Break sent to process group {pid}")
 
@@ -418,9 +485,11 @@ AUTOMATION = re.compile(r"--remote-debugging-(port|pipe)|(^|\s)-?-marionette\b"
                         r"|-juggler(-pipe)?\b|--inspector-pipe")
 SUBPROCESS = re.compile(r"\s\"?--type=")
 HEADLESS = re.compile(r"--headless\b|(^|\s)-headless\b")
-# Profiles that only automation creates: Puppeteer, Playwright, Lighthouse.
-AUTOMATION_PROFILE = re.compile(r"^(puppeteer_dev_\w+?_profile-|playwright[_-]|"
-                                r"lighthouse\.|mstack-)", re.IGNORECASE)
+# Profiles named for the automation tool that made them: Puppeteer, Playwright,
+# Lighthouse, agent-browser, chrome-devtools-mcp (the profile's parent dir).
+AUTOMATION_PROFILE = re.compile(r"^(puppeteer[_-]|playwright[_-]|lighthouse\.|"
+                                r"agent-browser-|chrome-devtools-mcp$|mstack-)",
+                                re.IGNORECASE)
 
 
 def _exe(cmd):
@@ -443,19 +512,23 @@ def _profile(cmd):
 
 
 def _throwaway(cmd):
-    """Headless, or a profile only automation creates, in the temp dir."""
-    if HEADLESS.search(cmd):
-        return True
+    """A profile named for an automation tool, or a headless browser on a
+    profile in the temp dir. Headless alone is not enough: a person's own
+    headless Chrome, started by a script that has since exited, is theirs."""
     prof = _profile(cmd)
     if not prof:
         return False
-    tmp = os.path.normcase(os.path.realpath(tempfile.gettempdir()))
     full = os.path.normcase(os.path.realpath(prof))
+    parent, name = os.path.split(full)
+    if any(AUTOMATION_PROFILE.match(n) for n in (name, os.path.basename(parent))):
+        return True
+    if not HEADLESS.search(cmd):
+        return False
+    tmp = os.path.normcase(os.path.realpath(tempfile.gettempdir()))
     try:
-        inside = os.path.commonpath([tmp, full]) == tmp
+        return os.path.commonpath([tmp, full]) == tmp and full != tmp
     except ValueError:  # different drives
-        inside = False
-    return inside and bool(AUTOMATION_PROFILE.match(os.path.basename(full)))
+        return False
 
 
 def _processes():
@@ -492,15 +565,56 @@ def _processes():
     return out
 
 
-def _within(path, dirs):
-    p = os.path.normcase(os.path.realpath(path))
-    for d in dirs:
-        d = os.path.normcase(os.path.realpath(d))
+def _norm(path):
+    return os.path.normcase(os.path.realpath(path))
+
+
+def _under(path, d):
+    try:
+        return os.path.commonpath([path, d]) == d
+    except ValueError:  # different drives
+        return False
+
+
+_WORKTREES = {}
+
+
+def _worktrees(d):
+    """(d's own worktree, every worktree of its repo), or None outside git."""
+    if d not in _WORKTREES:
+        _WORKTREES[d] = None
         try:
-            if os.path.commonpath([p, d]) == d:
-                return True
-        except ValueError:
+            git = ["git", "-C", d]
+            kw = {"capture_output": True, "text": True, "timeout": 30,
+                  "stdin": subprocess.DEVNULL}
+            top = subprocess.run(git + ["rev-parse", "--show-toplevel"], **kw)
+            lst = subprocess.run(git + ["worktree", "list", "--porcelain"], **kw)
+            if top.returncode == 0 and lst.returncode == 0 and top.stdout.strip():
+                _WORKTREES[d] = (_norm(top.stdout.strip()),
+                                 [_norm(line[len("worktree "):])
+                                  for line in lst.stdout.splitlines()
+                                  if line.startswith("worktree ")])
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return _WORKTREES[d]
+
+
+def _within(path, dirs):
+    """Started in one of dirs, and not in another git worktree nested there:
+    Claude Code puts parallel runs' worktrees inside the repo they branch
+    from, and those runs are alive and not ours to end."""
+    p = _norm(path)
+    for d in dirs:
+        d = _norm(d)
+        if not _under(p, d):
             continue
+        trees = _worktrees(d)
+        if trees:
+            own, every = trees
+            inner = max((w for w in every if _under(p, w)), key=len, default=own)
+            if inner != own:
+                continue
+        return True
     return False
 
 
@@ -535,12 +649,14 @@ def _reap(kill, within):
             continue
         if live:
             # Ending the wrapper ends its tree: the job closes (Windows), or
-            # its SIGTERM handler ends the session (POSIX).
+            # its handler ends the session (POSIX). Its caller sees REAPED_RC.
             if WINDOWS:
-                _terminate(e["wrapper"])
+                _end_wrapper(e["wrapper"])
             else:
                 try:
-                    os.kill(e["wrapper"], signal.SIGTERM)
+                    # SIGUSR1: the wrapper ends its tree as reaped (a wrapper
+                    # without the handler dies and its watchdog ends it).
+                    os.kill(e["wrapper"], signal.SIGUSR1)
                 except (ProcessLookupError, PermissionError):
                     pass
         elif not WINDOWS and not old and _group_alive(e["child"]):
