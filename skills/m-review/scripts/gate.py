@@ -5,43 +5,51 @@
   gate.py recheck --id F-001 [--id F-002 ...] [--promote]
   gate.py recheck --id F-001 --capture <path> --repro <path> --cmd "<cmd>" [--promote]   stale only
 
-confirm, all mandatory:
-  1. The capture (the repro before its assertion was inverted) passes at HEAD
-     on every run: the writer's model of the code is right, and the file
-     imports and sets up cleanly.
-  2. The repro fails at HEAD on every run, and not before an assertion.
-  3. At the base, the repro passes (regression), or the code it exercises does
-     not exist there (new code). Failing on code that existed: dead.
-Both files are new, frozen by hash before the first run, and removed from the
-checkout afterwards, aborts included. The frozen copies live in the git dir, out of the
-builder's way.
+--cmd runs in a shell: cmd.exe on Windows, sh elsewhere.
 
-recheck: the frozen repro, restored at its path, passes on every run at the
-current HEAD, and the suite is no worse than when the review started. Several
---id run their repros one after another, then the suite once for all of them.
-An exact untracked copy of a frozen repro, left by an interrupted recheck, is
-removed. A repro that fails only before its assertion is stale: the code it
-set up against changed. A stale finding is rechecked with a capture and repro rewritten
-against the current code; both must reach their assertions and disagree.
+The capture is the repro before its assertion was inverted: the two differ only
+there. So when the capture passes, the repro reaches its assertion, and which
+of the two passes says which behaviour the code has. No verdict reads the
+runner's output.
+
+confirm, all mandatory:
+  1. The capture passes at HEAD on every run: the writer's model of the code is
+     right, and the file sets up cleanly.
+  2. The repro fails at HEAD on every run, with one exit code.
+  3. At the base, in the review's base worktree: the repro passes (regression);
+     or it fails and so does the capture, so the broken behaviour is new
+     (new-behaviour). The capture passing there too: the bug was already there
+     (dead, pre-existing). Both failing while the base suite was red at
+     prepare: unjudgeable, since the checkout may be what fails.
+Both files are new, frozen by hash before the first run and recorded in the
+ledger, and removed from the checkout and the base worktree afterwards. A kill
+skips that: the next confirm or prepare removes what the ledger recorded.
+
+recheck: the frozen repro, restored at its path, at the current HEAD, every
+run. It passes: fixed. Else the frozen capture runs: it passes on a run, the
+broken behaviour is still there: still-failing. Neither passes: stale, the code
+they set up against changed and they say nothing about the claim. Several --id
+run one after another, then the suite once for all of them, which must be no
+worse than when the review started. An exact untracked copy of a frozen file,
+left by an interrupted recheck, is removed. A stale finding is rechecked with
+a capture and repro rewritten against the current code: the repro passes and
+the capture fails on every run, fixed; the reverse, still-failing; else stale.
 
 Every run has a ceiling, 3 times the review's suite run or more. A run that
 reaches it judges nothing: confirm closes the finding unjudgeable, recheck
-aborts with NOT RUN and leaves the state as it was.
+prints NOT RUN, exits 2 and leaves every state as it was.
 """
 import argparse
 import os
-import re
 import shutil
 import sys
-import tempfile
 
-from common import (FILE_FLOOR, FIRST_RUN, SETUP_FAILURE, SUITE_FLOOR, ceiling,
-                    die, git, now, reached_assertion, root, sh, setup_failure,
+from common import (FILE_FLOOR, SUITE_FLOOR, ceiling, die, git, now, root, sh,
                     sha, tail, timed_out, tracked_changes)
-from ledger import find, load, run_dir, save
+from ledger import (find, load, remove_bases, run_dir, run_git, save,
+                    sweep_leftovers, tracked)
 
 RUNS = 5
-IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
 
 
 def frozen_dir(fid):
@@ -67,39 +75,22 @@ def runs(cmd, rel, cwd, n, watch, limit):
     for i in range(n):
         rc, text = sh(cmd.replace("{test}", rel), cwd=cwd, timeout=limit)
         if timed_out(rc, text):
-            out.append({"run": i + 1, "rc": rc, "tail": tail(text), "full": text,
+            out.append({"run": i + 1, "rc": rc, "tail": tail(text),
                         "timed_out": True, "limit": limit})
             break
         for path, digest in watch:
             if not os.path.exists(path) or sha(path) != digest:
                 die(f"{path} changed during the gate", 3)
-        out.append({"run": i + 1, "rc": rc, "tail": tail(text), "full": text})
+        out.append({"run": i + 1, "rc": rc, "tail": tail(text)})
     return out
 
 
-def strip(results):
-    return [{k: v for k, v in x.items() if k != "full"} for x in results]
+def passes(res):
+    return all(x["rc"] == 0 for x in res)
 
 
-def new_symbols(output, base, r):
-    """Names in a setup failure that this diff added and the base lacks."""
-    names = set()
-    for line in output.splitlines():
-        if any(m in line.lower() for m in SETUP_FAILURE):
-            names.update(IDENT.findall(line))
-    if not names:
-        return []
-    _, diff = git(f"diff -U0 {base} HEAD", cwd=r)
-    added = "\n".join(l[1:] for l in diff.splitlines()
-                      if l.startswith("+") and not l.startswith("+++"))
-    found = []
-    for name in sorted(names):
-        if not re.search(rf"\b{re.escape(name)}\b", added):
-            continue
-        rc, _ = git(f"grep -q -w -e {name} {base} --", cwd=r)
-        if rc == 1:
-            found.append(name)
-    return found
+def fails(res):
+    return all(x["rc"] != 0 for x in res)
 
 
 def close(data, f, state, reason, evidence, cleanup):
@@ -113,47 +104,65 @@ def close(data, f, state, reason, evidence, cleanup):
     sys.exit(0)
 
 
-def base_run(data, f, rel, repro_abs, cmd, r):
-    """Returns (kind, note) or (None, reason-for-death-or-unjudgeable)."""
-    base = data["base"]
-    rc, _ = git(f"cat-file -e {base}:{f['file']}", cwd=r)
-    if rc != 0:
-        return "new-code", "file absent from the base", None
+def clean_base(data, wt):
+    """Puts back every recorded reproduction path in the base worktree: the
+    frozen file a killed gate left there is removed, a base file it covered
+    restored."""
+    for f in data["findings"]:
+        for g in f.get("gate_files", []):
+            full = os.path.join(wt, g["path"])
+            if os.path.isfile(full) and sha(full) == g["sha256"]:
+                if tracked(g["path"], wt):
+                    run_git(["checkout", "--", g["path"]], wt)
+                else:
+                    os.remove(full)
 
-    wt = tempfile.mkdtemp(prefix="mstack-base-")
+
+def at_base(wt, rel, frozen, cmd, limit):
+    """Runs one frozen file once in the base worktree, then takes it out again."""
+    dst = os.path.join(wt, rel)
+    made = []
+    d = os.path.dirname(dst)
+    while d and not os.path.isdir(d):
+        made.append(d)
+        d = os.path.dirname(d)
+    os.makedirs(os.path.dirname(dst) or wt, exist_ok=True)
+    shutil.copy2(frozen, dst)
     try:
-        rc, out = git(f"worktree add --detach {wt} {base}", cwd=r)
-        if rc != 0:
-            die(f"cannot create the base worktree: {out}")
-        if data.get("setup_cmd"):
-            rc, out = sh(data["setup_cmd"], cwd=wt, timeout=FIRST_RUN,
-                         env={"MSTACK_ROOT": r})
-            if timed_out(rc, out):
-                return None, (f"base not run: setup did not finish within "
-                              f"{FIRST_RUN}s"), "unjudgeable"
-            if rc != 0:
-                return None, "base not run: setup failed\n" + tail(out), "unjudgeable"
-        dst = os.path.join(wt, rel)
-        os.makedirs(os.path.dirname(dst) or wt, exist_ok=True)
-        shutil.copy2(repro_abs, dst)
-        limit = file_limit(data)
         rc, out = sh(cmd.replace("{test}", rel), cwd=wt, timeout=limit)
-        if timed_out(rc, out):
-            return None, (f"base not run: the repro did not finish within "
-                          f"{limit}s at the base"), "unjudgeable"
-        if rc == 0:
-            return "regression", "passes at the base, fails at HEAD", None
-        added = new_symbols(out, base, r) if setup_failure(out) else []
-        if added:
-            return "new-code", f"symbol absent from the base: {', '.join(added)}", None
-        if reached_assertion(out) or not setup_failure(out):
-            return None, ("fails at the base too, on code that existed there: "
-                          "pre-existing bug or invalid repro\n" + tail(out)), "dead"
-        return None, ("base failed before any assertion, for a reason this "
-                      "diff does not explain\n" + tail(out)), "unjudgeable"
     finally:
-        git(f"worktree remove --force {wt}", cwd=r)
-        shutil.rmtree(wt, ignore_errors=True)
+        if tracked(rel, wt):
+            run_git(["checkout", "--", rel], wt)
+        elif os.path.exists(dst):
+            os.remove(dst)
+        for d in made:
+            if os.path.isdir(d) and not os.listdir(d):
+                os.rmdir(d)
+    return {"rc": rc, "tail": tail(out), "timed_out": timed_out(rc, out)}
+
+
+def base_run(data, cap, rep, cmd, evidence):
+    """Returns (state, reason): confirmed with its kind, dead or unjudgeable."""
+    wt, limit = data["base_worktree"], file_limit(data)
+    evidence["base_runs"] = {}
+    for role, files in (("repro", rep), ("capture", cap)):
+        res = at_base(wt, files["path"], files["frozen"], cmd, limit)
+        evidence["base_runs"][role] = res
+        if res["timed_out"]:
+            return "unjudgeable", (f"base not run: the {role} did not finish within "
+                                   f"{limit}s at the base")
+        if role == "repro" and res["rc"] == 0:
+            return "confirmed", "regression: the repro passes at the base, fails at HEAD"
+    if evidence["base_runs"]["capture"]["rc"] == 0:
+        return "dead", ("pre-existing: the capture passes at the base too, so the "
+                        "broken behaviour was already there\n"
+                        + evidence["base_runs"]["capture"]["tail"])
+    if data.get("base_suite_rc"):
+        return "unjudgeable", ("the repro and the capture both fail at the base, and "
+                               "the suite was red in the base worktree at prepare: "
+                               "the checkout may be what fails")
+    return "confirmed", ("new-behaviour: the repro and the capture both fail at the "
+                         "base, so the broken behaviour is new")
 
 
 def cmd_confirm(a):
@@ -167,22 +176,36 @@ def cmd_confirm(a):
     _, head = git("rev-parse HEAD", cwd=r)
     if head != data["head"]:
         die("HEAD moved since prepare.py. Prepare again")
+    wt = data.get("base_worktree")
+    if not wt or not os.path.isdir(wt):
+        die("the review's base worktree is gone (report.py removes it). Prepare again")
+    paths = [rel.replace("\\", "/") for rel in (a.capture, a.repro)]
+    # What a killed gate left: files of other runs, in the checkout and the base.
+    sweep_leftovers(data, r, skip=paths)
+    clean_base(data, wt)
+    remove_bases(r, keep=wt)
     if tracked_changes(r):
         die("tracked files changed: a repro writer may only add new files")
 
     files = {}
-    for role, rel in (("capture", a.capture), ("repro", a.repro)):
-        rel = rel.replace("\\", "/")
+    for role, rel in zip(("capture", "repro"), paths):
         full = os.path.join(r, rel)
-        if not os.path.exists(full):
+        if not os.path.isfile(full):
             die(f"{role} not found: {rel}")
-        if git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0:
+        if tracked(rel, r):
             die(f"{role} is a tracked file; it must be new: {rel}")
         frozen = os.path.join(frozen_dir(a.id), os.path.basename(rel) + f".{role}")
         shutil.copy2(full, frozen)
         files[role] = {"path": rel, "abs": full, "frozen": frozen,
                        "sha256": sha(full)}
     cap, rep = files["capture"], files["repro"]
+    if cap["sha256"] == rep["sha256"]:
+        die("the capture and the repro are the same file; the repro inverts the "
+            "capture's assertion")
+    # Recorded before the first run, so a kill leaves nothing the next run
+    # cannot find.
+    f["gate_files"] = [{"path": x["path"], "sha256": x["sha256"]} for x in (cap, rep)]
+    save(data)
     cleanup = [cap["abs"], rep["abs"]]
     watch = [(cap["abs"], cap["sha256"]), (rep["abs"], rep["sha256"])]
     evidence = {"cmd": a.cmd,
@@ -203,17 +226,18 @@ def judge(a, data, f, r, cap, rep, watch, evidence, cleanup):
 
     # 1. capture passes at HEAD, every run
     res = runs(a.cmd, cap["path"], r, a.runs, watch, limit)
-    evidence["capture_runs"] = strip(res)
+    evidence["capture_runs"] = res
     if cut(res):
         close(data, f, "unjudgeable", f"the capture did not finish within "
               f"{cut(res)}s at HEAD", evidence, cleanup)
-    if any(x["rc"] != 0 for x in res):
+    if not passes(res):
         close(data, f, "dead", "the capture fails at HEAD: the writer's model "
               "of the code is wrong, or the file does not set up", evidence, cleanup)
 
-    # 2. repro fails at HEAD, every run, after reaching an assertion
+    # 2. repro fails at HEAD, every run. The capture passing proves it gets
+    # as far as its assertion.
     res = runs(a.cmd, rep["path"], r, a.runs, watch, limit)
-    evidence["repro_runs"] = strip(res)
+    evidence["repro_runs"] = res
     if cut(res):
         close(data, f, "unjudgeable", f"the repro did not finish within "
               f"{cut(res)}s at HEAD: a hang is not an assertion", evidence, cleanup)
@@ -223,65 +247,74 @@ def judge(a, data, f, r, cap, rep, watch, evidence, cleanup):
     if len({x["rc"] for x in res}) > 1:
         close(data, f, "dead", "inconsistent exit codes across runs: flaky",
               evidence, cleanup)
-    if any(setup_failure(x["full"]) for x in res):
-        close(data, f, "dead", "the repro fails before any assertion",
-              evidence, cleanup)
 
     # 3. the base
-    kind, note, verdict = base_run(data, f, rep["path"], rep["abs"], a.cmd, r)
-    if kind is None:
-        close(data, f, verdict, note, evidence, cleanup)
-    evidence.update({"kind": kind, "base_note": note})
-    close(data, f, "confirmed", f"{kind}: {note}", evidence, cleanup)
+    state, reason = base_run(data, cap, rep, a.cmd, evidence)
+    if state == "confirmed":
+        kind, note = reason.split(": ", 1)
+        evidence.update({"kind": kind, "base_note": note})
+    close(data, f, state, reason, evidence, cleanup)
 
 
-def recheck_frozen(a, f, r):
-    """The repro the gate froze at confirm, restored at its path."""
-    ev = f["evidence"]
-    rep = ev["repro"]
-    full = os.path.join(r, rep["path"])
-    if sha(rep["frozen"]) != rep["sha256"]:
-        die("the frozen repro changed on disk", 3)
+def restore(a, r, files):
+    """Puts a frozen file back at its path in the checkout."""
+    full = os.path.join(r, files["path"])
+    if sha(files["frozen"]) != files["sha256"]:
+        die(f"the frozen {files['path']} changed on disk", 3)
     if os.path.exists(full):
-        tracked = git(f"ls-files --error-unmatch -- {rep['path']}", cwd=r)[0] == 0
-        if tracked or sha(full) != rep["sha256"]:
-            die(f"{rep['path']} exists in the checkout. The repro is restored by the "
-                "gate only; remove that file")
+        if tracked(files["path"], r) or sha(full) != files["sha256"]:
+            die(f"{files['path']} exists in the checkout. The gate restores it; "
+                "remove that file")
         # An exact untracked copy is what an interrupted recheck left behind.
         os.remove(full)
-        print(f"{a.id}: removed {rep['path']}, a copy an interrupted recheck left")
+        print(f"{a.id}: removed {files['path']}, a copy an interrupted recheck left")
     os.makedirs(os.path.dirname(full) or r, exist_ok=True)
-    shutil.copy2(rep["frozen"], full)
+    shutil.copy2(files["frozen"], full)
+    return full
 
+
+def recheck_frozen(a, f, r, limit):
+    """The repro and capture the gate froze at confirm, restored at their paths."""
+    ev = f["evidence"]
+    rep, cap = ev["repro"], ev["capture"]
+    restored = []
     keep = False
+    cap_res = []
     try:
-        res = runs(ev["cmd"], rep["path"], r, a.runs, [(full, rep["sha256"])],
-                   file_limit(load()))
-        if cut(res):
-            die(f"NOT RUN · the frozen repro did not finish within {cut(res)}s: "
+        rep_full = restore(a, r, rep)
+        restored.append(rep)
+        cap_full = restore(a, r, cap)
+        restored.append(cap)
+        watch = [(rep_full, rep["sha256"]), (cap_full, cap["sha256"])]
+        rep_res = runs(ev["cmd"], rep["path"], r, a.runs, watch, limit)
+        if not cut(rep_res) and not passes(rep_res):
+            cap_res = runs(ev["cmd"], cap["path"], r, a.runs, watch, limit)
+        if cut(rep_res + cap_res):
+            die(f"NOT RUN · a frozen file did not finish within {limit}s: "
                 f"{a.id} keeps its state", 2)
-        if all(x["rc"] == 0 for x in res):
+        if passes(rep_res):
             state = "fixed"
-        elif any(x["rc"] != 0 and not setup_failure(x["full"]) for x in res):
+        elif any(x["rc"] == 0 for x in cap_res):
             state = "still-failing"
         else:
-            # Every failure came before an assertion: the repro no longer sets
-            # up against this code, so it says nothing about the claim.
             state = "stale"
         keep = state == "fixed" and a.promote
     finally:
         # A still-failing repro must not count as collateral damage.
-        if not keep and os.path.exists(full):
-            os.remove(full)
-    return state, {"repro": strip(res)}, rep["path"]
+        for files in restored:
+            full = os.path.join(r, files["path"])
+            if (os.path.exists(full) and not tracked(files["path"], r)
+                    and not (keep and files is rep)):
+                os.remove(full)
+    return state, {"repro": rep_res, "capture": cap_res}, rep["path"]
 
 
-def recheck_rewritten(a, f, r):
+def recheck_rewritten(a, f, r, limit):
     """A stale finding, rewritten against this code by a fresh writer.
 
-    The capture asserts the broken behaviour, the repro the correct one. Both
-    must reach their assertions and disagree on every run: the repro passing
-    and the capture failing is fixed, the reverse is still-failing.
+    The capture asserts the broken behaviour, the repro the correct one. They
+    must disagree on every run: the repro passing and the capture failing is
+    fixed, the reverse is still-failing.
     """
     paths = {role: rel.replace("\\", "/")
              for role, rel in (("capture", a.capture), ("repro", a.repro))}
@@ -293,9 +326,9 @@ def recheck_rewritten(a, f, r):
         files = {}
         for role, rel in paths.items():
             full = os.path.join(r, rel)
-            if not os.path.exists(full):
+            if not os.path.isfile(full):
                 die(f"{role} not found: {rel}")
-            if git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0:
+            if tracked(rel, r):
                 die(f"{role} is a tracked file; it must be new: {rel}")
             frozen = os.path.join(frozen_dir(a.id),
                                   os.path.basename(rel) + f".{role}.{suffix}")
@@ -305,19 +338,14 @@ def recheck_rewritten(a, f, r):
         cap, rep = files["capture"], files["repro"]
         watch = [(cap["abs"], cap["sha256"]), (rep["abs"], rep["sha256"])]
 
-        limit = file_limit(load())
         cap_res = runs(a.cmd, cap["path"], r, a.runs, watch, limit)
         rep_res = runs(a.cmd, rep["path"], r, a.runs, watch, limit)
         if cut(cap_res + rep_res):
             die(f"NOT RUN · the rewritten repro did not finish within {limit}s: "
                 f"{a.id} stays stale", 2)
-        if any(x["rc"] != 0 and setup_failure(x["full"]) for x in cap_res + rep_res):
-            state = "stale"
-        elif (all(x["rc"] == 0 for x in rep_res)
-              and all(x["rc"] != 0 for x in cap_res)):
+        if passes(rep_res) and fails(cap_res):
             state = "fixed"
-        elif (all(x["rc"] != 0 for x in rep_res)
-              and all(x["rc"] == 0 for x in cap_res)):
+        elif fails(rep_res) and passes(cap_res):
             state = "still-failing"
         else:
             state = "stale"
@@ -333,10 +361,10 @@ def recheck_rewritten(a, f, r):
         # later suite runs red. Tracked files were refused above, never removed.
         for rel in paths.values():
             path = os.path.join(r, rel)
-            tracked = git(f"ls-files --error-unmatch -- {rel}", cwd=r)[0] == 0
-            if os.path.exists(path) and not tracked and not (keep and rel == paths["repro"]):
+            if (os.path.exists(path) and not tracked(rel, r)
+                    and not (keep and rel == paths["repro"])):
                 os.remove(path)
-    return state, {"capture": strip(cap_res), "repro": strip(rep_res)}, rep["path"]
+    return state, {"capture": cap_res, "repro": rep_res}, rep["path"]
 
 
 def cmd_recheck(a):
@@ -366,18 +394,27 @@ def cmd_recheck(a):
                 "rechecked")
 
     _, head = git("rev-parse HEAD", cwd=r)
+    limit = file_limit(data)
     results = []
     for f in findings:
         a.id = f["id"]
         if rewritten:
-            results.append((f, *recheck_rewritten(a, f, r)))
+            results.append((f, *recheck_rewritten(a, f, r, limit)))
         else:
-            results.append((f, *recheck_frozen(a, f, r)))
+            results.append((f, *recheck_frozen(a, f, r, limit)))
     # One suite run judges every finding rechecked here: it is the slow part.
     limit = ceiling(data["baseline"].get("seconds"), SUITE_FLOOR)
     rc_suite, out_suite = sh(data["test_cmd"], cwd=r, timeout=limit)
-    suite_cut = timed_out(rc_suite, out_suite)
-    worse = data["baseline"]["rc"] == 0 and rc_suite != 0 and not suite_cut
+    if timed_out(rc_suite, out_suite):
+        # Judges nothing: no state changes, and no promoted repro stays behind.
+        for f, state, _, path in results:
+            full = os.path.join(r, path)
+            if state == "fixed" and a.promote and os.path.exists(full) \
+                    and not tracked(path, r):
+                os.remove(full)
+        die(f"RECHECK NOT RUN · the suite did not finish within {limit}s. Nothing "
+            "judged, states unchanged: " + ", ".join(f["id"] for f in findings), 2)
+    worse = data["baseline"]["rc"] == 0 and rc_suite != 0
 
     for f, state, res, _ in results:
         f.setdefault("rechecks", []).append({
@@ -391,7 +428,7 @@ def cmd_recheck(a):
             print(f"{f['id']} -> fixed. Repro left at {path}: commit it as a "
                   "regression test")
         elif state == "stale":
-            print(f"{f['id']} -> stale: the repro fails before any assertion on "
+            print(f"{f['id']} -> stale: neither the repro nor the capture passes on "
                   "this code, so it cannot tell whether the claim still holds. A "
                   "fresh repro writer gets the claim and condition; recheck its "
                   "files with --capture, --repro and --cmd")
@@ -400,9 +437,6 @@ def cmd_recheck(a):
     if worse:
         print("SUITE WORSE: green when the review started, red now\n"
               + tail(out_suite, 2000))
-    if suite_cut:
-        print(f"SUITE NOT RUN: it did not finish within {limit}s, so whether it "
-              "got worse is unknown")
     fixed = all(state == "fixed" for _, state, _, _ in results)
     sys.exit(0 if fixed and not worse else 1)
 
