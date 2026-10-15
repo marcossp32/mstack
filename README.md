@@ -142,7 +142,7 @@ Saying you are away, or telling it to decide everything, starts the same mode. E
 
 - **Every wait takes the recommendation.** Each decision goes on the map under **Assumed**, with its reason. That section is what you read when you come back.
 - **Hard-to-undo decisions are researched first.** `/m-research` quotes what the standard or the vendor's docs recommend, and the sources go beside the decision.
-- **Requirements keep their full scope.** A failing requirement is never narrowed, and nothing is added to Not doing after the plan. Only a requirement mstack worded itself may be reworded, never your own words. The old wording stays on the map and the final pull request stays a draft for you to accept it.
+- **Requirements keep their full scope.** A failing requirement is never narrowed, and nothing is added to Not doing after the plan. Your words are never reworded: only a bound mstack set on a requirement (the inputs it covers) may change, never narrowed. The old bound stays on the map and the final pull request stays a draft for you to accept it.
 - **A step that may contain credentials is never merged.** It stays open with `needs:human` and is listed under To merge in the closing message.
 
 It stops, leaving the pull request as Not verified with `needs:human` on the map, when:
@@ -181,7 +181,7 @@ Keep `"$defaults"`: without it the list replaces Claude Code's built-in exceptio
 
 | Item | What it holds |
 |---|---|
-| Map issue, labelled `feature:map` | Goal, Settled up front, Assumed, Not doing, steps and replans |
+| Map issue, labelled `feature:map` | Goal as numbered clauses, Settled up front, Assumed, Considered, Not doing, steps and replans |
 | Step issues, labelled `build` | One per step, with its Done when, linked as sub-issues of the map |
 | Step pull requests | One per step, into `feature/<name>`, each with Tests changed, Driven and Pinned by |
 | Final pull request | Into the base branch, with a **Proved** or **Not verified** verdict, its evidence and a **How hard to undo** line |
@@ -222,6 +222,7 @@ Each folder installs on its own, so a skill never links outside itself. Some tex
 - The `autoMode.allow` block lives in `m-feature/references/unattended.md` and in this README.
 - The fix-mode test rule in `m-build/SKILL.md` matches the recheck in `m-feature/references/review-results.md`: the review's reproductions become the regression tests.
 - `scripts/contain.py` is the same file in `m-build`, `m-prove` and `m-review`; CI fails when the copies differ.
+- The Goal's clause format lives in `m-grilling/SKILL.md`, `m-feature/references/github.md` and `m-prove/SKILL.md`; the step template's `serves` line in `m-plan/SKILL.md` and `github.md`.
 - Where a run recipe is looked for lives in `m-prove/SKILL.md` (Contract step 4, Recipe), `m-scan/SKILL.md` (Q9) and `m-feature/SKILL.md` (build inputs).
 
 The skills follow the writing-for-agents conventions: short rules, each with its reason, and no rule that does not change what the agent does.

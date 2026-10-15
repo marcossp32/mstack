@@ -13,7 +13,7 @@ Answer questions about a feature by reading this repository. You run before anyo
 Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 8. Alone: all nine, Q1 first.
 
 1. **Installed version**, from the lockfile (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`, `Pipfile.lock`, `go.sum`, `Cargo.lock`, `composer.lock`, `Gemfile.lock`), not the manifest. No lockfile: say so and give the manifest range.
-2. Does this already exist in the repo?
+2. Does this already exist in the repo? Also what would trip it: an earlier attempt reverted or abandoned (`git log --all --grep=<term>`, revert commits), and tests that pin the behaviour the request changes.
 3. Does an installed library already do it?
 4. How does the repo do similar things?
 5. What does the repo call these things?
@@ -46,4 +46,4 @@ One line per owned question, every one, with a path, or "Not found": a gap stays
 - Q7 Not found — nothing sets timeouts per environment
 ```
 
-At the top, when found: it already exists · the request breaks the repo's pattern · the infrastructure does not allow it.
+At the top, when found: it already exists · an earlier attempt was reverted · the request breaks the repo's pattern · the infrastructure does not allow it.

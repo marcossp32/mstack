@@ -9,9 +9,9 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 
 # Inputs
 
-- Requirements verbatim: the Goal, or what the human asked. Never take them from the diff. Given a map issue, read them from its body, never from a summary in your prompt. None: ask; as a subagent, return `Not driven · no requirements`.
-- Settled up front: decisions the human confirmed. Each one with an observable effect (data state on failure, a default, a limit) is a requirement.
-- Assumed: decisions made without the human. Context, never requirements: no R line quotes one. Q2 may take the behaviour one describes as a risk area.
+- Requirements verbatim: the Goal's numbered clauses, or what the human asked. Never take them from the diff. Given a map issue, read them from its body, never from a summary in your prompt. None: ask; as a subagent, return `Not driven · no requirements`.
+- Settled up front: decisions the human confirmed. Each one with an observable effect (data state on failure, a default, a limit) is a requirement: a Goal clause on a map that numbers them, else an R line of its own after the Goal's.
+- Assumed: decisions made without the human. Context, never requirements: no R line quotes one. A Goal clause whose bound is Assumed still binds: drive it within that bound, and the bound goes to the human to accept. Q2 may take the behaviour one describes as a risk area.
 - A build step's Done when is not a requirement: it serves one that already is.
 - Not doing.
 - How the app runs: scan Q9; none: look where m-scan Q9 looks.
@@ -26,7 +26,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 Read files and git; start nothing.
 
 1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base origin/<base branch> HEAD` after `git fetch origin` (a local branch may be missing or stale). Create the evidence dir `$(git rev-parse --path-format=absolute --git-common-dir)/mstack/prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id. First `python3 <this skill's directory>/scripts/cleanup.py --stale`: it deletes the dirs of runs that stopped before their cleanup.
-2. **Requirements, before reading the diff.** One line per clause, quoted:
+2. **Requirements, before reading the diff.** One R line per Goal clause, R<n> for clause n, its words and bound quoted as the map has them (a Goal not numbered, as when run alone: number its clauses in order):
    - surface: where its user reaches it (page, HTTP endpoint, CLI command, public API from a script);
    - settled when: the observation that shows it, read back by a route that skips the code that wrote it (the record on a fresh read, the file on disk, the message off the queue). What the surface returns to its caller counts when that is the effect asked for. No such route: what the app itself shows, and the line says `via the app itself`.
 
@@ -41,7 +41,7 @@ Read files and git; start nothing.
 ```
 HEAD <sha> · tree <sha> · base <sha> · checkout <path> · evidence <dir>
 Run  · <recipe path | none> · <launch> · <health check> · <prerequisites> · overrides <VAR=value → R2 | none> · shared state <none → parallel | what → Q1 then Q2>
-R1 "<clause>" · surface <…> · settled when <observation> via <route> | carried <sha> | replay
+R1 "<clause>" · bound <domain | —> · surface <…> · settled when <observation> via <route> | carried <sha> | replay
 Risk · <area> · <file:line>
 ```
 

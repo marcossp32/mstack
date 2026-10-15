@@ -50,7 +50,7 @@ It sets the depth of grilling and plan. Settle it and write it to the map three 
 
 # Stages
 
-The order is fixed.
+The order is fixed, but for docs: its questions 1–4 need only scan's versions and Q8's infrastructure, so they start when scan returns, in the background while grilling runs. A grilling answer that changes a docs subject re-asks only that question. Question 5 waits for grilling; plan waits for both.
 
 ```
 scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → prove
@@ -61,7 +61,7 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 | Stage | Returns | Runs in | Skill |
 |---|---|---|---|
 | scan | 9 numbered answers | 4 fresh agents, parallel | `/m-scan` |
-| grilling | confirmed Goal · where it runs · boundary and data-state answers if asked · Not doing · decisions made alone | main chat | `/m-grilling` |
+| grilling | Goal as numbered clauses · where it runs · boundary and data-state answers if asked · Considered · Not doing · decisions made alone | main chat | `/m-grilling` |
 | docs | 4 answers (5 in an autonomous run), each with a primary link | main chat | `/m-research` |
 | plan | ordered steps · blocking · design checks | main chat | `/m-plan` |
 | build | step branch · PR into the feature branch and its number, or a stop line | fresh agent | `/m-build` |
@@ -125,7 +125,7 @@ Inputs:
 | Stage | Inputs |
 |---|---|
 | scan A–D | the feature · the questions it owns |
-| docs | installed versions (scan) · the questions under Docs · target infrastructure |
+| docs | installed versions (scan) · the questions under Docs · target infrastructure (scan Q8) |
 | build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the run recipe's path: scan Q9's, else a `SKILL.md` under `~/.claude/skills/` or `~/.agents/skills/` whose description names this repo (where `/m-prove` writes one), else scan Q9 · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan, docs and recipe inputs · the fix branch it is on |
 | review | the feature review · base `origin/<base>`, after `git fetch` · the step check baseline's suite command (Routing) · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, How hard to undo, Settled up front, Assumed and Not doing from |
@@ -180,7 +180,7 @@ The human asked not to be asked: `--auto`, or they are away, or told you to deci
 - A replan still needs a trigger from Replan, never taste.
 - Requirements hold still:
   - Every requirement keeps its full scope through a failure: no narrowing, no dropped clause, no addition to Not doing. Not doing is fixed once plan is done: a replan's `/m-plan` adds nothing to it.
-  - A requirement that failed only because of how you worded it (never the human's own words, nor an issue the request names) may be reworded without narrowing it. Keep `was: "<old>"` beside it on the map, say so under Assumed, and prove that line again: no build, no replan. The final PR stays a draft for the human to accept the new wording.
+  - A clause's words are the human's and never change. One that failed only because of a bound you set may get a bound that does not narrow it: keep `was: <old bound>` beside it on the map, say so under Assumed, and prove that line again: no build, no replan. The final PR stays a draft for the human to accept the new bound.
 - Two Replans lines do not stop the run. Stop as [`references/replan.md`](references/replan.md) says, under Stop, only when:
   - The same requirement is not verified on two proves in a row, each after a step aimed at it, and `/m-research` on it quotes no documented alternative you have not tried: the approach is wrong.
   - Two re-proves in a row fail only on `new` breaks, every requirement verified; or prove has triggered three replans. List the breaks still open under the PR's What to watch; it stays Not verified.
