@@ -93,10 +93,11 @@ RUNNER_CONFIG = re.compile(
 # the pattern to the paths it matches.
 LOOSENERS = [
     ("excluded", re.compile(
-        r"--deselect\b|--ignore(-glob)?(=|\s+)(?!-)\S"
+        r"--deselect\b|--exclude\b|--ignore(-glob)?(=|\s+)(?!-)\S"
         r"|(^|[\s'\"\[,])-k['\"]?[\s=,]+\\?['\"]?([^'\"\n]*?\s)?not\s"
         r"|\bcollect_ignore(_glob)?\b|\btestPathIgnorePatterns\b|\btestIgnore\b")),
-    ("excluded", re.compile(r"\bexclude\b"), RUNNER_CONFIG),
+    # coverage.exclude only drops files from the coverage report.
+    ("excluded", re.compile(r"^(?!.*\bcoverage\b).*\bexclude\b"), RUNNER_CONFIG),
     ("skip", re.compile(
         r"\b(it|test|describe|context|suite)\.(skip|todo)\b|\b(xit|xdescribe|xtest)\s*\("
         r"|@pytest\.mark\.(skip|xfail)|\bpytest\.skip\(|@unittest\.skip|\bskipTest\("
@@ -190,7 +191,8 @@ def cmd_baseline(a):
         # A setup failure in one file among others is a red test like any
         # other; one no test file shows means the suite never ran.
         if rc != 0 and (PREREQUISITE.search(out)
-                        or (setup_failure(out) and not failing_files(out, r))):
+                        or (setup_failure(out) and not failing_files(out, r)
+                            and not PASS_MARK.search(out))):
             # Every later step would be red for the same reason, and judged
             # against a suite that never ran.
             die("the suite fails before its tests run at the feature's start (a "
@@ -294,8 +296,10 @@ def judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs):
         from a green start with no file named, so none can run alone."""
         if rc == 0:
             return []
-        found = sorted(set(failing_files(out, r)) - known)
-        return found if found or red_start else None
+        named = failing_files(out, r)
+        if not named:
+            return None   # nothing to compare with the start's failing set
+        return sorted(set(named) - known)
 
     if red_start and not known:
         notes.append("suite · red, was already red at the feature's start, with "
@@ -303,7 +307,7 @@ def judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs):
                      "record it on the map")
         return
     first = worse(rc, out)
-    if red_start and not first:
+    if red_start and first == []:
         notes.append("suite · red on the files already failing at the feature's "
                      "start: " + ", ".join(sorted(known)))
         return
@@ -331,12 +335,16 @@ def judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs):
     second = worse(rc2, out2)
     if second == []:
         touched = sorted(set(first) & changed)
-        if touched:
+        code = [p for p in changed if not TEST_PATH.search(p) and not DOC_PATH.search(p)]
+        if touched or code:
+            why = ("this step changed them" if touched else
+                   "this step changed code they may load: "
+                   + ", ".join(sorted(code)[:5]))
             fails.append("suite · intermittent · red 1 of 2 runs, " + start
-                         + f"; {', '.join(touched)} pass alone, and this step "
-                         "changed them\n" + tail(out, 2500))
+                         + f"; {', '.join(first)} pass alone, and {why}\n"
+                         + tail(out, 2500))
         else:
-            # Someone else's flaky test: reported, not charged to this step.
+            # The step changed no code: someone else's flaky test.
             notes.append(f"flaky · {', '.join(first)} · red on 1 of 2 suite runs, "
                          "passes alone, not changed by this step")
         return
@@ -525,7 +533,9 @@ def undo_killed_revert(r):
             "the check again, which restores them. Never commit them")
     files = mark.get("files", [])
     for i in range(0, len(files), 100):
-        rc, out = run_git(["checkout", head, "--", *files[i:i + 100]], r)
+        # restore, not checkout: a file the step deleted is absent at HEAD.
+        rc, out = run_git(["restore", "--source", head, "--staged", "--worktree",
+                           "--", *files[i:i + 100]], r)
         if rc != 0:
             die(f"cannot restore the files an interrupted step check reverted: {out}")
     os.remove(path)
