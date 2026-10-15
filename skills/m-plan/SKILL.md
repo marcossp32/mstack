@@ -55,6 +55,8 @@ Decided  · choices made without asking
 
 A failed check the plan cannot fix: ask now.
 
+With a map, post this block on it (`gh issue comment <map> --body-file -`) before asking for confirmation: a session that ends before the answer leaves the list where `/m-feature` resumes from, and it carries the design checks.
+
 After confirmation:
 
 - Create every step issue, then link them. The labels exist already (`/m-feature` creates them). Bodies go on stdin, so backticks and `$` stay literal:
@@ -71,7 +73,6 @@ After confirmation:
   gh issue edit <B> --add-blocked-by <A>
   ```
   Each body is self-contained: the builder has not seen this conversation. No checklists or method; the stage skill carries those.
-- Post the design checks as a comment on the map: `gh issue comment <map> --body-file -`.
 - Add what the human ruled out to Not doing, and what you left out yourself to Considered: Not doing takes it out of review and prove, so only the human fills it. `gh issue edit` replaces the whole body: read it first (`gh issue view <map> --json body --jq .body`) and change only those sections.
 
 # Replanning
