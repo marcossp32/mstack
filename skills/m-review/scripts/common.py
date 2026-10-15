@@ -28,10 +28,11 @@ ASSERTION = ("assertionerror", "assertion failed", "assertionfailed", "assert ",
              "expected:", "received:", "toequal", "tobe(", "tostrictequal",
              "not equal", "comparisonfailure", "assert_eq", "--- fail")
 
+# Snapshots count: an updated snapshot changes what a test accepts.
 TEST_PATH = re.compile(
-    r"(^|/)(tests?|__tests__|specs?)/"
-    r"|(^|/)test_[^/]*\.py$|_test\.(py|go|rb|exs?)$"
-    r"|\.(test|spec)\.[cm]?[jt]sx?$|_spec\.rb$|Tests?\.(cs|java|kt|swift)$"
+    r"(^|/)(tests?|__tests__|__snapshots__|specs?)/"
+    r"|(^|/)test_[^/]*\.py$|(^|/)tests\.py$|_test\.(py|go|rb|exs?)$"
+    r"|\.(test|spec|cy)\.[cm]?[jt]sx?$|\.snap$|_spec\.rb$|Tests?\.(cs|java|kt|swift)$"
 )
 
 
@@ -67,7 +68,10 @@ def ceiling(measured, floor):
 
 
 def timed_out(rc, out):
-    return rc == TIMEOUT_RC and "contain: TIMEOUT" in out
+    """Cut short, so nothing was judged: its ceiling, or another run's sweep
+    ended it (contain.py exits 123 with `contain: REAPED`)."""
+    return ((rc == TIMEOUT_RC and "contain: TIMEOUT" in out)
+            or (rc == 123 and "contain: REAPED" in out))
 
 
 def sh(cmd, cwd=None, timeout=None, env=None, contain=True):
@@ -106,11 +110,13 @@ class NotRun(Exception):
 def sweep():
     """Ends what an earlier run left behind in this repo (contained trees whose
     owner is gone) and orphaned automation browsers, so they neither slow this
-    run nor skew its timing. Returns contain.py's summary lines."""
+    run nor skew its timing. Returns contain.py's summary lines.
+
+    --within is this checkout only: the git common dir holds every
+    worktree's prove servers, and a concurrent run's are not ours to end.
+    Trees whose owner died are ended wherever they started."""
     try:
-        _, common = git("rev-parse --path-format=absolute --git-common-dir")
-        p = subprocess.run([PYTHON, CONTAIN, "sweep", "--kill", "--within", root(),
-                            "--within", common],
+        p = subprocess.run([PYTHON, CONTAIN, "sweep", "--kill", "--within", root()],
                            capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=180)
         out = (p.stdout or "") + (p.stderr or "")

@@ -7,7 +7,7 @@ You describe what you want. mstack asks only what is hard to undo, plans it in s
 - **Proven, not claimed.** Fresh agents that did not write the code drive the running app against your Goal and hunt what else broke. Every verdict cites saved evidence.
 - **Tests that pin something.** A script checks each step: the suite is no worse, every test the step changed or loosened is declared, each test it names fails without the change, and no credentials were added.
 - **Review that demonstrates.** The feature review reports only failures a frozen reproduction shows on running code.
-- **State on GitHub.** One map issue holds the Goal, the decisions and the progress. You can stop and pick up later, or watch it from a project board.
+- **State on GitHub.** One map issue holds the Goal, the decisions and the progress. You can stop and pick up later in a new session with `/m-feature #<map>`, or watch it from a project board.
 
 ## Contents
 
@@ -46,6 +46,8 @@ The repo needs a GitHub remote. `m-prove` drives web pages with [agent-browser](
 
 Every test run, server and browser script the skills start goes through `contain.py`. When the command ends or is stopped, everything it started ends too: on Windows a job object, on POSIX a process session ended with SIGTERM then SIGKILL, plus a watchdog. `step_check.py`, `prepare.py` and prove first end what earlier runs left in the repo, and orphaned automation browsers. Contained commands get `BROWSER=none` and `PW_TEST_HTML_REPORT_OPEN=never`, so dev servers and test reports do not open your browser. Set `MSTACK_PRIORITY=low` to run them at below-normal priority (off by default: under load it makes timing tests flaky).
 
+Run one mstack feature per git worktree: two runs in one checkout share its servers and its step check baseline. The feature review keeps one ledger per repo, so run one review, from prepare to its last recheck, at a time.
+
 Suites and test files have a ceiling, 3 times their last measured run (at least 30 minutes for a suite, 5 for one file). A run that reaches it is reported as not finished, never as a failure.
 
 ## Quick start
@@ -62,7 +64,9 @@ Or point it at an issue:
 /m-feature #412
 ```
 
-mstack works through the stages below. It asks you a few questions at the start, shows you the plan, and stops for you only when a decision is yours. At the end you get a pull request into the base branch, marked **Proved** or **Not verified**, with the evidence in its body.
+mstack works through the stages below. It asks you a few questions at the start, shows you the plan, and stops for you only when a decision is yours. At the end you get a pull request into the base branch, marked **Proved** or **Not verified**, with the evidence in its body. A check only you can make (a real account's login, a captcha) keeps it a draft, listed under **Check by hand before merging**; mark it ready once you have checked.
+
+To pick a feature up in a new session, run `/m-feature #<map issue>`. Credentials are asked again: they are never stored.
 
 A feature branches from the branch its issue targets, else the default branch.
 
@@ -98,10 +102,10 @@ scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → p
 
 | Check | Fails when |
 |---|---|
-| Suite | More tests fail than when the feature started. Failing files run alone first, so a real failure needs no suite rerun; files that fail only under load, a different set each run, give **not run · unstable under load** and the suite is switched to fewer files at once |
-| Tests changed | An existing test file was changed or deleted, or a skip, `.only`, suppression or `\|\| true` was added, without being listed in the pull request |
+| Suite | A test file fails that did not fail when the feature started. Failing files run alone first, so a real failure needs no suite rerun; files that fail only under load, a different set each run, give **not run · unstable under load** and the suite is switched to fewer files at once. A step that changes no code and meets a test failing on one run only, passing alone, gets it noted **flaky** and listed under the final pull request's What to watch |
+| Tests changed | An existing test file or snapshot was changed or deleted, or a skip, `.only`, suppression, `\|\| true` or a runner exclusion (`--deselect`, `testPathIgnorePatterns`) was added, without being listed in the pull request |
 | Pinned | A test the pull request names under Pinned by does not pass at HEAD, or still passes with the step's code reverted |
-| Credentials | An added line looks like a secret |
+| Credentials | An added line holds a known key format. A secret-like literal, a password in a URL to another host or a committed `.env` is shown to you as `credential?` and not merged unattended |
 
 **Feature review.** Hunter agents look for failures across the whole feature: 1 for a small, easy-to-undo change, 3 otherwise. A finding counts only when a frozen reproduction fails on the branch. Confirmed findings become fix steps.
 
@@ -142,13 +146,14 @@ Saying you are away, or telling it to decide everything, starts the same mode. E
 
 - **Every wait takes the recommendation.** Each decision goes on the map under **Assumed**, with its reason. That section is what you read when you come back.
 - **Hard-to-undo decisions are researched first.** `/m-research` quotes what the standard or the vendor's docs recommend, and the sources go beside the decision.
-- **Requirements keep their full scope.** A failing requirement is never narrowed, and nothing is added to Not doing after the plan. Your words are never reworded: only a bound mstack set on a requirement (the inputs it covers) may change, never narrowed. The old bound stays on the map and the final pull request stays a draft for you to accept it.
+- **Requirements keep their full scope.** A failing requirement is never narrowed, and nothing is added to Not doing after the plan. Your words are never reworded: only a requirement's bound (the inputs it covers) may change, once, and only to one that still covers the input that failed and everything your words name. The old bound stays on the map and the final pull request stays a draft for you to accept it.
 - **A step that may contain credentials is never merged.** It stays open with `needs:human` and is listed under To merge in the closing message.
 
 It stops, leaving the pull request as Not verified with `needs:human` on the map, when:
 
 - the same requirement fails two proves in a row and research finds no documented alternative left to try;
 - two re-proves in a row fail only on new breaks, or prove has triggered three replans;
+- auto mode refuses a step merge: everything after it builds on the feature branch;
 - a budget you set (money, time or rounds) is spent.
 
 When it stops, its message opens with `Stopped ·` and the one question only you can answer.
@@ -175,7 +180,7 @@ Keep `"$defaults"`: without it the list replaces Claude Code's built-in exceptio
 
 **Credentials** you pass, such as a store password or a test account, are used only to drive the app. They are never written to an issue, a comment or a pull request.
 
-**Budgets** are recorded on the map under Settled up front. Set one: without it, only the first two stop rules apply.
+**Budgets** are recorded on the map under Settled up front, beside `Mode: autonomous`, so a resumed run stays autonomous. A replans budget counts every line under Replans. Set one: without it, only the first three stop rules apply.
 
 ## What you get on GitHub
 
@@ -218,7 +223,8 @@ skills/<name>/agents/       display metadata for other agent hosts
 Each folder installs on its own, so a skill never links outside itself. Some text is repeated across skills, so change these together:
 
 - The step issue template lives in `m-plan/SKILL.md` and `m-feature/references/github.md`.
-- The label names live in those files, in `m-feature/SKILL.md` and in this README.
+- The label names live in `m-plan/SKILL.md`, `m-feature/references/github.md`, `m-feature/SKILL.md` and this README.
+- What goes under Settled up front and under Assumed lives in `m-grilling/SKILL.md` (Finish), the map template in `github.md` and `m-prove/SKILL.md` (Inputs).
 - The `autoMode.allow` block lives in `m-feature/references/unattended.md` and in this README.
 - The fix-mode test rule in `m-build/SKILL.md` matches the recheck in `m-feature/references/review-results.md`: the review's reproductions become the regression tests.
 - `scripts/contain.py` is the same file in `m-build`, `m-prove` and `m-review`; CI fails when the copies differ.

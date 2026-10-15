@@ -41,8 +41,11 @@ def prove_root():
 
 
 def main():
-    if len(sys.argv) != 2:
-        sys.exit(__doc__)
+    if len(sys.argv) != 2 or sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0 if len(sys.argv) == 2 else 2)
+    if sys.argv[1].startswith("-") and sys.argv[1] not in ("--all", "--stale"):
+        sys.exit(f"ABORT: unknown option {sys.argv[1]}\n{__doc__}")
     root = prove_root()
     if sys.argv[1] in ("--all", "--stale"):
         targets = [os.path.join(root, d) for d in os.listdir(root)] if os.path.isdir(root) else []
@@ -54,11 +57,19 @@ def main():
     for t in targets:
         if os.path.normcase(os.path.dirname(t)) != os.path.normcase(root):
             sys.exit(f"ABORT: {t} is not a run dir under {root}")
-        if os.path.isdir(t):
+    targets = [t for t in targets if os.path.isdir(t)]
+    failed = False
+    for t in targets:
+        try:
             remove_tree(t)
             print(f"deleted {t}")
+        except OSError as e:
+            # A process still running in it: Windows locks its cwd and open files.
+            print(f"ABORT: {t} in use, stop the servers first · {e.strerror or e}", file=sys.stderr)
+            failed = True
     if not targets:
         print("nothing to delete")
+    sys.exit(1 if failed else 0)
 
 
 if __name__ == "__main__":

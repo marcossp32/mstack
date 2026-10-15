@@ -17,7 +17,7 @@ Dispatched: answer only your slice — A = 1 · B = 2–5 · C = 6, 9 · D = 7, 
 3. Does an installed library already do it?
 4. How does the repo do similar things?
 5. What does the repo call these things?
-6. How does it test: framework, test file location and naming, assertion style, how fakes are set up, the exact command that runs the whole suite, and the one that runs a single test file. Whether test files launch a browser or a server, and the runner's flag for how many files run at once (`--test-concurrency` for `node --test`, `--maxWorkers` for Jest and Vitest, `--workers` for Playwright, `-n` for pytest-xdist).
+6. How does it test: framework, test file location and naming, assertion style, how fakes are set up, the exact command that runs the whole suite, and the one that runs a single test file. Whether test files launch a browser or a server, and the runner's flag for how many files run at once (`--test-concurrency` for `node --test`, `--maxWorkers` for Jest and Vitest, `--workers` for Playwright, `-n` for pytest-xdist). On Windows the step check runs both through cmd.exe: give them without `$VAR` or single quotes, `"{test}"` in double quotes.
 7. Which values differ between local and production, and which do not?
 8. Infrastructure limits: disk, outbound network, max run time, memory.
 9. How the app runs (start command, URL or entry point, prerequisites: seeded DB, env file, services), the path of a launch recipe in the repo (a `SKILL.md` under `.claude/skills/` or `.agents/skills/` whose name or description says it launches the app), how a fresh checkout gets its dependencies, and whether PRs land squashed or merged, read from `git log` on the default branch.

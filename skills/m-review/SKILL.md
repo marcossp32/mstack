@@ -21,7 +21,13 @@ git fetch origin && python3 scripts/step_check.py check --base origin/feature/<n
 python3 scripts/step_check.py clear --base feature/<name>   # once, when the feature ends
 ```
 
-Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` and `unpinned?` lines are for the human to look at and do not fail the step. The check reverts the step's non-test changes in place to run the Pinned by tests, so it aborts on a checkout with tracked changes and restores HEAD before it exits; `pinned · not run` names what it lacked. A red suite first runs the files its output names as failing on their own: one that fails alone fails the step without more suite runs. Otherwise the suite runs again: `intermittent` means red on one run only, and still fails; `NOT RUN · suite unstable under load` means each run failed on different files, all passing alone and none changed by the step, so the machine is overloaded and nothing was judged. Then switch the baseline to a command that runs fewer files at once, and check again:
+Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` (a secret-like literal, a password in a URL to another host, a committed `.env`), `credential placeholder` (a key-shaped value that says it is not real, such as AWS's `…EXAMPLE`), `unpinned?` and `flaky` lines are for the human to look at and do not fail the step.
+
+The baseline aborts when the suite fails before its tests run (a missing module, a service refusing connections): start the prerequisites or fix the test command, and record it again, since every step would be judged against a suite that never ran. A suite red for other reasons records its failing files; a step then fails only on a file failing beyond those.
+
+The check reverts the step's non-test changes in place to run the Pinned by tests (the test paths that section names), so it aborts on a checkout with tracked changes and restores HEAD before it exits. A check killed mid-revert leaves a marker in the git dir, and the next check restores those files itself: never commit them. `pinned · not run` names what it lacked; `pinned · not judgeable · dependency change` means the step changes only manifests and lockfiles, a lockfile among them, and reverting them leaves what they installed, so prove judges it.
+
+A red suite first runs the files its output names as failing on their own: one that fails alone fails the step without more suite runs. Otherwise the suite runs again. A file red on both runs fails the step: it depends on running together. Red on one run only: `intermittent`, a FAIL, when the step changed that file or any code a test could load; a step that changed only tests and docs gets a `flaky · <files>` note instead, someone else's flaky test. `NOT RUN · suite unstable under load` means each run failed on different files, all passing alone and none changed by the step, so the machine is overloaded and nothing was judged. Then switch the baseline to a command that runs fewer files at once, and check again:
 
 ```bash
 python3 scripts/step_check.py set-cmd --base feature/<name> --test-cmd "<suite command, fewer files at once>"
@@ -41,7 +47,9 @@ Once, after every step has passed its check, on the feature branch, before prove
 git fetch origin && python3 scripts/prepare.py --base origin/<base branch> --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
 ```
 
-The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` set to this checkout (to copy env files from). Take it from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout.
+Prepare checks out the base once, runs the setup command there with `MSTACK_ROOT` set to this checkout (to copy env files from), then the suite; every gate run reuses that checkout. Take the setup command from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout. Prepare aborts when the setup fails or the suite runs no test, at HEAD or at the base: fix the command, or start what it needs, and prepare again.
+
+`--test-cmd`, `--setup-cmd` and the gate's `--cmd` run under cmd.exe on Windows, sh elsewhere: quote `"{test}"`, write no `$VAR` (cmd.exe reads `%VAR%`), and prefer a command with no shell syntax, which the two shells read differently.
 
 ## 1. Hunt
 
@@ -73,7 +81,7 @@ Up to 4 at once when tests share nothing (database, ports, files); otherwise one
 python3 scripts/ledger.py unjudgeable --id <id> --reason "<reason>" --remove <files it left>
 ```
 
-The gate removes a reproduction's files on every outcome; `--remove` does it for a writer that gave up. A leftover failing file turns every later suite run red.
+The gate removes a reproduction's files on every outcome, and those of a gate that was killed on its next run; `--remove` does it for a writer that gave up, and skips anything that is not a file inside the repo. A leftover failing file turns every later suite run red.
 
 ## 3. Gate
 
@@ -83,7 +91,7 @@ One at a time, per returned reproduction:
 python3 scripts/gate.py confirm --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>"
 ```
 
-The only route to `confirmed`. A killed reproduction is not sent back or adjusted.
+The only route to `confirmed`. The capture must pass and the repro fail at HEAD, 5 runs each; then the repro runs once in the base checkout, and the capture when the repro fails there. The repro passes there: `regression`. Both fail: the broken behaviour is new, `new-behaviour` (`unjudgeable` when prepare found the base suite red, since the checkout may be what fails). The capture passes there: the bug was already in the base, `dead`. A killed reproduction is not sent back or adjusted.
 
 ## 4. Report
 
@@ -91,7 +99,7 @@ The only route to `confirmed`. A killed reproduction is not sent back or adjuste
 python3 scripts/report.py
 ```
 
-Return its output verbatim. Stop: no second round, no suggestions.
+Return its output verbatim. It removes the base checkout: a confirm after it needs a new prepare. Stop: no second round, no suggestions.
 
 # Recheck
 
@@ -101,9 +109,13 @@ After a fix step for confirmed findings has passed its step check, on the fix br
 python3 scripts/gate.py recheck --id F-001 --id F-002 --promote
 ```
 
+The frozen repro runs first; `fixed` when it passes every run. Otherwise the frozen capture runs: it passes, the broken behaviour is still there, `still-failing`.
+
 `fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. A copy an interrupted recheck left behind, identical to the frozen one, is removed by the gate itself: never delete a reproduction by hand. `still-failing` or `SUITE WORSE`: the fix did not hold.
 
-`stale`: the reproduction now fails before its assertion (the markup or API it set up against changed), so it says nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
+`RECHECK NOT RUN` (exit 2): the suite hit its ceiling, so nothing was judged and every state is as it was.
+
+`stale`: the repro and the capture both fail now (the markup or API they set up against changed), so they say nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
 
 ```bash
 python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
