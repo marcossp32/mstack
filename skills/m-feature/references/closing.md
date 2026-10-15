@@ -16,7 +16,7 @@ After the review and any fix step:
 5. The feature builds nothing more: `/m-review` step check `clear --base feature/<name>` deletes its baseline.
 6. Tell the human, then stop:
    ```
-   PR #<n> · <Proved | Not verified> · <draft | ready | draft unavailable> · <link>
+   PR #<n> · <Proved | Not verified · human check | Not verified> · <draft | ready | draft unavailable> · <link>
    To merge · <each thing only the human can do: each human check, then `gh pr ready <n>`; a command the harness refused (with the `unattended.md` entry that would allow it); a changed or Assumed bound to accept> | nothing, merge it
    Shipped · Left out · What to watch in production   one line each
    Left on disk · <each evidence dir prove could not delete>   only when any

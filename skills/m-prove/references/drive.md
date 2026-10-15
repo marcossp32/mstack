@@ -45,7 +45,7 @@ A caveat is not verified or not driven.
 - HTTP: `curl -sS -i`. CLI: keep the exit code.
 - A server that builds a route on its first request (a dev server compiling on demand): request each route once before reading or timing it, head and base alike: that first answer measures the build, not the change.
 - Every value you report sits in a file in your subdir under the command that printed it: `{ echo '$ <cmd>'; <cmd>; } >> <file> 2>&1`, or a script saved there with its output beside it. The report gives the value, never the page or the log.
-- Credentials come in your prompt as `MSTACK_SECRET_<NAME>=<value>`, the names the Run line gives. Pass them as variables (`contain.py --env`), never literally in a command, script or recipe, and mask them in evidence.
+- Credentials come in your prompt as `MSTACK_SECRET_<NAME>=<value>`, the names the Run line gives. Pass them as variables (`contain.py --env`), never in a saved script, `replay.json` or recipe, and mask them in evidence: `***` in every file you save.
 - A login with credentials you were given, or that the run instructions, the recipe or the repo's own seed, fixture or test data provide, is a precondition: meet it, by script if need be. A command that wants any other login (a prompt for credentials, a sign-in page it opens in the default browser): stop it; that line is not driven, naming the login. Never complete, script or get around such a login.
 - Shutdown with work in flight: `contain.py stop <pid>`, the pid it printed. It sends SIGTERM on POSIX and Ctrl+Break on Windows, which Node sees as `SIGBREAK`; `taskkill` and `process.kill()` on Windows skip shutdown handlers. The app does not handle that signal: not driven, naming it.
 

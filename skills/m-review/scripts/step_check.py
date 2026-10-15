@@ -63,7 +63,7 @@ SECRETS = [
 ]
 # A key-shaped value that says it is not real (AWS's documented
 # AKIAIOSFODNN7EXAMPLE) is a note, not a FAIL: nothing could accept it.
-PLACEHOLDER = re.compile(r"(?i)example|dummy|fake|test|placeholder|changeme")
+PLACEHOLDER = re.compile(r"(?i)example|dummy|fake|placeholder|changeme|(?<![a-z])test(?![a-z])")
 # The rest are reported for a human to look at and do not fail the step.
 SECRET_NAME = (r"(?i)(password|passwd|secret(?:[_-]?key)?|api[_-]?key"
                r"|access[_-]?token|auth[_-]?token)\s*[:=]\s*")

@@ -32,7 +32,7 @@ A turn that ends to wait on something running says the stage, step n of N, what 
    - A credential stays in this conversation and reaches prove as its own input. It is never in text that gets posted: an issue, a comment, a PR body.
    - A budget goes on the map under Settled up front.
    - An autonomous run: `Mode: autonomous` goes there too, so a compacted or resumed session keeps the mode. Read [`references/unattended.md`](references/unattended.md) and run its check now, while the human is still here.
-3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue labelled `feature:map` is a feature in flight: go to Resume. Any other open issue is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
+3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue labelled `feature:map` is a feature in flight: go to Resume. Any other open issue: first `gh issue list --label feature:map --state open --search "<n> in:body"`; a map naming it as source is a feature in flight: Resume it. Otherwise it is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
 4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every branch a stage compares against is the remote one, after `git fetch`: `origin/<base>`, `origin/feature/<name>`. Merges land on GitHub, so a local copy may be missing or stale.
 5. Create labels `feature:map`, `build` and `needs:human`.
 6. Cut and push `feature/<name>` from `<base>`. First `git ls-remote --heads origin feature/<name>` must print nothing; a line is another feature's branch: pick another name.
@@ -45,7 +45,7 @@ A feature in flight is picked up from GitHub, never from memory: the session tha
 
 1. Start's steps 1 and 4. Credentials are never stored: ask for them again. `Mode: autonomous` under Settled up front: the run stays autonomous; run [`references/unattended.md`](references/unattended.md)'s check.
 2. Read the map body and its comments, its steps (`gh issue view <map> --json subIssues`), the feature branch under Base and its `git log`, and the step branches (`git ls-remote --heads origin`).
-3. Continue at the first unfinished stage: no scan comment → scan; no numbered Goal → grilling; no docs comment → docs; no step issues → plan (a proposed list in the comments is shown again for confirmation); an open step → its build, or its step check when its PR is open; every step closed and no review report → review; else Closing. Start scan Q9's prerequisites again first (Routing).
+3. The map carries `needs:human`: ask its question first (a `Stopped ·` comment holds it). A Replans line with no step created after it: replan.md step 3. Otherwise continue at the first unfinished stage: no scan comment → scan; no numbered Goal → grilling; no docs comment → docs; no step issues → plan (a proposed list in the comments is shown again for confirmation); an open step → its build, or its step check when its PR is open; every step closed and no review report → review; else Closing. Start scan Q9's prerequisites again first (Routing), unless resuming at Closing.
 
 # Undo verdict
 
@@ -165,6 +165,8 @@ Run the step check on the step branch with the PR number, against `origin/featur
 - **`unpinned?`** line: the builder says no test can pin this step. Add its reason to the step's Decided line; prove judges the step alone.
 - **`credential placeholder`** line: a key-shaped value that says it is not real. It holds no merge; it stays in the step check output.
 - **`pinned · not run`**: the check lacked what it names. Comment that on the map once and tell the human.
+- **Suite "not comparable"**: the baseline was red and its output names no failing file, so no step check judges the suite. Tell the human now (in an autonomous run, stop with it).
+- **`suite · intermittent`** naming no file: the check could not tell whose failure it is. Not this step's fault: tell the human, as for NOT RUN; it does not count toward a second FAIL.
 - **Baseline red**: the suite was red when the feature started. The step check fails a step only on files outside the baseline's failing set, so comment that set on the map once and tell the human.
 - **No PR**: a missing decision, ask the human; an unobservable Done when or a contradiction, replan.
 

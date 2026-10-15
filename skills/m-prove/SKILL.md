@@ -10,7 +10,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 # Inputs
 
 - Requirements verbatim: the Goal's numbered clauses, or what the human asked. Never take them from the diff. Given a map issue, read them from its body, never from a summary in your prompt. None: ask; as a subagent, return `Not driven · no requirements`.
-- Settled up front: the human's answers to grilling's questions. Each one with an observable effect (data state on failure, a default, a limit) is a requirement: the Goal clause that quotes it, else an R line of its own after the Goal's.
+- Settled up front: the human's answers to grilling's questions (not `Mode` or a budget: those are run settings). Each one with an observable effect (data state on failure, a default, a limit) is a requirement: the Goal clause that quotes it, else an R line of its own after the Goal's.
 - Assumed: decisions made without the human. Context, never requirements: no R line quotes one. A Goal clause whose bound is Assumed still binds: drive it within that bound, and the bound goes to the human to accept. Q2 may take the behaviour one describes as a risk area.
 - A build step's Done when is not a requirement: it serves one that already is.
 - Not doing.
