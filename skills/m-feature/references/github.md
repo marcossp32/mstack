@@ -6,6 +6,7 @@
 - `gh auth status` clean, default repo set.
 - Once per repo, before trusting any `--json` field name here: `gh issue list --limit 1 --json bogus 2>&1 | head -40` prints the valid ones.
 - Every body goes on stdin: `--body-file -` with a quoted heredoc (`<<'EOF'` keeps backticks and `$` literal). Nothing is written to the repo.
+- Run these commands with the Bash tool (Git Bash on Windows), never PowerShell: heredocs, `$(...)` and `2>&1` are POSIX, and PowerShell breaks every body.
 
 ## Issues
 
@@ -15,7 +16,7 @@ One more label, `needs:human`, marks the issue the flow is waiting on the human 
 
 | Issue | Waiting for |
 |---|---|
-| map | grilling's questions · plan confirmation, first or after a replan · a not driven or `base not run` prove line · a replan stop |
+| map | grilling's questions · plan confirmation, first or after a replan · a not driven or `base not run` prove line · a stop (`replan.md`) |
 | step issue | a `credential?` line · a build stopped on a missing decision · a disputed review finding (on the fix step issue) |
 
 ```bash
@@ -27,7 +28,7 @@ gh issue edit 42 --remove-label needs:human
 
 ```bash
 for l in feature:map build needs:human; do gh label create "$l" --force >/dev/null 2>&1; done
-gh label list --limit 100 | grep -E 'feature:map|build|needs:human'
+gh label list --limit 200 --json name --jq '.[].name' | grep -cxE 'feature:map|build|needs:human'   # must print 3: exact names, so `rebuild` does not count
 ```
 
 ## Where results land
@@ -37,7 +38,7 @@ gh label list --limit 100 | grep -E 'feature:map|build|needs:human'
 | scan | one comment: the four slices as nine lines. You then decide the undo verdict and write it to the body |
 | grilling | body: Goal, Where it runs, Settled up front, Assumed, Considered, Not doing |
 | docs | a comment with the answers; links under Sources |
-| plan | the step issues; design checks as a comment; what the human ruled out under Not doing, what plan left out itself under Considered |
+| plan | the proposed list with its design checks as a comment, before confirmation; then the step issues; what the human ruled out under Not doing, what plan left out itself under Considered |
 | build | its step issue and pull request |
 | step check | chat. On FAIL, you comment its output on the step issue |
 | review | a comment with the report. Confirmed findings become one fix step issue: claim and condition, never the reproduction |
@@ -65,7 +66,7 @@ Created with Goal, Base and How hard to undo filled, other headings empty.
 <numbered clauses: <n>. "<the human's words>" · bound <domain | —> (<source>). Starts as the request verbatim; /m-grilling numbers and bounds it; ids never change; /m-prove judges R<n> against clause n>
 
 ## Base
-<the branch the feature is cut from and merges into · source issue #<n>, or none>
+<the branch the feature is cut from and merges into · feature/<name> · source issue #<n>, or none>
 
 ## How hard to undo
 <hard or easy, and why. Provisional → after scan → after docs → fixed from plan unless a replan changes it>
@@ -74,10 +75,10 @@ Created with Goal, Base and How hard to undo filled, other headings empty.
 <platform and what it limits. From scan Q8, else asked in grilling>
 
 ## Settled up front
-<!-- what /m-grilling returned that the human confirmed; one with an observable effect is a Goal clause instead -->
+<!-- the human's answers to questions grilling asked; one with an observable effect is a Goal clause instead. Mode: autonomous and any budget -->
 
 ## Assumed
-<!-- decisions made without the human's confirmation. Built like Settled up front; /m-prove does not turn them into requirements -->
+<!-- decisions the agent made or stated, even ones the human said go to, and answers that left it to the agent. Built like Settled up front; /m-prove does not turn them into requirements -->
 
 ## Decided
 <!-- one line per closed step: link + summary. Replan changes and why -->
@@ -92,7 +93,7 @@ Created with Goal, Base and How hard to undo filled, other headings empty.
 <!-- out of scope for review. What the human ruled out, filled by grilling and plan before the review -->
 
 ## Replans
-<!-- one dated line each: what broke, what changed. Two lines = stop, except in an autonomous run -->
+<!-- one dated line each, opening with its trigger (check · review · prove · bound ·): what broke, what changed. Two lines = stop, except in an autonomous run -->
 ```
 
 Open step issues are not listed in the map; `/m-feature` queries them before every build and the review.
@@ -179,6 +180,7 @@ Closes #<source>   only when the map has a source issue
 # start
 gh issue view <n> --json state,title,body,url                               # the source issue; fails on a pull request
 gh repo view --json defaultBranchRef --jq .defaultBranchRef.name           # <base>, when the issue names no target branch
+git ls-remote --heads origin feature/<name>                                 # must print nothing
 git fetch origin && git switch -c feature/<name> origin/<base>
 git push -u origin feature/<name>
 gh issue create --title "<feature>" --label feature:map --body-file -
@@ -191,6 +193,7 @@ gh issue edit 45 --add-blocked-by 44
 git ls-remote --heads origin step/<name>-<n>                                 # must print nothing
 gh issue develop 45 --base feature/<name> --name step/<name>-<n> --checkout   # --name required
 gh pr merge --squash --delete-branch                                       # or --merge, per scan Q9
+git switch feature/<name> && git pull --ff-only                            # gh can leave the checkout on another branch
 gh issue close 45 --comment "<what landed>"
 
 # replan: the commands are in replan.md, beside this file

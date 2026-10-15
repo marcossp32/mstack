@@ -30,4 +30,4 @@ All three hold: go on. Otherwise stop with one question: show the block below, s
 
 ## Refused anyway
 
-A refusal later in the run: do not retry it in another form (that is the bypass the classifier blocks). Put the refused command under To merge in the closing message, naming the entry above that would have allowed it, and go on with what does not depend on it.
+A refusal later in the run: do not retry it in another form (that is the bypass the classifier blocks). A refused step merge stops the run (`replan.md`, Stop): every later step, the review and prove build on the feature branch, so nothing is left that does not depend on it. `Stopped ·` names the refused command and the entry above that would allow it. Any other refusal: put the command under To merge in the closing message, naming that entry, and go on with what does not depend on it.
