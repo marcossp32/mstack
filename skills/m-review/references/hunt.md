@@ -17,7 +17,7 @@ Register every candidate you cannot refute from the code, however unlikely: the 
 ```bash
 python3 <scripts>/ledger.py add --hunter <your label> \
   --claim "<what is broken, one falsifiable sentence>" \
-  --file <path> --line <n> \
+  --file <repo-relative path, a file at HEAD> --line <n> \
   --condition "<the observable condition that shows it>" \
   --entry "<the public entry point real input takes to reach it>"
 ```

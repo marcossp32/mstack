@@ -47,7 +47,9 @@ Once, after every step has passed its check, on the feature branch, before prove
 git fetch origin && python3 scripts/prepare.py --base origin/<base branch> --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
 ```
 
-The setup command runs inside a fresh checkout of the base, with `MSTACK_ROOT` set to this checkout (to copy env files from). Take it from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout.
+Prepare checks out the base once, runs the setup command there with `MSTACK_ROOT` set to this checkout (to copy env files from), then the suite; every gate run reuses that checkout. Take the setup command from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout. Prepare aborts when the setup fails or the suite runs no test, at HEAD or at the base: fix the command, or start what it needs, and prepare again.
+
+`--test-cmd`, `--setup-cmd` and the gate's `--cmd` run under cmd.exe on Windows, sh elsewhere: quote `"{test}"`, write no `$VAR` (cmd.exe reads `%VAR%`), and prefer a command with no shell syntax, which the two shells read differently.
 
 ## 1. Hunt
 
@@ -79,7 +81,7 @@ Up to 4 at once when tests share nothing (database, ports, files); otherwise one
 python3 scripts/ledger.py unjudgeable --id <id> --reason "<reason>" --remove <files it left>
 ```
 
-The gate removes a reproduction's files on every outcome; `--remove` does it for a writer that gave up. A leftover failing file turns every later suite run red.
+The gate removes a reproduction's files on every outcome, and those of a gate that was killed on its next run; `--remove` does it for a writer that gave up, and skips anything that is not a file inside the repo. A leftover failing file turns every later suite run red.
 
 ## 3. Gate
 
@@ -89,7 +91,7 @@ One at a time, per returned reproduction:
 python3 scripts/gate.py confirm --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>"
 ```
 
-The only route to `confirmed`. A killed reproduction is not sent back or adjusted.
+The only route to `confirmed`. The capture must pass and the repro fail at HEAD, 5 runs each; then the repro runs once in the base checkout, and the capture when the repro fails there. The repro passes there: `regression`. Both fail: the broken behaviour is new, `new-behaviour` (`unjudgeable` when prepare found the base suite red, since the checkout may be what fails). The capture passes there: the bug was already in the base, `dead`. A killed reproduction is not sent back or adjusted.
 
 ## 4. Report
 
@@ -97,7 +99,7 @@ The only route to `confirmed`. A killed reproduction is not sent back or adjuste
 python3 scripts/report.py
 ```
 
-Return its output verbatim. Stop: no second round, no suggestions.
+Return its output verbatim. It removes the base checkout: a confirm after it needs a new prepare. Stop: no second round, no suggestions.
 
 # Recheck
 
@@ -107,9 +109,13 @@ After a fix step for confirmed findings has passed its step check, on the fix br
 python3 scripts/gate.py recheck --id F-001 --id F-002 --promote
 ```
 
+The frozen repro runs first; `fixed` when it passes every run. Otherwise the frozen capture runs: it passes, the broken behaviour is still there, `still-failing`.
+
 `fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. A copy an interrupted recheck left behind, identical to the frozen one, is removed by the gate itself: never delete a reproduction by hand. `still-failing` or `SUITE WORSE`: the fix did not hold.
 
-`stale`: the reproduction now fails before its assertion (the markup or API it set up against changed), so it says nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
+`RECHECK NOT RUN` (exit 2): the suite hit its ceiling, so nothing was judged and every state is as it was.
+
+`stale`: the repro and the capture both fail now (the markup or API they set up against changed), so they say nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
 
 ```bash
 python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
