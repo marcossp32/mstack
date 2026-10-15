@@ -2,7 +2,7 @@
 
 Read when a replan trigger in `SKILL.md` fires, before its first step.
 
-A requirement not verified again, on an input its earlier fix did not cover (another character, another page of the same clause), is a wording question, not a code fix: the clause has no domain. Bound it instead of cutting another fix step: ask the human the domain, with the one you recommend; in an autonomous run, take the domain `/m-research` quotes from the standard or the vendor, record it under Assumed as how the clause is read, and keep the final PR a draft for the human to accept it. Then prove that line again; the steps below do not run.
+A requirement not verified again, on an input its earlier fix did not cover (another character, another page of the same clause), is a wording question, not a code fix: the clause has no domain. Bound it instead of cutting another fix step: ask the human the domain, with the one you recommend; in an autonomous run, take the domain `/m-research` quotes from the standard or the vendor as the clause's bound, `was: <old bound>` beside it, record it under Assumed, and keep the final PR a draft for the human to accept it. Then prove that line again; the steps below do not run.
 
 Whatever fired, count for each non-test file the failure names the repair steps that already changed it, as [`review-results.md`](review-results.md) does. Two or more is a patching loop (each repair of one file broke another case in it): a design question, not one more fix: each patch satisfied the latest condition and dropped an earlier one. The replan's step for that file gets one Done when that lists every condition the earlier findings and breaks on it named, all at once, so one design must satisfy them together. In an autonomous run, `/m-research` first quotes what the standard or the vendor documents for that behaviour; the design goes under Assumed with its sources.
 
@@ -17,7 +17,7 @@ Whatever fired, count for each non-test file the failure names the repair steps 
 4. The human confirms the revised list.
 5. Create, rewrite and re-link step issues; note the change under Decided.
 
-A replan's steps serve requirements already on the map: their Done when never becomes a prove requirement. What the feature must do changes only through the Goal or Settled up front, with the human, or Assumed in an autonomous run.
+A replan's steps serve requirements already on the map: their Done when never becomes a prove requirement. What the feature must do changes only through the Goal or Settled up front, with the human, or Assumed in an autonomous run. A decision the human settles here with an observable effect becomes a new Goal clause, quoting it, with the next unused number: prove judges the Goal's clauses.
 
 **Stop:**
 

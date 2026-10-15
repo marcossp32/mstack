@@ -35,9 +35,9 @@ gh label list --limit 100 | grep -E 'feature:map|build|needs:human'
 | Stage | Destination |
 |---|---|
 | scan | one comment: the four slices as nine lines. You then decide the undo verdict and write it to the body |
-| grilling | body: Goal, Where it runs, Settled up front, Assumed, Not doing |
+| grilling | body: Goal, Where it runs, Settled up front, Assumed, Considered, Not doing |
 | docs | a comment with the answers; links under Sources |
-| plan | the step issues; design checks as a comment; descoped items under Not doing |
+| plan | the step issues; design checks as a comment; what the human ruled out under Not doing, what plan left out itself under Considered |
 | build | its step issue and pull request |
 | step check | chat. On FAIL, you comment its output on the step issue |
 | review | a comment with the report. Confirmed findings become one fix step issue: claim and condition, never the reproduction |
@@ -62,7 +62,7 @@ Created with Goal, Base and How hard to undo filled, other headings empty.
 
 ```markdown
 ## Goal
-<done, in 1–2 observable lines. Starts as the request verbatim; /m-grilling confirms it; /m-prove judges against it>
+<numbered clauses: <n>. "<the human's words>" · bound <domain | —> (<source>). Starts as the request verbatim; /m-grilling numbers and bounds it; ids never change; /m-prove judges R<n> against clause n>
 
 ## Base
 <the branch the feature is cut from and merges into · source issue #<n>, or none>
@@ -74,7 +74,7 @@ Created with Goal, Base and How hard to undo filled, other headings empty.
 <platform and what it limits. From scan Q8, else asked in grilling>
 
 ## Settled up front
-<!-- what /m-grilling returned that the human confirmed -->
+<!-- what /m-grilling returned that the human confirmed; one with an observable effect is a Goal clause instead -->
 
 ## Assumed
 <!-- decisions made without the human's confirmation. Built like Settled up front; /m-prove does not turn them into requirements -->
@@ -85,8 +85,11 @@ Created with Goal, Base and How hard to undo filled, other headings empty.
 ## Sources
 <!-- links /m-research used -->
 
+## Considered
+<!-- what an agent thought of and is not building, with why. Excludes nothing from review or prove -->
+
 ## Not doing
-<!-- out of scope for review. Filled by grilling and plan before the review -->
+<!-- out of scope for review. What the human ruled out, filled by grilling and plan before the review -->
 
 ## Replans
 <!-- one dated line each: what broke, what changed. Two lines = stop, except in an autonomous run -->
@@ -105,7 +108,7 @@ Self-contained context: the builder has not seen the conversation. No checklists
 <earlier decisions that matter here, stated in full — not "see parent">
 
 ## Done when
-<something observable>
+<something observable> · serves <n>. "<clause>"
 ```
 
 ## Branches

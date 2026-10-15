@@ -11,11 +11,25 @@ rule for this script is safe where `rm -rf` is not.
 """
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import time
 
 STALE_HOURS = 24
+
+
+def remove_tree(path):
+    # A base worktree's node_modules nests past Windows' 260-character path limit:
+    # the \\?\ prefix lifts it. Read-only files (git objects, packed deps) are made writable first.
+    if os.name == "nt" and not path.startswith("\\\\?\\"):
+        path = "\\\\?\\" + os.path.abspath(path)
+
+    def retry(fn, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        fn(p)
+    shutil.rmtree(path, onexc=retry) if sys.version_info >= (3, 12) else shutil.rmtree(
+        path, onerror=lambda fn, p, exc: retry(fn, p, exc))
 
 
 def prove_root():
@@ -41,7 +55,7 @@ def main():
         if os.path.normcase(os.path.dirname(t)) != os.path.normcase(root):
             sys.exit(f"ABORT: {t} is not a run dir under {root}")
         if os.path.isdir(t):
-            shutil.rmtree(t)
+            remove_tree(t)
             print(f"deleted {t}")
     if not targets:
         print("nothing to delete")

@@ -9,7 +9,7 @@ Cut the work into build steps and run the design checks before any code exists. 
 
 - `/m-feature`: undo verdict, map number, feature branch.
 - `/m-scan`: what exists, how the repo does it, what it calls it.
-- `/m-grilling`: confirmed Goal, where it runs, hard-to-undo decisions.
+- `/m-grilling`: the Goal's numbered clauses, where it runs, hard-to-undo decisions.
 - `/m-research`: limits, timeouts, security guidance.
 
 A needed answer is missing: say so and stop. "Not applicable" is an answer.
@@ -25,7 +25,7 @@ Each step, in priority order:
 
 Name steps after what a person can see or do, in the repo's words. Each has an observable **Done when**: what a user or caller sees (`GET /drafts/<id>` returns the saved draft, `report --month 2026-09` prints one line per account), not "implemented X" and not how to verify it. A Done when over a set (every page, matches the kit) names the reference and the whole set, a table of values where there is one: prove checks the whole set, and a step that met a sample comes back one slice per round. One or two steps: say it may not need a plan.
 
-Every behaviour in the Goal, Settled up front and Assumed (data state on failure, defaults, limits) lands in some step's Done when.
+Every behaviour in the Goal, Settled up front and Assumed (data state on failure, defaults, limits) lands in some step's Done when. A Done when that serves a Goal clause quotes it with its number (`serves 2. "<words>"`): the builder never reads the Goal, and builds to the words it is given.
 
 Record blocking only where B cannot start before A lands, never for preferred order.
 
@@ -66,13 +66,13 @@ After confirmation:
   <earlier decisions that matter here, stated in full — not "see parent">
 
   ## Done when
-  <something observable>
+  <something observable> · serves <n>. "<clause>"
   EOF
   gh issue edit <B> --add-blocked-by <A>
   ```
   Each body is self-contained: the builder has not seen this conversation. No checklists or method; the stage skill carries those.
 - Post the design checks as a comment on the map: `gh issue comment <map> --body-file -`.
-- Add what the human ruled out to Not doing. `gh issue edit` replaces the whole body: read it first (`gh issue view <map> --json body --jq .body`) and change only that section.
+- Add what the human ruled out to Not doing, and what you left out yourself to Considered: Not doing takes it out of review and prove, so only the human fills it. `gh issue edit` replaces the whole body: read it first (`gh issue view <map> --json body --jq .body`) and change only those sections.
 
 # Replanning
 
