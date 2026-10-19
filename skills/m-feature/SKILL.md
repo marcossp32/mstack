@@ -27,7 +27,7 @@ A turn that ends to wait on something running says the stage, step n of N, what 
 
 # Start
 
-1. `gh --version` ≥ 2.94.0 and `gh auth status`.
+1. `gh --version` ≥ 2.99.0 and `gh auth status`.
 2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run), credentials, budgets. Run instructions are not the request.
    - A credential stays in this conversation and reaches prove as its own input. It is never in text that gets posted: an issue, a comment, a PR body.
    - A budget goes on the map under Settled up front.
@@ -138,7 +138,7 @@ Inputs:
 | build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the run recipe's path: scan Q9's, else a `SKILL.md` under `~/.claude/skills/` or `~/.agents/skills/` whose description names this repo (where `/m-prove` writes one), else scan Q9 · the step branch it is on |
 | build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan, docs and recipe inputs · the fix branch it is on |
 | review | the feature review · base `origin/<base>`, after `git fetch` · the step check baseline's suite command (Routing) · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, How hard to undo, Settled up front, Assumed and Not doing from |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions or grilling, if any · each review finding still `stale`, as a risk area: a confirmed bug never shown fixed · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, and its body with the Proved section's placeholders) |
+| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions or grilling, if any · each review finding still `stale`, as a risk area: a confirmed bug never shown fixed · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, labels, and its body with the Proved section's placeholders) |
 
 # Before every build and the review
 

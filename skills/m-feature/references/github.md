@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- `gh` ≥ 2.94.0 (`gh --version`); older versions lack `--parent` and `--blocked-by`. Tell the human to upgrade; no GraphQL workaround.
+- `gh` ≥ 2.99.0 (`gh --version`); older versions lack `--parent`, `--blocked-by` and `--attach`, which uploads the pull request's screenshots and videos. Tell the human to upgrade; no GraphQL workaround.
 - `gh auth status` clean, default repo set.
 - Once per repo, before trusting any `--json` field name here: `gh issue list --limit 1 --json bogus 2>&1 | head -40` prints the valid ones.
 - Every body goes on stdin: `--body-file -` with a quoted heredoc (`<<'EOF'` keeps backticks and `$` literal). Nothing is written to the repo.
@@ -139,40 +139,51 @@ Self-contained context: the builder has not seen the conversation. No checklists
 
 ## Final pull request body
 
-`/m-feature` writes this body, leaving the Proved section's placeholders as they are, and hands it to `/m-prove`. Prove fills that section from its verdict, links the verdict comment it posted on the map, and opens the pull request. The repo has `.github/pull_request_template.md`: fill its sections with the same content. Otherwise:
+A reviewer should see that the feature works from the top of the page, without reading code or running anything: the verdict, a demo video, then each requirement with its clip and its before and after. `/m-feature` writes the parts only it knows (Summary, Why, What changed, Risk and rollback, Notes for reviewers, the closing lines) and leaves every `<!-- prove: … -->` placeholder as it is: together they are the **Proved section**, which `/m-prove` fills from its verdict before it opens the pull request (`m-prove/references/pull-request.md`).
 
-```markdown
-<what a user can now do, one sentence>
+Write for a reviewer who has not seen the map: plain words, the user's view first, no stage names (`Q1`, `R line`, `carried`, `base not run`) outside the requirement ids. The repo has `.github/pull_request_template.md`: fill its sections with this content, the Proved section under its testing or screenshots heading, or after its last section when it has none.
 
-**How hard to undo:** <hard | easy> · <why, from the map>
+**Title**: what a user can now do, under 72 characters, in the repo's convention (`git log --format=%s -20 <base>`: Conventional Commits there, `feat: …` or `fix: …` here; else plain imperative). Never the branch name.
+
+````markdown
+<!-- prove: verdict alert -->
+
+## Summary
+<what a user can now do and why it matters to them, 1–2 sentences, no file names>
+
+<!-- prove: demo video -->
 
 ## Why
-<the problem and the approach, 2–4 sentences>
+<the problem and the approach, 2–4 sentences; why this approach over the one named under Considered, when there is one>
 
 ## What changed
-- <the change, most important files first>
+- **<behaviour or area>**: <what it does now that it did not> (`<main file>`)
+<most important first; behaviour, not a file list: the diff tab lists the files>
 
-## Proved in the running app
-| Requirement | Verdict | Evidence |
-|---|---|---|
-| <R1, quoted> | verified | ![<alt text>](<absolute path from prove's Evidence line>) |
-| <R2, quoted> | verified | Output R2 |
+## Proof in the running app
+<!-- prove: requirements table, then one section per requirement -->
 
-<details><summary>Output R2: <command, one line></summary>
+## Regressions checked
+<!-- prove: what else was driven against the base, and anything found -->
 
-```
-<up to 15 lines prove kept>
-```
-</details>
+## Try it yourself
+<!-- prove: how to launch and the steps a reviewer follows to see each requirement -->
 
-Also driven: <risk areas prove covered, one line> · Not driven: <line · precondition, or none> · [Prove verdict](<link to the map comment>)
+<!-- prove: check by hand, only when there is a human check -->
 
-## What to watch
-- <risk, regression surface, rollback>
+## Risk and rollback
+- **How hard to undo:** <hard | easy> · <why, from the map>
+- **What to watch:** <risk, regression surface, each flaky test file and stale finding>
+- **Rollback:** <revert the merge commit; plus each data or config step a revert does not undo (a migration, a new env var, a cache to clear)>
+
+## Notes for reviewers
+<where to start reading (one or two files); each Assumed decision and each changed bound the human should accept; or none>
 
 Closes #<map>
 Closes #<source>   only when the map has a source issue
-```
+````
+
+Hand prove the labels too: those `gh label list --json name --jq '.[].name'` already has that fit the change (a type such as `enhancement` or `bug`, an area), never one you create. `/m-prove` adds them, assigns the pull request to `@me`, and gives it the source issue's milestone, if any. Reviewers come from CODEOWNERS, which GitHub requests on its own.
 
 ## Commands
 

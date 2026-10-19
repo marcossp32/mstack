@@ -37,6 +37,7 @@ A caveat is not verified or not driven.
 - Timebox: 20 minutes of driving, then report. An area still open is not driven, naming what you would drive next.
 - Compare against the base: the contract's base worktree, already installed and built; change, install and build nothing in it. None on the header: `git worktree add --detach <subdir>/base <base>`, dependencies installed and env files copied. One server of yours up at a time. Drive the base once against itself first, to learn what differs anyway (ids, timestamps); then the same drive with the same inputs on head and base. The base counts only when its health check and control pass and it needs no data state the head changed (migration, schema); else `base not run`.
 - A page: on the base, save its full `snapshot` (not `-i`: the diff compares full trees) to a file and a screenshot of it; on head, at the same viewport, the same page through `diff snapshot --baseline <file>` and `diff screenshot --baseline <png>`. Both servers are never up at once, so never `diff url`. Both exit 0 on a difference too: read their output.
+- Each R line whose surface is a page: with the base up, its before screenshot, `<line>-base-<w>x<h>.png` (Browser, below), of the page that surface names at the viewport the clause names, else 1280x720. The pull request shows it beside Q1's after.
 - Report what each area covered and every break, with head and base values. What differs only in the noise you learned is not a break. A difference that is exactly what an R line's settled when observes, on that surface, is the change: report it on the area as `intended R<n>`, both values given and the value that clause predicts for the inputs you drove; the supervisor accepts it only when that line is verified and head equals that value. What an Assumed decision describes is still a break.
 
 **Driving**
@@ -57,7 +58,11 @@ A caveat is not verified or not driven.
 - A script of your own that launches a browser (Playwright, Puppeteer, a library the recipe names): headless, the browser closed in a `finally`, and the script run contained.
 - Act on refs from `snapshot -i` and take a fresh one after every page change; `find` when a ref will not do. Wait on what you expect (`wait --text`, `wait --url`, `wait @ref`), never `wait <ms>`.
 - A page value is read back by a command whose output lands in the evidence file: `get text | value | url`, `is visible | enabled | checked`, `get count`, `snapshot -i --json`. A screenshot shows it; it never settles it. `get count` prints 0 and exits 0 for a selector that matches nothing, a blank page included: a count needs its expected count.
-- Screenshot what a requirement makes visible: `set viewport <w> <h>`, then `screenshot <@ref | selector> <line>-<head | base>-<w>x<h>.png`, cropped to that element.
+- Screenshot what a requirement makes visible, once the page shows the value you read back: at the viewport the clause names, else 1280x720, `set viewport <w> <h>`, `scrollintoview <@ref | selector>`, then `screenshot <line>-<head | base>-<w>x<h>.png`: the viewport, so a reviewer sees the element in its page.
+- **Recording** (Q1, when the Run line's `ffmpeg` is a dir or `on PATH`): a clip shows a reviewer the line working; it settles nothing. With a dir, run every `agent-browser` command of your sessions as `PATH="<dir>:$PATH" agent-browser …`: the session's daemon starts ffmpeg, and the shell's PATH predates its install.
+  - Each R line whose surface is a page: once its preconditions are met (logged in, data seeded; a secret typed on screen cannot be masked in a video), `record start <line>-head-<w>x<h>.mp4 --fps 15 --cursor --contact-sheet`, then the line's steps and its read-back, then `record stop`. A line you repeat: record the repeat, over the first take.
+  - Then the demo, one take once every page line is done: `demo-head-1280x720.mp4`, the verified page lines in Goal order as their user would meet them, from the first page they open, with `wait 1000` after each visible result so a viewer sees it (the only fixed wait you take), under 60 seconds.
+  - `record start` fails: run `agent-browser doctor --offline --quick` into your file and try once more; failing again, record nothing more and name it under Harness. A missing or failed clip is never a not verified.
 - After each flow, `errors --json` (plain `errors` prints nothing in 0.38) and `network requests` into the same file, and the same after the control. An uncaught error or a failed request (4xx, 5xx, no status) the flow did not ask for and the control did not show is a Deviation for Q1 and a break to check against the base for Q2.
 
 **A line comes back wrong**
@@ -73,6 +78,7 @@ Area <name> — <verdict> · drove <what, head and base> → head <value> · bas
 Break — <what> · head <value> · base <value | not run> · <file>
 Deviation — <what you saw that the contract did not expect> · <file>
 Control — <passed | failed> · control.txt
+Media — <line> <clip mp4 | screenshot png, Q2: base png> · demo <mp4> | none · <why>
 Not driven — <line> · <precondition> · <routes tried>
 Teardown — stopped <pids> · port free <yes | no>
 Harness — <launch> · <health check> · <traps hit> · browser <agent-browser version | playwright-cli | none> · allowed hosts <beyond localhost | none>
