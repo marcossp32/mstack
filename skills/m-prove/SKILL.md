@@ -20,7 +20,7 @@ This conversation wrote or watched the code: dispatch a fresh `general-purpose` 
 - Base branch; none: the default branch.
 - Whether evidence is kept for a pull request: yes when you are handed the final pull request below, otherwise only when asked.
 - Re-prove: the last prove's verdict comment and its tree, when `/m-feature` proves again after a replan.
-- The final pull request, from `/m-feature` at closing only: map issue number, feature branch, title, and its body with the Proved section as placeholders. Given it, you open that pull request (Final pull request, below), and evidence is kept for it on the terms Judge sets.
+- The final pull request, from `/m-feature` at closing only: map issue number, feature branch, title, labels, and its body with the Proved section as placeholders. Given it, you open that pull request (Final pull request, below), and evidence is kept for it on the terms Judge sets.
 
 # Contract
 
@@ -41,14 +41,14 @@ Read files and git; start nothing.
 
 ```
 HEAD <sha> · tree <sha> · base <sha> · checkout <path> · evidence <dir> · base worktree <path | none>
-Run  · <recipe path | none> · <launch> in <working dir> · <health check> · <prerequisites> · data <dir> · credentials <MSTACK_SECRET_<NAME>, … | none> · overrides <VAR=value → R2 | none> · shared state <none → parallel | what → Q1 then Q2>
+Run  · <recipe path | none> · <launch> in <working dir> · <health check> · <prerequisites> · data <dir> · credentials <MSTACK_SECRET_<NAME>, … | none> · overrides <VAR=value → R2 | none> · shared state <none → parallel | what → Q1 then Q2> · ffmpeg <dir | on PATH | none · why>
 R1 "<clause>" · bound <domain | —> · surface <…> · settled when <observation> via <route> | carried <sha> | replay
 Risk · <area> · <file:line>
 ```
 
 # Prepare
 
-`python3 <this skill's directory>/scripts/contain.py sweep --kill --within <checkout>` first, into `<evidence>/prepare.txt`: it ends what earlier runs left in this checkout, trees whose owner is gone and orphaned automation browsers, which would slow both drives and skew their timings. Never `--within <git common dir>`: another run's evidence dirs are there, its servers live. Run the recipe's dependency install and build once in the checkout, contained (`contain.py --shell "<command>"`, see [`references/drive.md`](references/drive.md)), output to the same file. A line or risk area reached through a page also needs a browser, outside the checkout: `agent-browser --version`, missing: `npm i -g agent-browser`; then `agent-browser install` for its Chrome, both into the same file. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Save `git status --porcelain --ignored` to `<evidence>/ignored-before.txt`: Judge compares it to see what the app wrote. Drivers install and build nothing in the checkout, so two drives never write the same files.
+`python3 <this skill's directory>/scripts/contain.py sweep --kill --within <checkout>` first, into `<evidence>/prepare.txt`: it ends what earlier runs left in this checkout, trees whose owner is gone and orphaned automation browsers, which would slow both drives and skew their timings. Never `--within <git common dir>`: another run's evidence dirs are there, its servers live. Run the recipe's dependency install and build once in the checkout, contained (`contain.py --shell "<command>"`, see [`references/drive.md`](references/drive.md)), output to the same file. A line or risk area reached through a page also needs a browser, outside the checkout: `agent-browser --version`, missing: `npm i -g agent-browser`; then `agent-browser install` for its Chrome, both into the same file. Evidence kept for a pull request and such a line: the clips need ffmpeg. `ffmpeg -version`; missing, install it into the same file (Windows `winget install --id Gyan.FFmpeg -e --silent --accept-source-agreements --accept-package-agreements`, macOS `brew install ffmpeg`, Linux `sudo -n apt-get install -y ffmpeg`). The shell keeps the PATH it started with, so a fresh install is not on it: find the dir that holds the binary (Windows: the dirs of `powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path','User')"`), and `<dir>/ffmpeg -version` must run. It goes on the Run line as `ffmpeg <dir>`, `on PATH`, or `none · <what failed>`: then nobody records, and the pull request says why it has no video. No pull request, or no page: `none · not needed`. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Save `git status --porcelain --ignored` to `<evidence>/ignored-before.txt`: Judge compares it to see what the app wrote. Drivers install and build nothing in the checkout, so two drives never write the same files.
 
 Q2 will run: `git worktree add --detach <evidence dir>/base <base sha>`, copy in the env files the checkout has and git ignores, and run the recipe's install and build there, contained, with the Bash tool's `run_in_background` beside the checkout's, output to `<evidence dir>/prepare-base.txt`: the base installs while the head does, and Q2, a strong model, spends no time on it. Its path goes on the header. It fails: header `base worktree none`, and Q2 adds its own as drive.md says.
 
@@ -92,7 +92,7 @@ A not driven line whose precondition only the human can meet is `human check`: a
 
 Lines failing a check go back once: one fresh agent per drive (Q1 model standard, Q2 strong) with the contract, the credentials, every failing line of that drive and the check each failed; one agent per line would launch the app once per line. Passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified comes only from a drive or a replay you ran, not verified only from a drive.
 
-Evidence kept for a pull request, and nothing not verified: keep the evidence dir and, per requirement, pick what shows it best. A screenshot for anything visible, cropped to the element, viewport in its name, base and head side by side when it changed; otherwise the command and up to 15 lines of its output. Mask tokens, secrets and personal data first. In every other case, delete the evidence dir (Cleanup, below).
+Evidence kept for a pull request, and nothing not verified: keep the evidence dir and pick, per requirement, what shows it to a reviewer who will only look. A page: Q1's clip and its after screenshot, with Q2's before screenshot of the same page beside it; otherwise the command and up to 15 lines of its output. Plus Q1's demo. Look at each one before it goes (each clip's contact sheet, `<clip>.contact-sheet.png` beside it, and each screenshot): one showing a blank page, an error, a login wall, another page or a value other than the reported one is dropped and named on the Harness line. Media show; they settle nothing, so dropping one never changes a verdict. Mask tokens, secrets and personal data in screenshots and outputs first; a clip that shows one is dropped, since a video cannot be masked. Each image at most 10 MB, each video at most 10 MB (GitHub's limit on free plans), re-encoded when larger: `<ffmpeg> -y -i <in> -vf "fps=12,scale='min(1280,iw)':-2" -c:v libx264 -crf 32 -pix_fmt yuv420p -an <out>.mp4`. In every other case, delete the evidence dir (Cleanup, below).
 
 # Final pull request
 
@@ -116,7 +116,7 @@ Not driven — <line> · <precondition> · <routes tried>
 Human check — <line> · <what the human checks by hand>
 Harness — <launch> · <health check> · <traps hit> · recipe <written | appended> <path> | traps for <in-checkout recipe>
 Cost — send-backs <n> · re-driven <lines verified before, driven again> · replays <pass>/<stale>/<fail> · Q1 <min> · Q2 <min>
-Evidence — R1 <file>#<alt text> · R2 <file>                                kept for a pull request only
+Evidence — demo <mp4> · R1 <clip mp4> · <before png>#<alt text> · <after png>#<alt text> · R2 <file>   kept for a pull request only
 Left — <evidence dir cleanup could not delete>                            only then
 PR #<n> · <Proved | Not verified · human check | Not verified> · <draft | ready | draft unavailable> · verdict <comment URL>   final pull request only
 ```

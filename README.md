@@ -37,10 +37,11 @@ Update with `npx skills update`.
 | Tool | Version | Used by |
 |---|---|---|
 | [Claude Code](https://claude.com/claude-code) | current | all |
-| [`gh`](https://cli.github.com/), authenticated | 2.94.0 or newer | `m-feature`, `m-plan`, `m-review`, `m-prove` |
+| [`gh`](https://cli.github.com/), authenticated | 2.99.0 or newer | `m-feature`, `m-plan`, `m-review`, `m-prove` |
 | git | 2.31 or newer | `m-review`, `m-prove` |
 | Python | 3.9 or newer | `m-build`, `m-review`, `m-prove` scripts |
 | Node.js and npm | any current | `m-prove`, only for changes with a web page |
+| ffmpeg | any current | `m-prove`, only to record the pull request's videos; installed the first time it is missing |
 
 The repo needs a GitHub remote. `m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser) and installs it globally with npm the first time a change has a page.
 
@@ -64,7 +65,7 @@ Or point it at an issue:
 /m-feature #412
 ```
 
-mstack works through the stages below. It asks you a few questions at the start, shows you the plan, and stops for you only when a decision is yours. At the end you get a pull request into the base branch, marked **Proved** or **Not verified**, with the evidence in its body. A check only you can make (a real account's login, a captcha) keeps it a draft, listed under **Check by hand before merging**; mark it ready once you have checked.
+mstack works through the stages below. It asks you a few questions at the start, shows you the plan, and stops for you only when a decision is yours. At the end you get a pull request into the base branch, marked **Proved** or **Not verified**, written for a reviewer who will only look: a demo video at the top, then each requirement with its clip and before and after screenshots (or the command and its output), what else was checked against the base, steps to try it yourself, and how to roll it back. A check only you can make (a real account's login, a captcha) keeps it a draft, listed under **Check by hand before merging**; mark it ready once you have checked.
 
 To pick a feature up in a new session, run `/m-feature #<map issue>`. Credentials are asked again: they are never stored.
 
