@@ -1,5 +1,12 @@
-"""Shared helpers. State lives in the git common dir, never in the checkout."""
-import hashlib
+"""Shared helpers for step_check.py, imported, never run on its own.
+
+Holds the shell and git runners (sh() starts each suite or test command
+under contain.py, so nothing it starts outlives the run), the time ceilings,
+the test-path and failure heuristics, and the state directory,
+<git common dir>/mstack/<name>, never the checkout. Prints nothing itself
+except through die(), which writes `ABORT: <reason>` to stderr and exits
+non-zero.
+"""
 import json
 import os
 import re
@@ -145,11 +152,6 @@ def state_dir(*parts):
     path = os.path.join(out, "mstack", *parts)
     os.makedirs(path, exist_ok=True)
     return path
-
-
-def sha(path):
-    with open(path, "rb") as fh:
-        return hashlib.sha256(fh.read()).hexdigest()
 
 
 def read_json(path):

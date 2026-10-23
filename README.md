@@ -1,13 +1,14 @@
 # mstack
 
-Claude Code skills that take one feature from idea to a proven pull request, tracked on GitHub Issues.
+Claude Code skills that turn a reviewed spec into a pull request proved in the running app, unattended.
 
-You describe what you want. mstack asks only what is hard to undo, plans it in small steps, builds each step in its own pull request, reviews the whole feature, and drives the running app to prove it does what you asked before it opens the final pull request.
+You hand mstack a spec. Nobody answers questions: it extracts the requirements, plans the work in slices a user can check, and for each slice builds, reviews the code against your repo's rules and the official docs, and drives the running app to prove the slice works. At the end it proves the whole feature again for regressions and opens one pull request, marked **Proved** or **Not verified**.
 
-- **Proven, not claimed.** Fresh agents that did not write the code drive the running app against your Goal and hunt what else broke. Every verdict cites saved evidence.
+- **Proof driven.** A change is done when the end-to-end proof in the running app passes. Fresh agents that did not write the code drive it, and every verdict cites saved evidence.
+- **Review with sources.** The quality review reports a finding only with its source: a rule of your repo (`file:line`) or a verbatim quote from the official docs for the installed version.
 - **Tests that pin something.** A script checks each step: the suite is no worse, every test the step changed or loosened is declared, each test it names fails without the change, and no credentials were added.
-- **Review that demonstrates.** The feature review reports only failures a frozen reproduction shows on running code.
-- **State on GitHub.** One map issue holds the Goal, the decisions and the progress. You can stop and pick up later in a new session with `/m-feature #<map>`, or watch it from a project board.
+- **Unattended.** Where a person would once have been asked, mstack decides and records why, runs a debate between five fresh agents for hard-to-undo decisions, or delivers the pull request as Not verified. It never waits.
+- **Works with your tools.** Specs and state live in GitHub Issues, Jira or plain markdown files; the pull request opens on GitHub, GitLab or Bitbucket.
 
 ## Contents
 
@@ -15,8 +16,7 @@ You describe what you want. mstack asks only what is hard to undo, plans it in s
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
-- [Autonomous runs](#autonomous-runs)
-- [What you get on GitHub](#what-you-get-on-github)
+- [Unattended by design](#unattended-by-design)
 - [Using a skill on its own](#using-a-skill-on-its-own)
 - [Contributing](#contributing)
 - [Credits](#credits)
@@ -28,7 +28,7 @@ You describe what you want. mstack asks only what is hard to undo, plans it in s
 npx skills add marcossp32/mstack -g -a claude-code --skill '*'
 ```
 
-This installs into `~/.claude/skills/`. Drop `-g` to install into the current project's `.claude/skills/` instead.
+This installs into `~/.claude/skills/`. Drop `-g` to install into the current project's `.claude/skills/` instead. Install all skills together: `m-feature` and `setup-mstack` use the others' files.
 
 Update with `npx skills update`.
 
@@ -37,93 +37,119 @@ Update with `npx skills update`.
 | Tool | Version | Used by |
 |---|---|---|
 | [Claude Code](https://claude.com/claude-code) | current | all |
-| [`gh`](https://cli.github.com/), authenticated | 2.99.0 or newer | `m-feature`, `m-plan`, `m-review`, `m-prove` |
-| git | 2.31 or newer | `m-review`, `m-prove` |
-| Python | 3.9 or newer | `m-build`, `m-review`, `m-prove` scripts |
+| git | 2.31 or newer | all |
+| Python | 3.9 or newer | `m-build`, `m-review`, `m-prove`, `m-requirements`, `setup-mstack` scripts |
+| The tracker's and host's CLI, logged in | see `m-feature/references/trackers/` and `hosts/` | `m-feature`, `setup-mstack` |
 | Node.js and npm | any current | `m-prove`, only for changes with a web page |
 | ffmpeg | any current | `m-prove`, only to record the pull request's videos; installed the first time it is missing |
 
-The repo needs a GitHub remote. `m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser) and installs it globally with npm the first time a change has a page.
+`m-prove` drives web pages with [agent-browser](https://github.com/vercel-labs/agent-browser) and installs it globally with npm the first time a change has a page.
 
-Every test run, server and browser script the skills start goes through `contain.py`. When the command ends or is stopped, everything it started ends too: on Windows a job object, on POSIX a process session ended with SIGTERM then SIGKILL, plus a watchdog. `step_check.py`, `prepare.py` and prove first end what earlier runs left in the repo, and orphaned automation browsers. Contained commands get `BROWSER=none` and `PW_TEST_HTML_REPORT_OPEN=never`, so dev servers and test reports do not open your browser. Set `MSTACK_PRIORITY=low` to run them at below-normal priority (off by default: under load it makes timing tests flaky).
+Every test run, server and browser script the skills start goes through `contain.py`. When the command ends or is stopped, everything it started ends too: on Windows a job object, on POSIX a process session ended with SIGTERM then SIGKILL, plus a watchdog. `step_check.py` and prove first end what earlier runs left in the repo, and orphaned automation browsers. Contained commands get `BROWSER=none` and `PW_TEST_HTML_REPORT_OPEN=never`, so dev servers and test reports do not open your browser. Set `MSTACK_PRIORITY=low` to run them at below-normal priority (off by default: under load it makes timing tests flaky).
 
-Run one mstack feature per git worktree: two runs in one checkout share its servers and its step check baseline. The feature review keeps one ledger per repo, so run one review, from prepare to its last recheck, at a time.
+Run one mstack feature per git worktree: two runs in one checkout share its servers and its step check baseline.
 
 Suites and test files have a ceiling, 3 times their last measured run (at least 30 minutes for a suite, 5 for one file). A run that reaches it is reported as not finished, never as a failure.
 
 ## Quick start
 
-In a repo with a GitHub remote, open Claude Code and run:
+Once per repo, run:
 
 ```
-/m-feature Add a newsletter signup to the footer that saves the email to the customer list
+/setup-mstack
 ```
 
-Or point it at an issue:
+It writes `.mstack.yml` (commit it), checks your tools are installed and logged in, and checks Claude Code's auto mode lets an unattended run finish:
+
+```yaml
+# mstack: where work lives. See setup-mstack.
+tracker: gh      # gh | jira | md   — where specs are read, state lives, issues open
+host: gh         # gh | gitlab | bitbucket — where the pull request opens
+```
+
+Then point mstack at a spec:
 
 ```
 /m-feature #412
+/m-feature ABC-123
+/m-feature docs/specs/newsletter.md
 ```
 
-mstack works through the stages below. It asks you a few questions at the start, shows you the plan, and stops for you only when a decision is yours. At the end you get a pull request into the base branch, marked **Proved** or **Not verified**, written for a reviewer who will only look: a demo video at the top, then each requirement with its clip and before and after screenshots (or the command and its output), what else was checked against the base, steps to try it yourself, and how to roll it back. A check only you can make (a real account's login, a captcha) keeps it a draft, listed under **Check by hand before merging**; mark it ready once you have checked.
+The spec is taken as reviewed: mstack builds what it says. A contradiction in it is resolved in favour of the app and opened as an issue linking the spec, saying what was built and where. The spec is frozen when the run starts; if it changes during the run, the pull request says so.
 
-To pick a feature up in a new session, run `/m-feature #<map issue>`. Credentials are asked again: they are never stored.
+At the end you get one pull request into the base branch, written for a reviewer who will only look: the verdict at the top, a demo video, each requirement with its clip and before and after screenshots (or the command and its output), what else was checked against the base, every decision made without a person and its sources, steps to try it yourself, and how to roll it back. A check only a person can make (a real account's login, a captcha) keeps it a draft, listed under **Check by hand before merging**.
 
-A feature branches from the branch its issue targets, else the default branch.
+Run `/m-feature <spec>` again in a new session to resume the feature in flight: the state lives in your tracker, never in the chat.
+
+App credentials that prove needs to drive the app (a test account, a store password) are read only from environment variables `MSTACK_SECRET_<NAME>`. They are never written to a file, an issue, a comment or a pull request.
 
 ## How it works
 
 `/m-feature` only runs when you type it. It routes the work through the other skills:
 
 ```
-scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → prove
-                          ↑                                      │
-                          └────────────────── replan ────────────┘
+0 Start       .mstack.yml · freeze the spec · feature branch · state
+1 Understand  requirements ∥ scan  →  docs
+2 Plan        steps grouped into slices
+3 Per slice   build ⇄ step check (each step)  →  quality review ⇄ fix  →  slice prove ⇄ fix
+4 Closing     final prove ⇄ fix  →  issues for what was already broken  →  pull request
+
+m-debate: whenever a hard-to-undo decision or a failure a fix cannot settle comes up
 ```
 
 | Skill | Stage | Runs in |
 |---|---|---|
-| `m-feature` | Order, routing, and state on one GitHub map issue | Main chat |
+| `setup-mstack` | Writes `.mstack.yml`, checks the tools and auto mode. Run once per repo | Main chat |
+| `m-feature` | Order, routing and state, through the tracker and host adapters | Main chat |
+| `m-requirements` | Numbered, observable, bounded requirements, each tracing to a verbatim excerpt of the spec | Subagent |
 | `m-scan` | What the repo already answers: versions, what exists, how it tests and runs | 4 parallel subagents |
-| `m-grilling` | Asks you only what is hard to undo, and fixes a Goal that can be watched | Main chat |
-| `m-research` | Vendor limits, timeouts, security guidance, version changes, one subagent per source | Main chat |
-| `m-plan` | Ordered build steps, design checks, one issue per step | Main chat |
-| `m-build` | One step from its issue into one pull request on the feature branch | Subagent |
-| `m-review` | A script checks each step; one feature review reports only demonstrated failures | Scripts in main chat; the review in a subagent |
-| `m-prove` | Drives the running app against the Goal, hunts what else broke, opens the final pull request | Subagent |
+| `m-research` | Vendor limits, timeouts, security guidance, version changes, quoted from primary sources | Main chat, one subagent per source |
+| `m-plan` | Build steps grouped into slices, each slice ending at something a user can check; design checks | Main chat |
+| `m-build` | One step into pinned commits on its branch, and a notes file | Subagent |
+| `m-review` | A script checks each step; a static quality review per slice reports only sourced findings | Script in main chat; the review in a subagent |
+| `m-prove` | Drives the running app: per slice, does it meet its Done when; at the end, replays everything and hunts regressions against the base | Subagent |
+| `m-debate` | Five fresh agents research a hard question; the answer best backed by checked sources wins | Main chat, 5 subagents |
+
+### Slices
+
+A slice ends where something a user can check appears: a page, an endpoint, a command. Usually it is one step; a step with nothing to see on its own (a migration) joins the next one. Each slice has one end-to-end Done when that names the requirements it serves. Building, reviewing and proving slice by slice means a mistake is caught in the slice that made it.
 
 ### What each gate checks
 
-**Build.** The builder chooses its own method, with two duties:
+**Build.** The builder chooses its own method, with one duty: a test that fails without its change (**Pinned by**). It commits on its step branch, pushes nothing and opens no pull request; `m-feature` merges the step into the feature branch locally once the step check passes.
 
-- it adds a test that fails without its change (**Pinned by**);
-- when the app can be launched, it drives its own Done when once before the pull request (**Driven**), so a mistake visible in the app does not cost a whole prove round.
-
-**Step check** (`m-review/scripts/step_check.py`). After each step is pushed, a script runs on a clean checkout:
+**Step check** (`m-review/scripts/step_check.py`). After each step, a script:
 
 | Check | Fails when |
 |---|---|
-| Suite | A test file fails that did not fail when the feature started. Failing files run alone first, so a real failure needs no suite rerun; files that fail only under load, a different set each run, give **not run · unstable under load** and the suite is switched to fewer files at once. A step that changes no code and meets a test failing on one run only, passing alone, gets it noted **flaky** and listed under the final pull request's What to watch |
-| Tests changed | An existing test file or snapshot was changed or deleted, or a skip, `.only`, suppression, `\|\| true` or a runner exclusion (`--deselect`, `testPathIgnorePatterns`) was added, without being listed in the pull request |
-| Pinned | A test the pull request names under Pinned by does not pass at HEAD, or still passes with the step's code reverted |
-| Credentials | An added line holds a known key format. A secret-like literal, a password in a URL to another host or a committed `.env` is shown to you as `credential?` and not merged unattended |
+| Suite | A test file fails that did not fail when the feature started. Failing files run alone first, so a real failure needs no suite rerun; files that fail only under load, a different set each run, give **not run · unstable under load** and the suite is switched to fewer files at once. A step that changes no code and meets a test failing on one run only, passing alone, gets it noted **flaky** |
+| Tests changed | An existing test file or snapshot was changed or deleted, or a skip, `.only`, suppression, `\|\| true` or a runner exclusion was added, without being listed in the step's notes |
+| Pinned | A test the notes name under Pinned by does not pass at HEAD, or still passes with the step's code reverted |
+| Credentials | An added line holds a key format, a secret-like literal, a password in a URL to another host or a committed `.env`. The builder moves it to an environment variable |
 
-**Feature review.** Hunter agents look for failures across the whole feature: 1 for a small, easy-to-undo change, 3 otherwise. A finding counts only when a frozen reproduction fails on the branch. Confirmed findings become fix steps.
+**Quality review.** Once per slice, one agent reads the slice's diff without running it. A finding counts only with its source (your repo's rule file and line, or a verbatim quote from the official docs for the installed version, with its link) and the line of code that breaks it. What a linter catches does not count. Findings go back to the builder, and only those findings are re-reviewed.
 
-**Prove.** Two fresh agents drive the running app:
+**Slice prove.** A fresh agent drives the running app against the slice's Done when and every requirement the slice completes. Each check that passes is saved as a **replay**: a frozen script that runs again in seconds.
 
-- **Q1** checks each requirement of the Goal, with evidence saved for each verdict.
-- **Q2** looks for anything else the change broke, and compares it with the base branch.
+**Final prove.** When every slice is done:
 
-Each check Q1 verifies is saved as a **replay**. On a re-prove after a fix, prove runs the replays itself first, in seconds, and they catch what the fix broke; Q1 drives only what failed or went stale, and is not started when nothing did. A replay saved for a requirement whose wording has changed is not run; that requirement is driven again.
+1. every replay runs, so a slice that broke an earlier one is caught;
+2. requirements without a passing replay are driven again;
+3. a second agent hunts what else the whole feature broke, comparing every finding with the base branch.
 
-### Replan
+| What failed | What happens |
+|---|---|
+| One of the requirements, even if the base already failed it | Not verified: fixed and proved again |
+| Something else, broken by this feature | Fixed and proved again |
+| Something else, already broken on the base | An issue labelled `found-by-prove`, with steps, base and head values and evidence, linked from the pull request. Not fixed: it is not this feature's work. An existing issue for the same failure gets a comment instead |
 
-A failing step check, review or prove can trigger a replan: a revised list of steps, shown to you before it builds. A replan needs one of the fixed triggers, never taste. In an interactive run it stops for you at the second replan.
+### Requirements
+
+`m-requirements` turns the spec into lines a prover can judge. Each is observable, bounded where it says every, any or never, and quotes the excerpt of the spec it comes from. **Asked** requirements come from the spec and decide the verdict. **Derived** ones (failure states, empty states, limits the spec implies) are proved and reported, and block only when a debate marks them required. Ids and words never change once written.
 
 ### Models
 
-Each stage asks for a model tier: cheap, standard or strong. Strong models go where a change is hard to undo and where nothing checks the agent's work, such as Q2's hunt in prove. Map the tiers in your `~/.claude/CLAUDE.md` if you want specific models:
+Each stage asks for a model tier: cheap, standard or strong. Strong models go where a change is hard to undo and where nothing checks the agent's work, such as the regression hunt in prove and three of the five debaters. Map the tiers in your `~/.claude/CLAUDE.md` if you want specific models:
 
 ```markdown
 # Models
@@ -135,79 +161,32 @@ When a skill asks for a model tier, pass it to the Agent tool as:
 - strong: `opus`
 ```
 
-## Autonomous runs
+## Unattended by design
 
-Run without being asked anything:
-
-```
-/m-feature --auto #412 · store password 1234 · budget 3 replans
-```
-
-Saying you are away, or telling it to decide everything, starts the same mode. Everything else stays the same, except:
-
-- **Every wait takes the recommendation.** Each decision goes on the map under **Assumed**, with its reason. That section is what you read when you come back.
-- **Hard-to-undo decisions are researched first.** `/m-research` quotes what the standard or the vendor's docs recommend, and the sources go beside the decision.
-- **Requirements keep their full scope.** A failing requirement is never narrowed, and nothing is added to Not doing after the plan. Your words are never reworded: only a requirement's bound (the inputs it covers) may change, once, and only to one that still covers the input that failed and everything your words name. The old bound stays on the map and the final pull request stays a draft for you to accept it.
-- **A step that may contain credentials is never merged.** It stays open with `needs:human` and is listed under To merge in the closing message.
-
-It stops, leaving the pull request as Not verified with `needs:human` on the map, when:
-
-- the same requirement fails two proves in a row and research finds no documented alternative left to try;
-- two re-proves in a row fail only on new breaks, or prove has triggered three replans;
-- auto mode refuses a step merge: everything after it builds on the feature branch;
-- a budget you set (money, time or rounds) is spent.
-
-When it stops, its message opens with `Stopped ·` and the one question only you can answer.
-
-### Before you leave
-
-An unattended run merges step pull requests into the feature branch, runs the review scripts, commits the review's reproductions and writes prove's run recipe under `~/.claude/skills/`. Claude Code's auto mode refuses some of these by default ("Merge Without Review", "CI Bypass"), and a permission you type in the chat does not lift that. `m-feature` checks your settings at the start of an autonomous run and stops there, while you are still around, when this is missing from `~/.claude/settings.json` (the classifier reads `autoMode` only from your user settings, never from the repo's):
-
-```json
-{
-  "autoMode": {
-    "allow": [
-      "$defaults",
-      "mstack step merges: `gh pr merge` of a step pull request into a `feature/*` branch, never into the base or default branch, after mstack's step_check.py printed `STEP CHECK: PASS` for it. The step check and the review are the user's chosen review for step pull requests; a feature branch reaches the base only through a final pull request a human merges. Not Merge Without Review.",
-      "mstack review scripts: running mstack's scripts (step_check.py, prepare.py, gate.py, ledger.py, report.py, contain.py, cleanup.py, replay.py) from an installed `m-*/scripts` skill directory, including `gate.py recheck --promote`. They run the test suite and record verdicts; they skip, disable or loosen no check. Not CI Bypass.",
-      "mstack regression tests: committing and pushing, on a `step/*` fix branch, the reproduction test files gate.py left in the checkout after `recheck --promote` printed `fixed`. This adds tests and removes none. Not CI Bypass or Security Test Removal.",
-      "mstack run recipes: m-prove writing, or appending to, a run recipe `SKILL.md` under `~/.claude/skills/` (how to launch, health-check and stop the repo under test, and the traps its drivers hit), from commands its drivers ran. It grants no permission and changes no setting or other skill."
-    ]
-  }
-}
-```
-
-Keep `"$defaults"`: without it the list replaces Claude Code's built-in exceptions. Run `claude auto-mode config` to see what is in effect. The final merge into the base branch stays yours.
-
-**Credentials** you pass, such as a store password or a test account, are used only to drive the app. They are never written to an issue, a comment or a pull request.
-
-**Budgets** are recorded on the map under Settled up front, beside `Mode: autonomous`, so a resumed run stays autonomous. A replans budget counts every line under Replans. Set one: without it, only the first three stop rules apply.
-
-## What you get on GitHub
-
-| Item | What it holds |
+| Would have waited on a person | Now |
 |---|---|
-| Map issue, labelled `feature:map` | Goal as numbered clauses, Settled up front, Assumed, Considered, Not doing, steps and replans |
-| Step issues, labelled `build` | One per step, with its Done when, linked as sub-issues of the map |
-| Step pull requests | One per step, into `feature/<name>`, each with Tests changed, Driven and Pinned by |
-| Final pull request | Into the base branch, with a **Proved** or **Not verified** verdict, its evidence and a **How hard to undo** line |
+| Questions about the spec | `m-requirements` decides what is easy; `m-debate` settles what is hard to undo |
+| Confirming the plan | Nobody: it is saved and run |
+| A finding the builder disputes, a fix that does not hold twice, a slice that keeps failing | `m-debate`, at most 2 per slice; after that the slice is Not verified and the run moves on |
+| Credentials in a step | A failed step check; the builder moves them to an environment variable |
+| Repeated failures, a refused command | The pull request ships Not verified, saying what is missing and why; a refused command goes under **To merge** |
 
-Whichever issue is waiting on you is labelled `needs:human`.
+The only stop is at the very start: no `.mstack.yml` and nothing to deduce it from, a tool not logged in, or a spec it cannot read. Then nothing has been created, and the line says to run `/setup-mstack`.
 
-A GitHub Projects board is optional, and the skills never touch it. To follow features there:
+**Debates.** `m-debate` sends only the problem, never options or a preference, to five agents with a clean context (three strong, two standard). They research the official docs, the internet and your code; they never start the app or run anything. A second round runs only without consensus, with the other verdicts anonymised. The decision best backed by sources the orchestrator checked wins, not the most votes. Every debate is recorded, with the positions against, and listed in the pull request.
 
-1. Turn on the board's built-in **Auto-add to project** workflow, filtered on those labels.
-2. Keep **Item closed** and **Pull request merged** on, so cards reach Done by themselves.
+**Auto mode.** An unattended run merges step branches into the feature branch, pushes it, runs mstack's scripts and writes prove's run recipe under `~/.claude/skills/`. Claude Code's auto mode can refuse some of these by default, and a permission typed in a chat does not lift that. `/setup-mstack` checks your `~/.claude/settings.json` once and prints the block to add; mstack never edits that file. The block lives in `setup-mstack/references/auto-mode.md`. The final merge into the base branch stays yours.
 
 ## Using a skill on its own
 
-Every skill except `m-feature` also works outside it, and Claude Code loads it when your request matches its description. For example:
+Every skill except `m-feature` and `setup-mstack` also works outside the flow, and Claude Code loads it when your request matches its description. For example:
 
 | Ask | Skill |
 |---|---|
-| "Prove this branch does what issue #88 asks" | `m-prove` |
-| "Review this branch before I merge it" | `m-review` |
-| "Grill me on this design before I build it" | `m-grilling` |
+| "Prove this branch does what this spec asks" | `m-prove` |
+| "Review this branch against our rules and the docs" | `m-review` |
+| "Turn this spec into testable requirements" | `m-requirements` |
+| "Decide how we should store these events, without me" | `m-debate` |
 | "What are Stripe's webhook timeouts and retry rules?" | `m-research` |
 
 ## Contributing
@@ -215,24 +194,29 @@ Every skill except `m-feature` also works outside it, and Claude Code loads it w
 Each skill is one folder:
 
 ```
-skills/<name>/SKILL.md      what the skill does, loaded when it runs
+skills/<name>/SKILL.md      objective, Done when, acceptance criteria, then the rules; loaded when it runs
 skills/<name>/references/   read only when needed, or by the agents the skill dispatches
 skills/<name>/scripts/      run, never read
 skills/<name>/agents/       display metadata for other agent hosts
 ```
 
-Each folder installs on its own, so a skill never links outside itself. Some text is repeated across skills, so change these together:
+Adding a tracker or a host is adding a file under `m-feature/references/trackers/` or `hosts/` that implements the same operations as the others.
 
-- The step issue template lives in `m-plan/SKILL.md` and `m-feature/references/github.md`.
-- The label names live in `m-plan/SKILL.md`, `m-feature/references/github.md`, `m-feature/SKILL.md` and this README.
-- What goes under Settled up front and under Assumed lives in `m-grilling/SKILL.md` (Finish), the map template in `github.md` and `m-prove/SKILL.md` (Inputs).
-- The `autoMode.allow` block lives in `m-feature/references/unattended.md` and in this README.
-- The fix-mode test rule in `m-build/SKILL.md` matches the recheck in `m-feature/references/review-results.md`: the review's reproductions become the regression tests.
+Some text is repeated across skills, so change these together:
+
+- The requirement line format lives in `m-requirements/SKILL.md` (and its `scripts/check.py`), `m-feature/references/state.md`, `m-plan/SKILL.md` and `m-prove/SKILL.md`.
+- The plan block and step body live in `m-plan/SKILL.md` and `m-feature/references/state.md`.
+- The step notes file (path and sections) lives in `m-build/SKILL.md`, `m-review/scripts/step_check.py` and `m-feature/references/slice-loop.md`.
+- The quality finding format lives in `m-review/references/quality.md`, `m-build/SKILL.md` (Fix mode) and `m-feature/references/slice-loop.md`.
+- The debate input and record live in `m-debate/SKILL.md` and `m-feature/references/escalation.md`.
+- Prove's inputs, return and issue drafts live in `m-prove/SKILL.md`, `m-prove/references/pull-request.md` and `m-feature/references/closing.md`.
+- The label names live in `m-feature/SKILL.md`, `m-feature/references/state.md`, the tracker adapters and this README.
+- The `.mstack.yml` shape lives in `setup-mstack/SKILL.md`, `m-feature/SKILL.md` and this README.
+- The `autoMode.allow` block lives only in `setup-mstack/references/auto-mode.md`.
 - `scripts/contain.py` is the same file in `m-build`, `m-prove` and `m-review`; CI fails when the copies differ.
-- The Goal's clause format lives in `m-grilling/SKILL.md`, `m-feature/references/github.md` and `m-prove/SKILL.md`; the step template's `serves` line in `m-plan/SKILL.md` and `github.md`.
-- Where a run recipe is looked for lives in `m-prove/SKILL.md` (Contract step 4, Recipe), `m-scan/SKILL.md` (Q9) and `m-feature/SKILL.md` (build inputs).
+- Where a run recipe is looked for lives in `m-prove/SKILL.md` and `m-scan/SKILL.md` (Q9).
 
-The skills follow the writing-for-agents conventions: short rules, each with its reason, and no rule that does not change what the agent does.
+The skills follow the writing-for-agents conventions: each SKILL.md opens with its objective, a Done when and acceptance criteria a different agent could check; then short rules, each with its reason, and no rule that does not change what the agent does.
 
 Try an install from the working tree before pushing:
 

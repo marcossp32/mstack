@@ -1,0 +1,3 @@
+interface:
+  display_name: "m-requirements"
+  short_description: "Turn a frozen spec into traced, observable, bounded requirements"

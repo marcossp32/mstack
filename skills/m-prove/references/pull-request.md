@@ -1,29 +1,51 @@
-# Final pull request
+# Final pull request body
 
-Read after Judge, only when `/m-feature` handed you a final pull request.
+Final mode, after Judge. You settle the verdict, fill the body and write the issue drafts; the caller opens or edits the pull request, turns local media paths into hosted ones, sets draft state and opens the issues, so everything here is files and return lines, never a tracker or host command.
 
-The verdict is **Proved** when every R line is verified or pre-existing, no clause's bound was changed by the agent during the run (`was:` on the map; a bound Assumed when the Goal was set is not one: it goes to the human to accept), and no B line is `new` or `base not run`. Short of it only by `human check` lines: **Not verified · human check**, since nobody has seen those lines work. Anything else is **Not verified**. Both Not verified verdicts are a draft, so nobody merges one by accident.
+## Verdict
 
-1. `git rev-parse HEAD^{tree}` still equals the contract's tree. Changed: open nothing, and return `PR · not opened · tree changed`.
-2. Comment your verdict on the map, without the Evidence line: `gh issue comment <map> --body-file -`. It prints the comment's URL; that is the body's Prove verdict link.
-3. Fill the Proved section: every `<!-- prove: … -->` placeholder in the body, as below. Write for a reviewer who has not seen the run: what a user does and sees, not driver jargon; values as the page or command showed them. Each verified line shows its evidence while the evidence dir is kept, so a PR Not verified only for a not driven or `base not run` line still carries it; a line not verified shows its verdict and value only. A carried line keeps its row and its section, evidence included, from the pull request an earlier prove opened (those links already point at GitHub); its result adds `carried <sha>`. The body stays under 65,536 characters: trim outputs first, then collapse sections into `<details>`, never the verdict lines.
-   - **Verdict alert**, the body's first block, a GitHub alert:
-     - Proved: `> [!TIP]` then `> **Proved in the running app** · <n>/<n> requirements · <areas> other areas checked against <base branch>, nothing broke · [Prove verdict](<comment URL>)`.
-     - Not verified · human check: `> [!WARNING]` then `> **Check by hand before merging** · <n> of <m> requirements proved; <k> only a person can check, listed below · [Prove verdict](<comment URL>)`.
-     - Not verified: `> [!CAUTION]` then `> **Not verified** · <what failed, one line: the requirement and the value seen> · [Prove verdict](<comment URL>)`.
-   - **Demo video**: the demo, alone in its own paragraph: `![](<path>)`. No demo (no page, no ffmpeg, or dropped in Judge): leave the placeholder out.
-   - **Requirements table**, under Proof in the running app: `| | Requirement | Result |`, one row per R line: `R<n>`, the requirement quoted, and `✅ verified`, `✅ pre-existing (already so on <base branch>)`, `❌ not verified · <value>`, `⏸️ not driven · <precondition>` or `👤 check by hand`. A clause whose bound changed shows its `was:` bound; one whose bound is Assumed says so.
-   - **One section per R line** below the table: `### R<n> · <what it proves, a few words>`; the requirement as a quote; `**Result:** <verdict> · <what was driven> → <value> via <route>`. Then its evidence: the clip alone in its own paragraph (`![](<path>)`: a video plays only there; inside a table or a sentence it becomes a link); then, for a page, `| Before (<base branch>) | After |` with both screenshots, or the after alone when there is no before; for a command, `<details><summary><command, one line></summary>` with up to 15 lines of its output in a code fence.
-   - **Regressions checked**: one line per Covered area: `✅ <area> · <what was driven> · same as <base branch>`, or `· intended R<n>`. Each B line: `❌ <what broke> · head <value> · <base branch> <value>` (`new`), `➖ … · already broken on <base branch>` (`pre-existing`), `⏸️ … · <base branch> could not be driven` (`base not run`). Then `Not driven: <area · precondition>` when any.
-   - **Try it yourself**: the launch from the Run line (prerequisites, the command, the URL), then numbered steps per requirement, from what Q1 drove, ending in what the reviewer should see. Credentials by role only (`log in as the seed admin`), never a value.
-   - **Check by hand**, only with a `human check` line: `## Check by hand before merging` and one task-list item per line, `- [ ] <what to check, where, and what you should see>`. GitHub counts them on the pull request list.
-   - **Media links**: every clip and image is referenced by the absolute path of its file in the evidence dir, written with forward slashes inside angle brackets (`![<what it shows, viewport>](<C:/…/q1/R1-head-1280x720.png>)`); a video gets no alt text. Step 4 attaches each such file, and `gh` replaces each reference with the uploaded asset's URL. At most 50 files.
-4. Look for one an earlier prove opened: `gh pr list --base <base branch> --head <feature branch> --state open --json number,isDraft --jq '.[0] // "none"'`. It prints `none` when there is none, else the PR's number and draft state.
-   - Found: `gh pr edit <n> --body-file - --attach "<path>" …`, one `--attach` per file the body references, each the same path written in the body. The do-not-merge line below is in the body only when the PR is Not verified and not a draft; step 5 settles which. Labels: `--add-label <each label handed to you>`.
-   - None: `gh pr create --base <base branch> --head <feature branch> --title "<title>" --body-file - --attach "<path>" … --assignee @me`, with `--label <each label handed to you>`, `--milestone "<the source issue's milestone>"` when it has one (`gh issue view <source> --json milestone --jq '.milestone.title // empty'`), and `--draft` when Not verified.
-   - Any non-zero exit: run the lookup above before anything else; a failed upload still leaves the PR created or edited, and creating again opens a duplicate. Found: carry on as Found, attaching only the files whose path the body still holds (`gh pr view <n> --json body --jq .body`). A label or milestone refused: retry without it, and name it on the PR line.
-   - A video refused for size (the limit depends on the plan, 10 MB on free ones): re-encode it as Judge says, at half the frame rate, and attach it again.
-   - `--draft` refused (drafts need a public repo or a GitHub Team or Enterprise plan): create it again without `--draft`, with `> **Not verified: do not merge.** This repo cannot hold draft pull requests.` as the verdict alert's first line after its `[!…]` marker. The PR line says `draft unavailable`.
-   - Then `gh pr view <n> --json body --jq .body`: no path into the evidence dir is left (`grep -c '/mstack/prove/'` prints 0). One is: attach those files again with `gh pr edit <n> --attach "<path>"` and no body flag; still there, replace each with one line saying what it showed and at which viewport, and name it on the PR line.
-5. Proved and a draft: `gh pr ready <n>`. Not verified and ready: `gh pr ready <n> --undo`; refused, the PR line says `draft unavailable`, as on create. Then the do-not-merge line: Not verified and still not a draft, it is the verdict alert's first line; a draft or Proved, it is not in the body. Change the body with `gh pr edit <n> --body-file -` when it does not match.
-6. Delete the evidence dir once the pull request holds what it needs (Cleanup, in `SKILL.md`).
+- **Proved**: every blocking R line (`asked`, `derived · required by D<k>`) is `verified` or `verified · replay`; no R line carries `was:` (a changed bound needs a person to accept it); no B line is `new` or `base not run`; no `S<k>` line is `not verified` or `not driven` (a slice a later slice broke, or one nobody could re-check).
+- **Not verified · human check**: short of Proved only by blocking lines that are `human check`. Nobody has seen those lines work.
+- **Not verified**: anything else.
+
+A plain `derived` line never changes the verdict: it is reported. Neither does an `S<k>` that is `superseded by S<j> | R<n>` (a later line changed that surface on purpose), nor a `pre-existing` B line (it becomes an issue).
+
+## Media
+
+Per R line, pick what shows it to a reviewer who will only look: for a page, Q1's clip and after screenshot beside Q2's before screenshot; otherwise the command and up to 15 lines of its output (for `verified · replay`, its block in `replay.txt`). Plus the demo.
+
+- Look at each before it goes (a clip through its contact sheet): one showing a blank page, an error, a login wall, another page or a value other than the reported one is dropped and named on Harness. Media settle nothing, so dropping one never changes a verdict.
+- Mask tokens, secrets and personal data in screenshots and outputs; drop a clip that shows one, since a video cannot be masked.
+- Keep each file at most 10 MB, the smallest limit among common hosts; re-encode larger clips (e.g. `<ffmpeg> -y -i <in> -vf "fps=12,scale='min(1280,iw)':-2" -c:v libx264 -crf 32 -pix_fmt yuv420p -an <out>.mp4`). At most 50 files: a reviewer looks at the few that matter.
+
+## Fill the body
+
+If `git rev-parse HEAD^{tree}` no longer equals the contract's tree, the evidence is for another tree: fill nothing and return `Body — none · tree changed`.
+
+Otherwise replace every `<!-- prove: … -->` placeholder in the body you were handed and write the result to `<evidence dir>/pr-body.md`. Placeholders you have nothing for (no breaks, no human check) are removed, never left as comments.
+
+Write for a reviewer who never saw the run: what a user does and sees, values as the page or command showed them, no driver jargon. A line not verified shows its verdict and the value seen; a verified one shows its evidence. The body stays under 65,536 characters, GitHub's cap and the lowest among the hosts: trim outputs first, then fold sections into `<details>`, never the verdict lines. What each placeholder must give the reader:
+
+- **Verdict alert**, the first block, so the verdict is the first thing seen. It opens with its alert marker line, `> [!TIP]` Proved, `> [!WARNING]` human check, `> [!CAUTION]` Not verified (the host adapters write after that marker; hosts that do not render alerts still show the text). It says how many required requirements were proved and, for Proved, how many other areas were checked against the base; for human check, how many only a person can check; for Not verified, what failed and the value seen.
+- **Demo video**, alone in its own paragraph (`![](<path>)`): a video plays only there, inside a table or sentence it becomes a link. No demo: drop the placeholder and say in one line why.
+- **Requirements table**: every R line with its id, the requirement quoted, its level and its result (verified, not verified with the value, not driven with the precondition, check by hand). Blocking lines first in id order, then plain `derived` lines as their own group marked as not blocking. A changed bound shows `was: <old bound>`.
+- **One section per R line** below the table: the requirement quoted, the result (what was driven → value, via what route), then its evidence: the clip in its own paragraph, the before/after screenshots side by side (or after alone), or the command with up to 15 lines of output folded in `<details>`.
+- **Regressions checked**: each covered area and what was driven, same as the base or `intended R<n>`; each break with head and base values: `new`, `base not run`, or `pre-existing` with `<!-- issue: B<n> -->` after it, where the caller puts the issue link; each `S<k>` whose replay did not pass (still works, broken by a later slice, or changed on purpose by which line); areas not driven with why.
+- **Try it yourself**: how to launch (prerequisites, command, URL) and, per requirement, the steps Q1 drove ending in what the reviewer should see. Credentials by role and variable only, never a value.
+- **Check by hand**, only with a `human check` line: `## Check by hand before merging` and one `- [ ]` item per line saying what to check, where, and what should be seen; one missing a credential adds `(set MSTACK_SECRET_<NAME> to let mstack prove it)`.
+
+**Media paths** are matched by the caller when it uploads them, so they are exact: each clip and image referenced by the absolute path of its file in the evidence dir, forward slashes, inside angle brackets (`![<what it shows, viewport>](<C:/…/q1/R1-head-1280x720.png>)`; a video gets no alt text), and each path also on the return's Media line exactly as written in the body.
+
+## Issue drafts
+
+One per `pre-existing` B line, in the return, exactly this shape, since the caller parses it:
+
+```
+Issue B<n> · <title: what is broken, one sentence>
+Where · <page | endpoint | command> · <file:line when Q2 found it>
+Repro · <numbered steps the driver followed>
+Base vs head · base <value> · head <value>
+Evidence · <command> + up to 15 lines of its output · <screenshot path if any>
+```
+
+Write it for someone who never saw this feature: the break is in the base, not in this change. No credential values, no run ids beyond what the output shows. Leave out where it was found and any link: the caller adds them, and decides whether it joins an issue already open.
