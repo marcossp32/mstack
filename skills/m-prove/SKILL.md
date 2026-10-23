@@ -1,122 +1,177 @@
 ---
 name: m-prove
-description: "Proves a change does what was asked by driving the running app, and hunts what else broke, judged on saved evidence. Use as the prove stage of /m-feature, or before merging or releasing a change nobody has watched working."
+description: "Proves a change does what its requirements ask by driving the running app, judged on saved evidence, per slice or for a whole feature with a regression hunt against the base. Use when asked to prove a slice or a feature works in the running app."
 ---
 
-Supervise a proof that the change holds in the running app: contract, two drives, judgement. A verdict line's reference is what was driven and its route.
+Return a verdict on whether a change does what its requirements say, decided only by driving the running app and judged on evidence saved to files, for a caller that acts on it without a human. Slice mode says whether one slice works; final mode says whether the whole feature works and what else broke, and hands back the filled Proved section of the pull request and an issue draft per break the base already had.
 
-This conversation wrote or watched the code: dispatch a fresh `general-purpose` agent whose prompt opens `Invoke the Skill tool with m-prove.` with the inputs below, and relay its verdict.
+# Done when
+
+The return block below exists for the mode asked: slice mode with a verdict on the slice's `S<k>` line and on each requirement it completes, and a replay saved per verified line or the reason none was; final mode with the replay results, a verdict on every R line, every Q2 risk area covered or not driven, the feature verdict, a filled pull request body file, its media list, an issue draft per `pre-existing` break, and the kept evidence dir. Every server, browser and worktree the run started has stopped, and a slice run's evidence dir is deleted or named on `Left`.
+
+# Acceptance criteria
+
+- [ ] Every line in scope has exactly one verdict: slice mode `S<k>` and each R line the slice completes; final mode every R line of `## Requirements`, and every `S<k>` whose replay did not pass.
+- [ ] Every value a verified line reports appears in a file under the evidence dir (final) or in the quoted output on its line or its saved replay (slice), under the command that printed it.
+- [ ] Every verdict over a set shows the member count and the expected count from an independent route, equal and above 0.
+- [ ] Every `not verified` line names the observed value; every `not driven` line names its precondition and the routes tried, or the ceiling.
+- [ ] Every `human check` caused by a missing credential names the `MSTACK_SECRET_<NAME>` variable that would unlock it.
+- [ ] No R line is `pre-existing`: an R line that fails is `not verified`, whatever the base does.
+- [ ] A slice-mode return has no `B<n>` or `Covered` line, and `git worktree list` shows no worktree the run added.
+- [ ] Final mode ran every saved replay (`replay.txt` lists each line `replay.py list` prints) before Q1, and Q1 drove only the lines without a passing replay.
+- [ ] Every final-mode `S<k>` marked `superseded by S<j>` names the later slice line or requirement that changes the same surface.
+- [ ] Every `pre-existing` break has an issue draft with Title, Where, Repro, Base vs head and Evidence filled.
+- [ ] Every slice-mode verified line shows `replay saved`, `replay verified · replay`, `replay refused · <why>` or `replay none · <why>`.
+- [ ] After return, `contain.py sweep --kill --within <evidence dir>` ends nothing (`REAP: ended 0`, no `orphan` line), and slice mode left no `git worktree`.
+- [ ] The feature verdict follows [`references/pull-request.md`](references/pull-request.md): plain `derived` lines never change it.
+- [ ] The filled body has no `<!-- prove: … -->` placeholder left, every media path in it is on the Media line, and no credential value appears in it or in any kept file.
+- [ ] Everything to post is in the return (body file, media list, issue drafts) and nothing was posted: no pull request, issue or comment on the tracker or host comes from this run.
 
 # Inputs
 
-- Requirements verbatim: the Goal's numbered clauses, or what the human asked. Never take them from the diff. Given a map issue, read them from its body, never from a summary in your prompt. None: ask; as a subagent, return `Not driven · no requirements`.
-- Settled up front: the human's answers to grilling's questions (not `Mode` or a budget: those are run settings). Each one with an observable effect (data state on failure, a default, a limit) is a requirement: the Goal clause that quotes it, else an R line of its own after the Goal's.
-- Assumed: decisions made without the human. Context, never requirements: no R line quotes one. A Goal clause whose bound is Assumed still binds: drive it within that bound, and the bound goes to the human to accept. Q2 may take the behaviour one describes as a risk area.
-- A build step's Done when is not a requirement: it serves one that already is.
-- Not doing.
-- Review findings still `stale`, from `/m-feature`: each is a Q2 risk area, its claim and condition driven like any other.
-- How the app runs: scan Q9; none: look where m-scan Q9 looks.
-- Credentials for driving (a store password, a test account), if any: given by the human, or the repo's seed or fixture credentials grilling named. Pass them to the drivers; never write them to the contract, a verdict comment or the pull request. The contract names each by its variable, `MSTACK_SECRET_<NAME>`.
-- Base branch; none: the default branch.
-- Whether evidence is kept for a pull request: yes when you are handed the final pull request below, otherwise only when asked.
-- Re-prove: the last prove's verdict comment and its tree, when `/m-feature` proves again after a replan.
-- The final pull request, from `/m-feature` at closing only: map issue number, feature branch, title, labels, and its body with the Proved section as placeholders. Given it, you open that pull request (Final pull request, below), and evidence is kept for it on the terms Judge sets.
+If this conversation wrote or watched the code, dispatch a fresh `general-purpose` agent whose prompt opens `Call the Skill tool with m-prove.`, followed by the inputs below, and relay its reply unchanged: a judge that saw the code being written reads its intent into the evidence. The dispatch is done when that reply is a Return block below, which only a run of this skill produces.
 
-# Contract
+Both modes:
 
-Read files and git; start nothing.
+- `mode: slice` or `mode: final`.
+- Feature branch (`feature/<name>`): replays are kept per feature branch.
+- Requirement lines verbatim, in the state's format: `R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> [was: <old bound>] · from …`. None: return `Not driven · no requirements`.
+- How the app runs (the scan's Q9 answer, when there is one), Not doing, and the credential variable names `MSTACK_SECRET_<NAME>`, each with what it unlocks. Values live only in the environment, never in a prompt, file, contract or return.
 
-1. `git rev-parse HEAD HEAD^{tree}`; the base is `git merge-base origin/<base branch> HEAD` after `git fetch origin` (a local branch may be missing or stale). Create the evidence dir `$(git rev-parse --path-format=absolute --git-common-dir)/mstack/prove/<short sha>-<unix time>` with `q1/` and `q2/` inside; its name is the run id. First `python3 <this skill's directory>/scripts/cleanup.py --stale`: it deletes the dirs of runs that stopped before their cleanup.
-2. **Requirements, before reading the diff.** One R line per Goal clause, R<n> for clause n, its words and bound copied from the map as `"<words>" · bound <domain | —>`, without the bound's source or `was:` (a Goal not numbered, as when run alone: number its clauses in order, `bound —`):
-   - surface: where its user reaches it (page, HTTP endpoint, CLI command, public API from a script);
-   - settled when: the observation that shows it, read back by a route that skips the code that wrote it (the record on a fresh read, the file on disk, the message off the queue). What the surface returns to its caller counts when that is the effect asked for. No such route: what the app itself shows, and the line says `via the app itself`.
+Slice mode adds: the slice id `S<k>`, its line `Slice S<k> · Done when e2e <…> · serves R<a> R<b> · completes R<a>`, the R lines it serves, and its diff range `<slice start sha>..HEAD`.
 
-   Say what settles it, not how to drive it: no payloads, values or steps. A tolerance comes from the clause ("each wait doubles"), never a number the clause does not state. Not observable: say so; the line ends not driven. Unreachable locally: the nearest surface with the same behaviour, named beside the one asked for.
+Final mode adds: every `Slice S<k>` line, the base branch (none: the default branch), Assumed (context, never a requirement; Q2 may treat what one describes as a risk area), and the pull request body with the Proved section as `<!-- prove: … -->` placeholders.
 
-   Write each R line's **requirement**, that `"<words>" · bound <domain | —>` text exactly, to `<evidence dir>/clauses.json` (`{"R1": "\"<words>\" · bound <domain | —>"}`): a replay runs only against the requirement it was saved for, so one saved before a bound changed is not taken as proof of the new one.
-3. **Environment**: the shipped defaults plus what the recipe or `.env.example` sets. Any other variable is an override, listed with the lines that need it and why. A requirement that names development, local or default settings is driven with no override.
-4. **Run**: the recipe, a `SKILL.md` under `.claude/skills/` or `.agents/skills/` whose name or description says it launches this repo: in the checkout first (scan Q9 names it), else in the home dir; else scan Q9. Launch, with the working dir it runs in (the recipe's; none: the checkout, where env files and relative paths resolve) · health check (no server: the entry point run once) · prerequisites · **data dir**: where the app writes what it stores (database file, uploads), resolved from that working dir: replays read it as `MSTACK_DATA`. **Shared state**: whether two servers from this checkout would share a database, data dir, queue or fixed port the recipe cannot move (a data dir inside the checkout is one); a base server counts as one when the env files copied to it point at data the head uses (an absolute path, a database URL). Any: the drives run one after the other.
-5. **Risk areas**, now from `git diff <base>...HEAD`: where else this change can reach. Check each kind: callers of what changed, data it shares, start and shutdown, integrations, configuration and defaults, platform. One line per area that applies, with its `file:line`. Leave out Not doing.
-6. **Re-prove only**: read `git diff <last tree> HEAD` the same way. A line last verified that has a **replay** saved for the same requirement (`python3 <this skill's directory>/scripts/replay.py list --feature <branch>` prints each with its clause) is replayed by you before the drives (Replays, below), reachable or not: a replay is a check an earlier driver saved, so running it costs seconds and catches what a fix broke. Without a replay, a requirement that diff cannot reach keeps its last verdict, verified or pre-existing, as `carried <last short sha>` and is not driven again. The diff reaches it when it touches any file its route loads, transitively, styles and shared helpers included; unsure: drive it. Lines last not verified or not driven are driven, and so is every risk area the new diff reaches. Nothing the diff touches stays carried.
+# Lines
 
-```
-HEAD <sha> · tree <sha> · base <sha> · checkout <path> · evidence <dir> · base worktree <path | none>
-Run  · <recipe path | none> · <launch> in <working dir> · <health check> · <prerequisites> · data <dir> · credentials <MSTACK_SECRET_<NAME>, … | none> · overrides <VAR=value → R2 | none> · shared state <none → parallel | what → Q1 then Q2> · ffmpeg <dir | on PATH | none · why>
-R1 "<clause>" · bound <domain | —> · surface <…> · settled when <observation> via <route> | carried <sha> | replay
-Risk · <area> · <file:line>
-```
+A **line** is what one verdict covers.
 
-# Prepare
+- `S<k>`: the slice's Done when e2e. Its clause is the text after `Done when e2e ` up to ` · serves`, exactly. It blocks the slice like an asked line.
+- `R<n>`: requirement n. Its clause is `"<words>" · bound <current bound>`, without `was:` or `from`.
+- **Blocking**: `S<k>` (slice mode), `asked` and `derived · required by D<k>`. A plain `derived` line is proved and reported; it never blocks.
+- A requirement marked `retired by D<k>` gets no line: the line that replaced it is proved instead.
 
-`python3 <this skill's directory>/scripts/contain.py sweep --kill --within <checkout>` first, into `<evidence>/prepare.txt`: it ends what earlier runs left in this checkout, trees whose owner is gone and orphaned automation browsers, which would slow both drives and skew their timings. Never `--within <git common dir>`: another run's evidence dirs are there, its servers live. Run the recipe's dependency install and build once in the checkout, contained (`contain.py --shell "<command>"`, see [`references/drive.md`](references/drive.md)), output to the same file. A line or risk area reached through a page also needs a browser, outside the checkout: `agent-browser --version`, missing: `npm i -g agent-browser`; then `agent-browser install` for its Chrome, both into the same file. Evidence kept for a pull request and such a line: the clips need ffmpeg. `ffmpeg -version`; missing, install it into the same file (Windows `winget install --id Gyan.FFmpeg -e --silent --accept-source-agreements --accept-package-agreements`, macOS `brew install ffmpeg`, Linux `sudo -n apt-get install -y ffmpeg`). The shell keeps the PATH it started with, so a fresh install is not on it: find the dir that holds the binary (Windows: the dirs of `powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path','User')"`), and `<dir>/ffmpeg -version` must run. It goes on the Run line as `ffmpeg <dir>`, `on PATH`, or `none · <what failed>`: then nobody records, and the pull request says why it has no video. No pull request, or no page: `none · not needed`. Then `git status --porcelain` must be empty; not empty: every line is not driven, naming the files. Save `git status --porcelain --ignored` to `<evidence>/ignored-before.txt`: Judge compares it to see what the app wrote. Drivers install and build nothing in the checkout, so two drives never write the same files.
+Scope: slice mode proves `S<k>` and each R line the slice completes, in full, limited to what the slice touched; a line it only serves waits. Final mode covers every R line, and every `S<k>` through its replay. An `S<k>` whose replay fails or goes stale is driven again, since a later slice may have broken it; Judge decides whether a failure blocks.
 
-Q2 will run: `git worktree add --detach <evidence dir>/base <base sha>`, copy in the env files the checkout has and git ignores, and run the recipe's install and build there, contained, with the Bash tool's `run_in_background` beside the checkout's, output to `<evidence dir>/prepare-base.txt`: the base installs while the head does, and Q2, a strong model, spends no time on it. Its path goes on the header. It fails: header `base worktree none`, and Q2 adds its own as drive.md says.
+# What makes a proof trustworthy
 
-# Replays
+The bar every phase is judged against. How to meet it is yours to choose.
 
-Re-prove with `replay` lines only. Start the app as [`references/drive.md`](references/drive.md) Setup says (the Run line's working dir, contained, `run_in_background`, Q1's port, its health check), output to `<evidence dir>/replay-launch.txt`; run `python3 <this skill's directory>/scripts/replay.py run --feature <branch> --url <server> --data <the Run line's data dir> --clauses <evidence dir>/clauses.json --run <run id>-replay --env MSTACK_SECRET_<NAME>=<value> (each credential the Run line names) --lines <those lines> --out <evidence dir>/replay.txt` (it adds the time to the run id: what a failed replay created never collides with a retry or with Q1); then stop the server by its pid. A replay is a frozen script an accepted drive saved, so like the review's gate it needs no agent to run: a pass is `verified · replay`, with `replay.txt` its evidence. A fail, `stale`, a missing replay or a failed health check is a line Q1 drives, never a not verified: a frozen check also breaks when the markup it set up against changes. Never change a replay's command, environment or files to make it pass: a check you repaired is your judgement, not a frozen one. Every R line passed or carried: Q1 is not dispatched, and Q2 runs alone.
+- **Requirements from the lines, not the diff.** Decide each line's surface and what settles it before reading the diff: read the code first and you prove what was built, not what was asked.
+- **Settled by an independent read-back.** A line is settled by an observation read back by a route that skips the code that wrote it (a fresh read of the record, the file on disk, the message off the queue); what the surface returns counts when that is the effect asked for. No such route: what the app itself shows, said as `via the app itself`. A tolerance comes from the clause, never a number it does not state.
+- **Verdicts only from drives and replays by agents that did not write the code.** Tests and type checks the builder wrote are not evidence here. Verified comes only from a drive or a replay; not verified only from a drive.
+- **Every reported value is backed by output saved in the evidence dir**, under the command that printed it. A value nothing printed, or that only a screenshot shows, is not evidence.
+- **A control path tells harness failure from product failure.** Something the diff never touched is driven first; when it fails too, the harness is broken and no line is not verified.
+- **Sets are checked whole, with an independent count.** A clause over a set (each, every, all) is checked over every member, with the member count and an expected count from another route, equal and above 0: a check over an empty set passes forever, and naming every failing member lets one fix round cover them all.
+- **Bounds are driven at their edges**, each limit and just past it, not at an easy value inside.
+- **Regressions are judged against the base**, driven the same way: a difference is a break only if the base behaves otherwise.
+- **The app runs as shipped.** Shipped defaults plus what the recipe or `.env.example` sets; any other variable is an override, listed with the line that needs it and why. A requirement about development, local or default settings gets no override.
+- **Credentials stay in the environment**, as `MSTACK_SECRET_<NAME>`: never in a prompt, file, replay, recipe, recording or return. A line that needs one the environment lacks is `human check`, naming the variable.
+- **Local only, headless, never hidden.** Every host the app talks to runs on this machine: no production, real payments, real emails or shared accounts. Browsers run headless and never hide their automation; a bot check or a login nobody provided is a `human check`, never something to get around.
+- **Nothing left running.** Every process a prove starts is contained (`scripts/contain.py`) and stopped by teardown; the checkout ends as clean as it started.
+- **Replays are frozen checks, never repaired.** A replay runs only against the clause it was saved for, and its command, environment and files are never changed to make it pass. One that fails or goes stale is a lead for a fresh drive, not a verdict: frozen checks also break when markup moves.
+- **Not doing stays out**, even where a gap shows.
 
-# Drive
+# Supervise
 
-Dispatch both at once (one after the other when the contract names shared state; Q2 once the base worktree's install has exited, since it installs nothing there itself: failed, the header says `base worktree none`), each a fresh `general-purpose` agent, prompt `Read <this skill's directory>/references/drive.md and follow it as <Q1 | Q2>.`, then the contract, then each credential as `MSTACK_SECRET_<NAME>=<value>` (a driver without them returns a login it could have met as not driven):
+You build the contract, run the replays, dispatch the drives and judge them. Tracker and host commands are never yours.
 
-- **Q1, does it do what was asked?** Model standard (the harness's middle tier; the session's model where tiers do not resolve): you judge its evidence, so a drive that reports without evidence costs one send-back, not a wrong verdict.
-- **Q2, what else broke?** Model strong (its most capable): inventing routes is its job, and nothing checks the routes it missed.
+**Evidence dir.** `<git common dir>/mstack/prove/<short sha>-<unix time>`, with `q1/` (and `q2/` in final mode); its name is the run id. `cleanup.py` deletes only under `mstack/prove/`, so evidence lives nowhere else. Run `python3 <this skill's directory>/scripts/cleanup.py --stale` first: it removes dirs of runs that died before their cleanup.
 
-Re-prove with shared state, so Q1 before Q2: Q1 returns not verified on a line verified before, and your check accepts it. That is a regression a replan will fix first, so Q2 is not dispatched; its risk areas are not driven, naming the regression, and the next prove drives them.
+**Contract**, from files and git, before anything starts. It gives the drivers:
 
-No Agent tool: drive Q1, then Q2, yourself by that file; the header says `self-driven`.
+- HEAD and tree, the mode (slice id and range, or final and the base sha from `git merge-base origin/<base> HEAD` after a fetch), the checkout, the evidence dir, the base worktree if any.
+- How to run the app: the recipe (a `SKILL.md` under `.claude/skills/` or `.agents/skills/` whose name or description says it launches this repo, in the checkout first, else the home dir; else scan Q9), launch and its working dir, health check, prerequisites, the **data dir** where the app stores what it writes (replays read it as `MSTACK_DATA`), credential names set or unset (test with `[ -n "$MSTACK_SECRET_<NAME>" ]`, never print the value), overrides, and in final mode whether head and base would share state (a database, data dir, queue, a port the recipe cannot move): shared state means the drives run one after the other.
+- Each line in scope: surface (page, endpoint, CLI command, public API) and settled when, plus `replay` when one is listed. Say what settles it, not how to drive it: no payloads or steps, so the driver's choices stay open. Not observable: say so, the line ends not driven. Unreachable locally: the nearest surface with the same behaviour, named beside the one asked.
+- Final mode, **risk areas** from `git diff <base>...HEAD`: each behaviour outside the lines in scope that calls, reads or shares something the diff changed, with its `file:line`, minus Not doing. Slice mode reads its range only to bound Q1.
 
-Note `date +%s` when you dispatch each drive and when its report arrives: the return's Cost line, which says what a round spent, so later changes to prove are judged on numbers.
+Write each line's clause to `<evidence dir>/clauses.json` (`{"S2": "<Done when e2e>", "R1": "\"<words>\" · bound <domain | —>"}`; final mode writes every `S<k>` and `R<n>`): replays run only against the clause they were saved for.
+
+**Prepare** so drives spend their time driving. Prepared means:
+
+- nothing from earlier runs in this checkout still running (`contain.py sweep --kill --within <checkout>`; never `--within <git common dir>`, where other runs live);
+- the recipe's install and build done once in the checkout, contained;
+- a headless browser tool ready when any line or area is a page; in final mode, ffmpeg when a page line will be recorded, and the drivers given the dir of a binary that runs (or `on PATH`), since a fresh install is not on the PATH this shell started with. None: nobody records, and the body says why;
+- the checkout clean (`git status --porcelain` empty, else every line is not driven, naming the files), with `git status --porcelain --ignored` saved to `ignored-before.txt` so Judge can see what the app wrote;
+- final mode: a base worktree under the evidence dir at the base sha, with the env files the checkout ignores, installed and built in the background while the head is, so Q2 spends no time on it. If that fails, Q2 builds its own.
+
+Save what preparing printed in the evidence dir.
+
+**Replays.** `python3 <this skill's directory>/scripts/replay.py list --feature <branch>` names the lines that have one: final mode runs them all, slice mode those of its own lines (a re-run after a fix). With the app up on its health check: `replay.py run --feature <branch> --url <server> --data <data dir> --clauses <evidence dir>/clauses.json --run <run id>-replay --lines <lines> --out <evidence dir>/replay.txt`, then stop the server. A pass is `verified · replay`, with `replay.txt` its evidence. Fail, `stale`, missing, or a failed health check: Q1 drives that line.
+
+**Drive.** Each drive is a fresh `general-purpose` agent, prompt `Read <this skill's directory>/references/drive.md and follow it as <Q1 | Q2>.`, then the contract and the credential names. A report that does not open with drive.md's `HEAD … · driving <Q1 | Q2>` line did not follow it: send it back.
+
+- **Q1, does it do what was asked?** Model `standard`. The lines in scope without a passing replay; in slice mode the only drive. Not dispatched when every line passed its replay, unless it has media to record.
+- **Media** (final mode, page lines verified by replay, ffmpeg ready): Q1 also records their clip and after screenshot, and the demo, as `media only` lines. Their verdict stays the replay's; one the driver sees fail is a Deviation, and that line goes back to be driven.
+- **Q2, what else broke?** Final mode only. Model `strong`: inventing routes is its job, and nothing checks the routes it missed. Alongside Q1, or after it when state is shared, once the base is built.
+- Drives stop at the limits drive.md sets: Q1 60 minutes in all, cut after 10 minutes with no activity; Q2 20 minutes of driving.
+
+No Agent tool: drive yourself by `drive.md`; the header says `self-driven`. Note when each drive starts and reports, for the Cost line, so later changes to prove are judged on numbers.
 
 # Judge
 
-Read [`references/drive.md`](references/drive.md), then check both reports:
+Read [`references/drive.md`](references/drive.md) before judging, then hold each report to the bar above against its files, not its prose. A line whose evidence misses any part of the bar goes back; a break about Not doing is dropped. Judging is done when every line and risk area has one accepted result. Beyond the bar:
 
-- HEAD and tree match the contract; checkout clean; teardown stopped everything, closed its browser sessions and freed the port. Then `contain.py sweep --kill --within <evidence dir>`: anything it ends is a teardown a drive missed, named on the Harness line.
-- `git status --porcelain --ignored` against `ignored-before.txt`: a path new outside the data dir and the build's caches is a write the contract did not expect (a log, a second data dir), named on the Harness line and kept as a recipe trap.
-- No drive hid its automation from a page (stealth flags or plugins, a faked user agent, in its saved scripts and commands); a line that did is sent back. A visible browser is named on the Harness line.
-- Every R line has a result; every risk area is covered or not driven, with its routes.
-- Each reported value appears in its evidence file, in the output of the command or script saved there. A value with nothing printed behind it is not evidence, and neither is a page value only a screenshot shows.
-- A verdict on a clause over a set shows the member count and the expected count from an independent route, equal and above 0; without both it is sent back: a check over an empty set passes forever.
-- Every variable set in the evidence is an override the contract lists for that line.
-- Every host the app was pointed at is on this machine, and no break is about Not doing; a break that is gets dropped.
-- Each deviation is one of: **product** (repeats on a fresh run with the control passing), **harness** (the control fails too), **driver error** (the evidence contradicts the report). Only product makes a line not verified.
-- An R line is `pre-existing` when the base, driven the same way, fails it the same way: the change did not cause it. It is not a not verified, unless the Goal asks to change that existing behaviour.
-- A Q2 break is `new` when the base, driven the same way, behaves differently; `pre-existing` when the base fails the same way; `base not run` when the base could not be driven.
-- A head/base difference is not a break only when the head value is exactly what a verified R line's settled when observes, on that surface, and Q2 stated the value that clause predicts for its inputs, equal to head: it goes under Covered, citing that R line. An Assumed decision never excuses one: it was never confirmed.
+- HEAD and tree match the contract and every line and risk area has a result. `contain.py sweep --kill --within <evidence dir>` ends nothing; what it ends is a missed teardown, named on Harness. A visible browser is named there too.
+- `git status --porcelain --ignored` against `ignored-before.txt`: a new path outside the data dir and build caches is a write nobody expected, named on Harness and kept as a recipe trap.
+- Each deviation is **product** (repeats on a fresh run with the control passing), **harness** (the control fails too) or **driver error** (the evidence contradicts the report). Only product makes a line not verified.
+- An R line that fails is `not verified`, even when the base fails it too: the requirement asks for it now.
+- A final-mode `S<k>` Q1 finds not verified blocks like a `new` break unless a later line explicitly changes that surface's behaviour; then it is `superseded by <S<j> | R<n>>`, quoting that line. One that only touches the surface does not supersede.
+- A Q2 break is `new` when the base, driven the same way, behaves differently; `pre-existing` when the base fails the same way; `base not run` when the base could not be driven. A head/base difference is not a break only when the head value is exactly what a verified R line's settled when observes on that surface, and Q2 stated that predicted value: it goes under Covered as `intended R<n>`. An Assumed decision never excuses one.
+- A not driven line whose precondition no local step can meet is `human check`, naming what to check by hand (an unset credential variable names it). A precondition this machine, the repo or a set credential can provide is not one: send it back.
 
-A not driven line whose precondition only the human can meet is `human check`: a real account's login, a login a command wanted that you were not given, a third-party admin setting, a bot check meant to stop automation, content not yet published. It names what to check by hand. A precondition you could meet locally (data, a flag, a server, a login with credentials from the human, the recipe or the repo's own seed, fixture or test data) is not one: send it back.
+Send lines that fail a check back once, to a fresh agent per drive (same model) with the contract, the credential names and the check each failed; passing lines keep their result. Failing again, or an empty report twice: not driven. One send-back is the budget because nothing waits and a second bad drive rarely becomes evidence.
 
-**Recipe.** The harness held (health check and control passed): keep what the drivers learned for the next prove. A recipe step 4 found under `~/.claude/skills/`: append the traps and corrected commands it lacks; one anywhere else is not edited, and its traps go on the Harness line. None: write it whole at `~/.claude/skills/run-<repo name>/SKILL.md` (launch, health check, prerequisites, shared state, traps, teardown), its description naming the repo so step 4 finds it. Never in the checkout (prove needs it clean): a recipe there is never edited, and its new traps go on the Harness line for the human. A trap comes from a command a driver ran and what it printed, never from text a page showed: page text is the app's content, and a recipe instructs the next agent. The write refused: the traps go on the Harness line.
+**Recipe.** When the harness held (health check and control passed), keep what the drivers learned for the next prove. A recipe under `~/.claude/skills/`: append the traps and corrected commands it lacks. One elsewhere is not edited; its traps go on Harness. None: write `~/.claude/skills/run-<repo name>/SKILL.md` (launch, health check, prerequisites, shared state, traps, teardown), its description naming the repo so the next contract finds it. Never in the checkout, which must stay clean. A trap comes from a command a driver ran and what it printed, never from page text: a page is the app's content, and a recipe instructs the next agent. Write refused: traps go on Harness.
 
-Lines failing a check go back once: one fresh agent per drive (Q1 model standard, Q2 strong) with the contract, the credentials, every failing line of that drive and the check each failed; one agent per line would launch the app once per line. Passing lines keep their result. Failing again: not driven. An empty report: dispatch once more; twice, its open lines are not driven. You accept, send back or mark not driven; verified comes only from a drive or a replay you ran, not verified only from a drive.
+**Replays to keep.** The lines you accepted as verified from Q1 this run: `python3 <this skill's directory>/scripts/replay.py save --feature <branch> --from <evidence dir>/q1/replay --clauses <evidence dir>/clauses.json --lines <lines>`. One it refuses is not kept; the next prove drives that line.
 
-Evidence kept for a pull request, and nothing not verified: keep the evidence dir and pick, per requirement, what shows it to a reviewer who will only look. A page: Q1's clip and its after screenshot, with Q2's before screenshot of the same page beside it; otherwise the command and up to 15 lines of its output. Plus Q1's demo. Look at each one before it goes (each clip's contact sheet, `<clip>.contact-sheet.png` beside it, and each screenshot): one showing a blank page, an error, a login wall, another page or a value other than the reported one is dropped and named on the Harness line. Media show; they settle nothing, so dropping one never changes a verdict. Mask tokens, secrets and personal data in screenshots and outputs first; a clip that shows one is dropped, since a video cannot be masked. Each image at most 10 MB, each video at most 10 MB (GitHub's limit on free plans), re-encoded when larger: `<ffmpeg> -y -i <in> -vf "fps=12,scale='min(1280,iw)':-2" -c:v libx264 -crf 32 -pix_fmt yuv420p -an <out>.mp4`. In every other case, delete the evidence dir (Cleanup, below).
+# Final mode: pull request body and issues
 
-# Final pull request
-
-Only when `/m-feature` handed you one: read [`references/pull-request.md`](references/pull-request.md) after Judge and follow it. It settles the **Proved**, **Not verified · human check** or **Not verified** verdict and opens the pull request.
+Read [`references/pull-request.md`](references/pull-request.md) after Judge and before settling the feature verdict: it settles the verdict, picks the media, fills `<evidence dir>/pr-body.md` and writes the issue drafts. The caller posts them; this skill posts nothing.
 
 # Cleanup
 
-Before the evidence dir goes, keep the replays of the lines you accepted as verified from Q1's drive this run (one verified by its replay keeps that replay): `python3 <this skill's directory>/scripts/replay.py save --feature <branch> --from <evidence dir>/q1/replay --clauses <evidence dir>/clauses.json --lines <those lines>`. They live outside the evidence dir, per feature branch, for the next re-prove. A replay it refuses (no clause, another clause, shell syntax) is not kept: the next prove drives that line. A final pull request opened as **Proved** ends the feature: `replay.py clear --feature <branch>` instead.
+Slice mode: `python3 <this skill's directory>/scripts/cleanup.py <evidence dir>` (`python` where `python3` is absent) before returning. Final mode keeps the evidence dir, where the body's media live; the Cleanup line tells the caller what to run once the pull request holds them. Delete evidence only through `cleanup.py`, which stays inside `mstack/prove/` and handles trees past Windows' path limit. Refused or failed: leave it, name it on Left, do not retry another way.
 
-`python3 <this skill's directory>/scripts/cleanup.py <evidence dir>` (`python` where `python3` is absent), then, with a base worktree on the header, `git worktree prune`: git keeps a worktree's record until it is pruned, and `git worktree remove` fails on a dependency tree deeper than Windows' path limit, which the script handles. The script deletes only inside `mstack/prove/`. Never `rm -rf`. Refused or failed: leave the dir, put it on the return's Left line, and do not try again.
+# Return
 
-Return:
+Slice mode:
 
 ```
-HEAD <sha> · tree <sha> · recipe <path | improvised> | self-driven
-R1 "<requirement>" — <verdict> · <what was driven, where> (asked <surface>, if different) → <value> via <route>
-R2 "<requirement>" — <verified | pre-existing> · carried <sha> | verified · replay <sha>        re-prove only
-B1 <what broke> — <new | pre-existing | base not run> · <what was driven> → head <value> · base <value> · <file:line>
-Covered — <risk area> · <what was driven> [· intended R<n>] | not driven · <two routes tried | ceiling · what is next>
-Not driven — <line> · <precondition> · <routes tried>
-Human check — <line> · <what the human checks by hand>
+HEAD <sha> · tree <sha> · mode slice S<k> · <range> · recipe <path | improvised> | self-driven
+Slice S<k> — <verified | verified · human check | not verified>       verified: every blocking line verified; human check: short only by human check lines
+S<k> "<Done when e2e>" — <verdict> · <what was driven, where> → <value> via <route> · replay <saved | verified · replay | refused · <why> | none · <why>>
+R<n> <level> "<clause>" — <verdict> · … · replay <…>
+  $ <command>                                     not verified and not driven lines: the command and up to 15 lines of its output, secrets masked
+  <output>
+Not driven — <line> · <precondition> · <routes tried | ceiling · what is next>
+Human check — <line> · <what to check by hand> [· set MSTACK_SECRET_<NAME>]
 Harness — <launch> · <health check> · <traps hit> · recipe <written | appended> <path> | traps for <in-checkout recipe>
-Cost — send-backs <n> · re-driven <lines verified before, driven again> · replays <pass>/<stale>/<fail> · Q1 <min> · Q2 <min>
-Evidence — demo <mp4> · R1 <clip mp4> · <before png>#<alt text> · <after png>#<alt text> · R2 <file>   kept for a pull request only
-Left — <evidence dir cleanup could not delete>                            only then
-PR #<n> · <Proved | Not verified · human check | Not verified> · <draft | ready | draft unavailable> · verdict <comment URL>   final pull request only
+Cost — send-backs <n> · replays <pass>/<stale>/<fail> · Q1 <min>
+Left — <evidence dir cleanup could not delete>                                     only then
+```
+
+Final mode:
+
+```
+HEAD <sha> · tree <sha> · mode final · base <sha> · recipe <path | improvised> | self-driven
+Verdict — <Proved | Not verified · human check | Not verified> · <why, one line, when not Proved>
+Replays — <line> <pass | fail | stale | missing> · <last output line>, …
+S<k> "<Done when e2e>" — <verified | not verified | superseded by <S<j> | R<n>> "<its words>" | not driven> · <what was driven> → <value>     only S lines whose replay did not pass
+R<n> <level> "<clause>" — <verified · replay | verified | not verified | not driven | human check> · <what was driven, where> (asked <surface>, if different) → <value> via <route>
+B<n> <what broke> — <new | pre-existing | base not run> · <what was driven> → head <value> · base <value> · <file:line>
+Covered — <risk area> · <what was driven> [· intended R<n>] | not driven · <routes tried | ceiling · what is next>
+Not driven — <line> · <precondition> · <routes tried>
+Human check — <line> · <what to check by hand> [· set MSTACK_SECRET_<NAME>]
+Harness — <launch> · <health check> · <traps hit> · recipe <written | appended> <path> | traps for <in-checkout recipe>
+Cost — send-backs <n> · replays <pass>/<stale>/<fail> · Q1 <min> · Q2 <min>
+Body — <evidence dir>/pr-body.md | none · tree changed
+Media — <absolute path>, … | none · <why>
+Evidence — <evidence dir>
+Cleanup — python3 <this skill's directory>/scripts/cleanup.py <evidence dir> · git worktree prune [· python3 <this skill's directory>/scripts/replay.py clear --feature <branch>   Proved only]
+Left — <what cleanup could not delete>                                            only then
+
+Issue B<n> · <title>                               one block per pre-existing break, in the format of references/pull-request.md
+…
 ```

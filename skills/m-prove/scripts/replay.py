@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Replays: the checks a Q1 driver verified, kept per feature and run again.
 
-  replay.py save --feature <branch> --from <evidence dir>/q1/replay --clauses <evidence dir>/clauses.json [--lines R1,R3]
+A line is S<k> (a slice's Done when e2e) or R<n> (a requirement).
+
+  replay.py save --feature <branch> --from <evidence dir>/q1/replay --clauses <evidence dir>/clauses.json [--lines S1,R3]
       After Judge accepts Q1, naming the lines it accepted as verified. Copies each one's replay
       into <git common dir>/mstack/replay/<feature>/, replacing that line's older one. Refused:
       an entry whose clause is missing or not the line's in --clauses (it would pass a changed
@@ -10,13 +12,15 @@
   replay.py list --feature <branch>
       The lines that have a replay, one per line with its command and clause, or `none`.
   replay.py run --feature <branch> | --from <replay dir> --url <app url> [--data <dir>] [--clauses <file>]
-                [--run <id>] [--env KEY=VALUE]... [--lines R1,R3] [--out <file>]
+                [--run <id>] [--env KEY=VALUE]... [--lines S1,R3] [--out <file>]
       With the app up. --from: a driver's own replay dir, unsaved, checked the way it will be
       replayed. Runs each replay from its own dir, without a shell, with MSTACK_URL,
       MSTACK_RUN and MSTACK_DATA (--data: the app's data dir, as the contract's Run line names it).
-      --env: a variable for the replays, such as a credential (repeatable); its value is masked
-      in the output.
-      --clauses: JSON, {"R3": "<the R line's requirement as the contract quotes it>"}. A replay saved
+      --env: a variable for the replays (repeatable); its value is masked in the output. The
+      value of every MSTACK_SECRET_* variable in the environment is masked too: replays read
+      credentials from there.
+      --clauses: JSON, {"S1": "<the slice's Done when e2e>", "R3": "<the R line's requirement as
+      the contract quotes it>"}. A replay saved
       for another clause is not run (`stale · clause changed`, or `stale · clause gone` when the file
       lacks the line): its pass would verify a requirement it never checked. One saved without a
       clause, or with shell syntax, is `stale` too.
@@ -27,7 +31,7 @@
       At the end of the feature. Deletes that feature's replays, nothing else.
 
 A replay dir holds replay.json, {"R3": {"cmd": "node check.mjs", "clause": "\"each wait doubles\" · bound —"}, ...},
-and one subdir per line (R3/) with the files its command uses; the command runs there.
+and one subdir per line (S1/, R3/) with the files its command uses; the command runs there.
 It exits 0 when the line's observation holds and prints the observed value on
 its last line. `python`/`python3` as its program run this script's interpreter.
 """
@@ -68,6 +72,12 @@ def feature_dir(feature):
     return os.path.join(replay_root(), name)
 
 
+def order(line):
+    """S lines first, then R lines, each by number; anything else last."""
+    m = re.fullmatch(r"([SR])(\d+)", line)
+    return (0 if m.group(1) == "S" else 1, int(m.group(2))) if m else (2, 0)
+
+
 def load_index(d):
     path = os.path.join(d, "replay.json")
     if not os.path.exists(path):
@@ -95,7 +105,7 @@ def load_clauses(path):
     except (OSError, ValueError) as e:
         sys.exit(f"ABORT: --clauses {path}: {e}")
     if not isinstance(clauses, dict):
-        sys.exit('ABORT: --clauses needs {"R<n>": "<clause>"}')
+        sys.exit('ABORT: --clauses needs {"S<k>" | "R<n>": "<clause>"}')
     return clauses
 
 
@@ -128,7 +138,7 @@ def cmd_save(a):
         line_src = os.path.join(src, line)
         entry = entry if isinstance(entry, dict) else {}
         cmd, clause = entry.get("cmd"), entry.get("clause")
-        why = ("needs an R<n> key and a cmd" if not re.fullmatch(r"R\d+", line) or not cmd
+        why = ("needs an S<k> or R<n> key and a cmd" if not re.fullmatch(r"[SR]\d+", line) or not cmd
                else "no clause" if not clause
                else "clause is not this line's in --clauses"
                if line not in clauses or not same_clause(clause, clauses[line])
@@ -168,8 +178,7 @@ def mask(text, secrets):
 def cmd_run(a):
     d = os.path.realpath(a.source) if a.source else feature_dir(a.feature)
     index = load_index(d)
-    wanted = [x.strip() for x in a.lines.split(",")] if a.lines else sorted(
-        index, key=lambda k: int(k[1:]))
+    wanted = [x.strip() for x in a.lines.split(",")] if a.lines else sorted(index, key=order)
     if not index:
         msg = "REPLAY: none · no replays for this feature"
         if a.out:  # the drive reads it whatever happened
@@ -184,7 +193,8 @@ def cmd_run(a):
         if not sep or not k:
             sys.exit(f"ABORT: --env {kv!r} needs KEY=VALUE")
         extra[k] = v
-    secrets = sorted((v for v in extra.values() if v), key=len, reverse=True)
+    secret_env = [v for k, v in os.environ.items() if k.upper().startswith("MSTACK_SECRET_")]
+    secrets = sorted({v for v in [*extra.values(), *secret_env] if v}, key=len, reverse=True)
     run_id = f"{a.run or 'replay'}-{int(time.time() * 1000)}"
     env = {**os.environ, **extra, "MSTACK_URL": a.url, "MSTACK_RUN": run_id}
     if a.data:
@@ -240,7 +250,7 @@ def cmd_run(a):
 
 def cmd_list(a):
     index = load_index(feature_dir(a.feature))
-    for line in sorted(index, key=lambda k: int(k[1:])):
+    for line in sorted(index, key=order):
         c = index[line].get("clause")
         print(f"{line} · {index[line]['cmd']}" + (f" · {c}" if c else ""))
     if not index:

@@ -1,0 +1,5 @@
+interface:
+  display_name: "setup-mstack"
+  short_description: "Configure a repo for mstack and check tools and auto mode"
+policy:
+  allow_implicit_invocation: false

@@ -1,132 +1,89 @@
 ---
 name: m-review
-description: "Reviews a change by execution: a script checks each build step, and a feature review reports only failures a frozen reproduction demonstrated. Use as the check and review stages of /m-feature, or to review any branch with a runnable test suite before it merges."
+description: "Reviews a change without running the app: a script checks each build step against the suite's recorded baseline, and a static review reports only findings that a repo rule or the installed version's official docs condemn. Use when asked to check a build step, review a change, or recheck its findings after a fix."
 ---
 
-Judge a change only by what running code shows. A finding without a reproduction that failed at the gate does not exist: no confidence scores, no severity, no "possible issues". An empty report is the expected outcome, and a complete one.
+Tells the caller whether a change is well made; whether it works is judged by driving the running app, not here. The step check is a script that gates each build step before it merges into the feature branch. The quality review is one fresh static agent that reads a range of commits and reports only what a written source condemns, so a builder can fix each finding and the caller can check it without trusting the reviewer.
 
-The step check and recheck run where they are called. The feature review dispatches its own agents; from `/m-feature` it runs in a fresh agent, so its hunts stay out of the orchestrator's context, and returns only `report.py`'s output. With no Agent tool there, return `Review · not run · no Agent tool` and the caller runs it in its own chat.
+# Done when
 
-Models are tiers: strong is the harness's most capable, standard its middle one. A tier that does not resolve runs on the session's model.
+- Step check: `step_check.py`'s output was returned whole, ending in `STEP CHECK: PASS`, `STEP CHECK: FAIL` or `STEP CHECK: NOT RUN · <why>`, or, where the script aborted, its message, which carries no verdict.
+- Quality review: `F<n>` lines in the format below, or none, followed by `QUALITY REVIEW: <n> findings` or `QUALITY REVIEW: clean`.
+- Re-review: one `F<n> · fixed` or `F<n> · still-failing · <why>` line per finding given, followed by `RE-REVIEW: <n> fixed · <m> still failing`.
 
-Scripts are in this skill's `scripts/` directory; run them with `python3` (`python` where `python3` is absent). If one aborts, stop and report its message. State lives in the git dir, never in the checkout. `step_check.py`, `prepare.py` and `gate.py` run the whole suite, `step_check.py` up to three times: start each with the Bash tool's `run_in_background` and read its output when the harness says it exited, so no run hits the tool's 10-minute limit. `sweep` and `REAP` lines in their output are cleanup of earlier runs, not findings. A run that hits its ceiling (3 times its last measured run, 30 minutes at least for a suite, 5 for one file) judges nothing: the step check prints `STEP CHECK: NOT RUN` and exits 2, `prepare.py` aborts, and the gate closes the finding `unjudgeable`. Report a NOT RUN as it is; never rerun it to get a verdict.
+# Acceptance criteria
+
+- [ ] A step check result is the script's own output, unedited, with at most one `STEP CHECK:` line.
+- [ ] Every quality finding names a source with its location: a repo rule `file:line` with its words verbatim (present at HEAD), or a verbatim official-doc quote with its URL and the installed version.
+- [ ] Every quality finding names the `file:line` of a line the reviewed range adds or changes.
+- [ ] No quality finding is something a linter, formatter or type checker the repo runs would catch, or anything on Not doing.
+- [ ] No quality finding cites a test run, an app run or a reproduction as evidence.
+- [ ] No finding carries a severity, a confidence or a "consider".
+- [ ] The count line matches the number of `F<n>` lines.
+- [ ] A re-review has exactly one line per finding it was given, the same ids, and no new finding.
+- [ ] Everything is returned as text: no tracker item, comment or pull request was created or changed by this run.
+
+Models are tiers: strong is the harness's most capable, standard its middle one; a tier that does not resolve runs on the session's model. Scripts are in this skill's `scripts/` directory and keep their state in the git common dir, so nothing they write shows in the checkout.
 
 # Step check
 
-After each build, on the step branch. No model judgement.
+A script, no model judgement: it gates each build step on its branch before the step merges. Its CLI is the interface:
 
 ```bash
-python3 scripts/step_check.py baseline --test-cmd "<scan Q6 suite | none>" --test-file-cmd "<scan Q6 one file, {test} for its path>"   # once, before the first step
-git fetch origin && python3 scripts/step_check.py check --base origin/feature/<name> --pr <n>
-python3 scripts/step_check.py clear --base feature/<name>   # once, when the feature ends
+python3 scripts/step_check.py baseline --test-cmd "<suite command | none>" --test-file-cmd "<command for one test file, {test} for its path>"
+python3 scripts/step_check.py check --base origin/feature/<name> --notes <step notes file>
+python3 scripts/step_check.py set-cmd --base feature/<name> --test-cmd "<suite command>"
+python3 scripts/step_check.py clear --base feature/<name>
 ```
 
-Return its output. `STEP CHECK: FAIL` lists what failed; `credential?` (a secret-like literal, a password in a URL to another host, a committed `.env`), `credential placeholder` (a key-shaped value that says it is not real, such as AWS's `…EXAMPLE`), `unpinned?` and `flaky` lines are for the human to look at and do not fail the step.
+The baseline is recorded on the feature branch before the first check, because every step is judged against the suite as it was when the feature started: a suite already red records its failing files, and a step then fails only on files failing beyond those. A baseline aborts when the suite fails before any test runs (a missing module, a refused connection), since a suite that never ran judges nothing; provide what it names and record it again. `clear` deletes the baseline when the feature ends. The check diffs against `origin/feature/<name>`, so fetch first: a stale branch puts earlier steps in the diff.
 
-The baseline aborts when the suite fails before its tests run (a missing module, a service refusing connections): start the prerequisites or fix the test command, and record it again, since every step would be judged against a suite that never ran. A suite red for other reasons records its failing files; a step then fails only on a file failing beyond those.
+What `check` judges, reading the step notes' `## Tests changed` and `## Pinned by` (without `--notes` nothing counts as listed or pinned):
 
-The check reverts the step's non-test changes in place to run the Pinned by tests (the test paths that section names), so it aborts on a checkout with tracked changes and restores HEAD before it exits. A check killed mid-revert leaves a marker in the git dir, and the next check restores those files itself: never commit them. `pinned · not run` names what it lacked; `pinned · not judgeable · dependency change` means the step changes only manifests and lockfiles, a lockfile among them, and reverting them leaves what they installed, so prove judges it.
+- **Suite no worse** than at the baseline. It reruns enough to tell a real failure from flakiness: a file red only sometimes is `intermittent` (a FAIL) when the step touched code a test could load, else a `flaky` note.
+- **Weakened tests declared**: every existing test file or snapshot changed or deleted, and every added skip, focus, suppression or runner exclusion, is listed in Tests changed.
+- **No credentials** in the added lines: `credential` and `credential?` fail; the value belongs in an environment variable.
+- **Pinned**: each Pinned by test passes at HEAD and fails with the step's non-test changes reverted. It reverts in place, so it needs a checkout with no tracked changes and restores HEAD before exiting; a check killed mid-revert leaves a marker, and the next check restores those files itself, so they are never committed.
 
-A red suite first runs the files its output names as failing on their own: one that fails alone fails the step without more suite runs. Otherwise the suite runs again. A file red on both runs fails the step: it depends on running together. Red on one run only: `intermittent`, a FAIL, when the step changed that file or any code a test could load; a step that changed only tests and docs gets a `flaky · <files>` note instead, someone else's flaky test. `NOT RUN · suite unstable under load` means each run failed on different files, all passing alone and none changed by the step, so the machine is overloaded and nothing was judged. Then switch the baseline to a command that runs fewer files at once, and check again:
+What its output means:
 
-```bash
-python3 scripts/step_check.py set-cmd --base feature/<name> --test-cmd "<suite command, fewer files at once>"
-```
+- `STEP CHECK: PASS` (exit 0): the step may merge. Its notes still travel to the caller: `credential placeholder`, `unpinned?`, `flaky` and `pinned · not judgeable · dependency change` (left for the app-level proof) do not fail the step.
+- `STEP CHECK: FAIL` (exit 1): the `- FAIL` lines say what to fix, and go to the builder.
+- `STEP CHECK: NOT RUN · <why>` (exit 2): a run hit its time ceiling or the suite was unstable under load; nothing was judged, so it is neither a pass nor the step's fault. Return it as it is. `suite unstable under load` (different files failing each run, all passing alone) means too many files ran at once: `set-cmd` to a suite command that runs fewer, then check again.
+- The `suite logs` line holds every run's full output: read failures there rather than rerunning. The `sweep` line is cleanup of earlier runs, not a finding.
 
-`suite logs` gives the full output of every run: read the failing tests there, never rerun the suite to see them.
+A suite run can outlast the shell tool's time limit, and a pipe or a timeout loses the verdict, so run each call in the background, unpiped, and read its whole output before acting.
 
-# Feature review
+# Quality review
 
-Once, after every step has passed its check, on the feature branch, before prove.
+Reviews a range of merged commits statically: nothing runs, since whether the code works is the app-level proof's question.
 
-**Needs** a test suite that runs, and a committed state. No suite: say so and stop; `/m-prove` is the only judge left.
+What it reviews, and with what, comes from the caller where given:
 
-## 0. Prepare
+- the range `<start sha>..<end sha>`; with none given, the current branch from its merge-base with the base branch to HEAD;
+- How hard to undo, and Not doing (none given: nothing is excluded);
+- installed versions (scan Q1), how the repo does similar things and its names (scan Q4, Q5), and docs answers already researched, with their quotes and links; where missing, the reviewer finds them itself;
+- which repo rule files exist.
 
-```bash
-git fetch origin && python3 scripts/prepare.py --base origin/<base branch> --test-cmd "<scan Q6>" --setup-cmd "<how a fresh checkout gets its dependencies and env files>"
-```
+Dispatch one fresh `general-purpose` agent with web access for docs: model standard, strong when How hard to undo is hard or not given, since a missed rule there is costly to undo. Fresh, because whoever wrote or merged the code reads it with the author's eyes. Its prompt opens `Read <this skill's directory>/references/quality.md and follow it.`, then gives the inputs above verbatim. Its reply, the lines below, shows it done. With no Agent tool, read [`references/quality.md`](references/quality.md) before reviewing yourself, unless this session wrote the code under review: then return one line saying a fresh reviewer is needed and why.
 
-Prepare checks out the base once, runs the setup command there with `MSTACK_ROOT` set to this checkout (to copy env files from), then the suite; every gate run reuses that checkout. Take the setup command from scan Q9 or the run recipe. Leave it out only when the suite runs on a bare checkout. Prepare aborts when the setup fails or the suite runs no test, at HEAD or at the base: fix the command, or start what it needs, and prepare again.
-
-`--test-cmd`, `--setup-cmd` and the gate's `--cmd` run under cmd.exe on Windows, sh elsewhere: quote `"{test}"`, write no `$VAR` (cmd.exe reads `%VAR%`), and prefer a command with no shell syntax, which the two shells read differently.
-
-## 1. Hunt
-
-Dispatch fresh `general-purpose` agents at once, model strong: nothing downstream checks what they miss. They do not see each other. How many: 1 when the map's How hard to undo is easy and the diff is under 300 changed lines, since hunters overlap most on a small diff and an easy miss costs a later fix; otherwise 3, and 3 when no verdict was given. Prompt:
-
-```
-Read <this skill's directory>/references/hunt.md and follow it.
-```
-
-then: the ledger command (`python3 <scripts>/ledger.py add`), the base and head from prepare, the changed files, the Goal, Settled up front, Assumed and Not doing verbatim (from `/m-feature`: the map number, for the hunter to read them from), and which repo rule files exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`).
-
-Over about 1,500 changed lines: split the files into groups by directory and give each group 2 hunters. Every hunter may read the whole repo.
-
-Mark a candidate `duplicate` only when its claim, condition and file match another's (`python3 scripts/ledger.py duplicate --id <id> --of <id>`). Every other candidate goes on, however unlikely it looks: the gate decides.
-
-## 2. Reproduce
-
-One fresh `general-purpose` agent per candidate, model standard, never a hunter: the gate checks its work. Prompt:
+Before returning, hold the output to the bar, since the caller acts on each line: drop any `F<n>` line without a code `file:line` or a source, and any whose rule `file:line` does not hold its quoted words at HEAD; renumber from F1 and fix the count line. Return the rest verbatim:
 
 ```
-Read <this skill's directory>/references/repro.md and follow it.
+F<n> · <file:line> · <what is wrong, one sentence> · source <rule file:line "<words>" | "<doc quote>" <url> (<version>)> · fix <what would satisfy the source>
+QUALITY REVIEW: <n> findings | clean
 ```
 
-then: the finding's id, claim, condition and entry point, the test command, and how the repo tests (scan Q6). It does not get the hunter's reasoning.
+# Re-review
 
-Up to 4 at once when tests share nothing (database, ports, files); otherwise one at a time. It returns `capture · repro · cmd`, or `unjudgeable · <reason> · files <paths | none>`:
+After a fix for quality findings has merged. It rechecks only the findings handed to the builder, never the whole range again, so a fix round converges instead of growing.
 
-```bash
-python3 scripts/ledger.py unjudgeable --id <id> --reason "<reason>" --remove <files it left>
+Dispatch one fresh `general-purpose` agent at the review's tier, its prompt opening as above and pointing it at the Re-review section of `references/quality.md`, with the `F<n>` lines verbatim and the fix range `<sha before the fix merge>..<sha after it>`. Return its output verbatim:
+
+```
+F<n> · fixed
+F<n> · still-failing · <why>
+RE-REVIEW: <n> fixed · <m> still failing
 ```
 
-The gate removes a reproduction's files on every outcome, and those of a gate that was killed on its next run; `--remove` does it for a writer that gave up, and skips anything that is not a file inside the repo. A leftover failing file turns every later suite run red.
-
-## 3. Gate
-
-One at a time, per returned reproduction:
-
-```bash
-python3 scripts/gate.py confirm --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>"
-```
-
-The only route to `confirmed`. The capture must pass and the repro fail at HEAD, 5 runs each; then the repro runs once in the base checkout, and the capture when the repro fails there. The repro passes there: `regression`. Both fail: the broken behaviour is new, `new-behaviour` (`unjudgeable` when prepare found the base suite red, since the checkout may be what fails). The capture passes there: the bug was already in the base, `dead`. A killed reproduction is not sent back or adjusted.
-
-## 4. Report
-
-```bash
-python3 scripts/report.py
-```
-
-Return its output verbatim. It removes the base checkout: a confirm after it needs a new prepare. Stop: no second round, no suggestions.
-
-# Recheck
-
-After a fix step for confirmed findings has passed its step check, on the fix branch, every finding in one call: the suite runs once for all of them.
-
-```bash
-python3 scripts/gate.py recheck --id F-001 --id F-002 --promote
-```
-
-The frozen repro runs first; `fixed` when it passes every run. Otherwise the frozen capture runs: it passes, the broken behaviour is still there, `still-failing`.
-
-`fixed` leaves the reproduction in the checkout: commit it on the fix branch as a regression test. A copy an interrupted recheck left behind, identical to the frozen one, is removed by the gate itself: never delete a reproduction by hand. `still-failing` or `SUITE WORSE`: the fix did not hold.
-
-`RECHECK NOT RUN` (exit 2): the suite hit its ceiling, so nothing was judged and every state is as it was.
-
-`stale`: the repro and the capture both fail now (the markup or API they set up against changed), so they say nothing about the claim. Dispatch a fresh repro writer as in step 2, with the claim, condition and entry point, told it is a recheck (`references/repro.md`). Then:
-
-```bash
-python3 scripts/gate.py recheck --id <id> --capture <path> --repro <path> --cmd "<cmd with {test}>" --promote
-```
-
-The writer gives up: delete the files it lists that git does not track (`git ls-files --error-unmatch <path>` fails), and the finding stays `stale`: that is the answer.
-
-# Rules
-
-- Only the gate writes `confirmed`, `fixed`, `still-failing` or `stale`; the builder's checks and your own reading settle nothing.
-- Agreement between agents is evidence neither way.
-- Frozen reproductions, existing tests, the harness and the code under review stay exactly as they are.
-- The builder gets the claim and the condition; the reproduction stays with the review.
-- The review covers the diff, minus anything on Not doing.
+What happens to a `still-failing` finding is the caller's decision.

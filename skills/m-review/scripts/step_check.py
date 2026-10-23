@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
-"""Step check. Deterministic, no model judgement.
+"""Step check. Deterministic, no model judgement. Run it for its output.
+
+Reads: the git diff from the merge-base with --base to HEAD, the step notes
+file, and the baseline it recorded under <git common dir>/mstack/baseline/.
+Prints, for check: one `- <note>` line per note (`sweep · …`, `suite logs ·
+<paths>`, `flaky · …`, `unpinned? · …`, `credential placeholder · …`,
+`pinned · …`), one `- FAIL <what>` line per failure, then a blank line and
+exactly one of `STEP CHECK: PASS`, `STEP CHECK: FAIL`,
+`STEP CHECK: NOT RUN · <why>`. An abort prints `ABORT: <reason>` to stderr and
+no verdict line.
 
   step_check.py baseline --test-cmd "<cmd>" | --test-cmd none [--test-file-cmd "<cmd with {test}>"]
       Once, on the feature branch before the first step. Records the suite's
       state for that branch, so later steps can be compared against it, and
       the command that runs one test file, for the pinned check.
 
-  step_check.py check --base origin/<feature branch> [--pr <n>] [--secrets-cmd "<cmd>"]
+  step_check.py check --base origin/<feature branch> --notes <file> [--secrets-cmd "<cmd>"]
       Fetch first: a stale local feature branch puts earlier steps in the diff.
-      After each build, on the step branch, with a clean checkout.
+      After each build, on the step branch, with a clean checkout. --notes is
+      the builder's step notes (markdown); its Tests changed and Pinned by
+      sections are read. Without it nothing counts as listed.
       Exit 0 = PASS, 1 = FAIL, 2 = NOT RUN (a run hit its ceiling: no
       verdict, report it); an abort exits non-zero and prints no verdict.
 
@@ -32,9 +43,12 @@ Checks:
      the git dir and its path printed.
   2. Every existing test file changed or deleted, and every file where the
      step adds a skip, a focus, a suppression or an exclusion, is listed in
-     the PR's Tests changed section.
-  3. No credentials in the added lines.
-  4. Pinned: each test file the PR's Pinned by section lists passes at HEAD
+     the notes' Tests changed section.
+  3. No credentials in the added lines: a key-shaped secret, a literal
+     assigned to a secret-like name, a password in a URL to another host or
+     a committed .env fails; the value belongs in an environment variable.
+     A key-shaped value that says it is not real is a note.
+  4. Pinned: each test file the notes' Pinned by section lists passes at HEAD
      and fails with the step's non-test changes reverted. A step that changes
      code needs one, or `none · <why>` there.
 """
@@ -64,7 +78,7 @@ SECRETS = [
 # A key-shaped value that says it is not real (AWS's documented
 # AKIAIOSFODNN7EXAMPLE) is a note, not a FAIL: nothing could accept it.
 PLACEHOLDER = re.compile(r"(?i)example|dummy|fake|placeholder|changeme|(?<![a-z])test(?![a-z])")
-# The rest are reported for a human to look at and do not fail the step.
+# The rest are `credential?`: likely secrets, which fail the step too.
 SECRET_NAME = (r"(?i)(password|passwd|secret(?:[_-]?key)?|api[_-]?key"
                r"|access[_-]?token|auth[_-]?token)\s*[:=]\s*")
 SUSPECT = re.compile(SECRET_NAME + r"['\"]([^'\"\s]{8,})['\"]")
@@ -147,7 +161,7 @@ def run_git(args, cwd):
     return p.returncode, ((p.stdout or "") + (p.stderr or "")).strip()
 
 
-def save_log(pr, run, out):
+def save_log(label, run, out):
     """The suite's full output, kept so a FAIL never needs a rerun to read.
     Logs older than LOG_DAYS go: by then their step was fixed or abandoned."""
     d = state_dir("check")
@@ -157,7 +171,7 @@ def save_log(pr, run, out):
         if name.endswith(".log") and os.path.getmtime(old) < cutoff:
             os.remove(old)
     stamp = now().replace(":", "")
-    path = os.path.join(d, f"{pr or 'nopr'}-{stamp}-run{run}.log")
+    path = os.path.join(d, f"{label}-{stamp}-run{run}.log")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(out)
     return path
@@ -214,11 +228,13 @@ def cmd_baseline(a):
     print(f"baseline for {branch}")
 
 
-def pr_section(pr, title):
-    rc, body = sh(f"gh pr view {pr} --json body --jq .body", timeout=60,
-                  contain=False)
-    if rc != 0:
-        die(f"cannot read PR #{pr}: {body.strip()}")
+def notes_section(path, title):
+    """A `## <title>` section of the step notes file, or "" when absent."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            body = fh.read()
+    except OSError as e:
+        die(f"cannot read the step notes {path}: {e}")
     m = re.search(rf"^##\s*{title}\s*$(.*?)(^##\s|\Z)", body,
                   re.MULTILINE | re.DOTALL | re.IGNORECASE)
     return m.group(1) if m else ""
@@ -265,7 +281,7 @@ def check_suite(a, base_info, r, changed, fails, notes):
         rc, out, secs = timed(base_info["cmd"], cwd=r, timeout=limit)
         if timed_out(rc, out):
             raise NotRun(f"the suite did not finish within {limit}s, 3 times its "
-                         f"baseline run or more · log {save_log(a.pr, run, out)}")
+                         f"baseline run or more · log {save_log(a.label, run, out)}")
         if base_info.get("seconds") is None:
             # set-cmd cleared it: the first finished run sets the ceiling.
             base_info["seconds"] = round(secs, 1)
@@ -276,7 +292,7 @@ def check_suite(a, base_info, r, changed, fails, notes):
     if rc == 0:
         notes.append("suite · green")
         return
-    logs = [save_log(a.pr, 1, out)]
+    logs = [save_log(a.label, 1, out)]
     try:
         judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs)
     finally:
@@ -314,7 +330,7 @@ def judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs):
 
     file_cmd = base_info.get("file_cmd")
     if not file_cmd or not first or len(first) > MAX_ALONE:
-        rerun_suite(suite, worse, out, logs, fails, a.pr, start)
+        rerun_suite(suite, worse, out, logs, fails, a.label, start)
         return
 
     # Run the failing files on their own first: a file that fails alone is a
@@ -331,7 +347,7 @@ def judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs):
 
     rc2, out2 = suite(2)
     if rc2 != 0:
-        logs.append(save_log(a.pr, 2, out2))
+        logs.append(save_log(a.label, 2, out2))
     second = worse(rc2, out2)
     if second == []:
         touched = sorted(set(first) & changed)
@@ -377,12 +393,12 @@ def judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs):
                      "them. Run fewer test files at once: set-cmd")
 
 
-def rerun_suite(suite, worse, out, logs, fails, pr, start):
+def rerun_suite(suite, worse, out, logs, fails, label, start):
     """No failing file to run alone: run the whole suite again, up to 3 times."""
     reds = [out]
     for i in range(2, SUITE_RUNS + 1):
         rc_i, out_i = suite(i)
-        logs.append(save_log(pr, i, out_i))
+        logs.append(save_log(label, i, out_i))
         if worse(rc_i, out_i) != []:
             reds.append(out_i)
     runs = f"red {len(reds)} of {SUITE_RUNS} runs"
@@ -426,25 +442,29 @@ def check_listed(a, status, diff, listed, fails, notes):
         notes.append("tests changed · none")
         return
     for path, line in flagged:
-        if a.pr and path in listed:
-            notes.append(f"{line} · listed in the PR")
+        if a.notes and path in listed:
+            notes.append(f"{line} · listed in the notes")
         else:
-            fails.append(f"{line} · not listed in the PR's Tests changed section")
+            fails.append(f"{line} · not listed in the step notes' Tests changed "
+                         "section")
 
 
 def check_credentials(a, r, status, diff, fails, notes):
-    current, found, suspects = None, False, []
+    current, found, suspects, placeholders = None, False, [], []
 
     def suspect(what, path):
-        line = f"credential? · {what} · {path} · look before merging"
+        # Nobody reviews it before the run goes on: the builder moves the
+        # value to an environment variable instead.
+        line = (f"credential? · {what} · {path} · move the value to an "
+                "environment variable")
         if line not in suspects:
             suspects.append(line)
 
     def placeholder(what, path):
-        # Says it is not real, so it holds no merge; still shown.
+        # Says it is not real, so nothing could accept it; still shown.
         line = f"credential placeholder · {what} · {path}"
-        if line not in suspects:
-            suspects.append(line)
+        if line not in placeholders:
+            placeholders.append(line)
 
     for code, path in status:
         name = path.rsplit("/", 1)[-1]
@@ -461,7 +481,8 @@ def check_credentials(a, r, status, diff, fails, notes):
                 if PLACEHOLDER.search(m.group(0)):
                     placeholder(name, current)
                 else:
-                    fails.append(f"credential · {name} · {current}")
+                    fails.append(f"credential · {name} · {current} · move the "
+                                 "value to an environment variable")
                     found = True
         values = [m.group(2) for m in SUSPECT.finditer(line)]
         if CONFIG_FILE.search(current):
@@ -471,7 +492,9 @@ def check_credentials(a, r, status, diff, fails, notes):
         if any(not PLACEHOLDER.search(m.group(1)) and not LOCAL_HOST.match(line, m.end())
                for m in URL_CREDENTIAL.finditer(line)):
             suspect("password in a URL", current)
-    notes.extend(suspects)
+    fails.extend(suspects)
+    notes.extend(placeholders)
+    found = found or bool(suspects)
     if a.secrets_cmd:
         rc, out = sh(a.secrets_cmd, cwd=r, timeout=600)
         if timed_out(rc, out):
@@ -479,7 +502,7 @@ def check_credentials(a, r, status, diff, fails, notes):
         elif rc != 0:
             fails.append("credential · secrets scanner failed\n" + tail(out, 1500))
             found = True
-    if not found and not suspects:
+    if not found and not placeholders:
         notes.append("credentials · none found")
 
 
@@ -565,8 +588,8 @@ def check_pinned(a, base_info, r, base, status, listed, fails, notes):
         notes.append(f"unpinned? · none · {reason} · look before merging")
         return
     if not files:
-        fails.append("pinned · nothing pins this step: list in the PR's Pinned by "
-                     "section a test file (a path a test runner finds: tests/, "
+        fails.append("pinned · nothing pins this step: list in the step notes' "
+                     "Pinned by section a test file (a path a test runner finds: tests/, "
                      "*.test.*, test_*.py and the like) that fails without it, or "
                      "`none · <why>`")
         return
@@ -649,8 +672,8 @@ def cmd_check(a):
     status = [(ln.split("\t")[0][:1], ln.split("\t")[1].replace("\\", "/"))
               for ln in raw.splitlines() if "\t" in ln]
     _, diff = run_git(["diff", "-U0", "--no-renames", base, "HEAD"], r)
-    tests_listed = pr_section(a.pr, "Tests changed") if a.pr else ""
-    pinned_listed = pr_section(a.pr, "Pinned by") if a.pr else ""
+    tests_listed = notes_section(a.notes, "Tests changed") if a.notes else ""
+    pinned_listed = notes_section(a.notes, "Pinned by") if a.notes else ""
 
     fails, notes = [], [f"sweep · {sweep()}"]
     try:
@@ -707,8 +730,8 @@ def main():
     p.set_defaults(fn=cmd_baseline)
     p = sub.add_parser("check")
     p.add_argument("--base", required=True, help="the feature branch")
-    p.add_argument("--pr", help="step PR number, to read its Tests changed and "
-                   "Pinned by sections")
+    p.add_argument("--notes", help="the step notes file m-build wrote, to read "
+                   "its Tests changed and Pinned by sections")
     p.add_argument("--secrets-cmd", help="optional scanner; non-zero exit fails")
     p.set_defaults(fn=cmd_check)
     p = sub.add_parser("set-cmd")
@@ -720,6 +743,12 @@ def main():
     p.add_argument("--base", required=True, help="the feature branch that ended")
     p.set_defaults(fn=cmd_clear)
     a = ap.parse_args()
+    if getattr(a, "notes", None) is not None:
+        a.notes = os.path.abspath(a.notes)
+    # Names the step's suite logs.
+    a.label = (re.sub(r"[^A-Za-z0-9._-]", "_",
+                      os.path.splitext(os.path.basename(a.notes))[0])
+               if getattr(a, "notes", None) else "nonotes")
     a.fn(a)
 
 

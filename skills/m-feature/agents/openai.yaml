@@ -1,5 +1,5 @@
 interface:
   display_name: "m-feature"
-  short_description: "Take one feature from idea to working code"
+  short_description: "Take one reviewed spec to a proved pull request, unattended"
 policy:
   allow_implicit_invocation: false

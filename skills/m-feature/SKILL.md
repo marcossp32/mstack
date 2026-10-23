@@ -1,206 +1,142 @@
 ---
 name: m-feature
-description: Takes one feature from idea to working code over GitHub Issues; `/m-feature #<map>` resumes one in a new session.
+description: Takes one reviewed spec to a pull request proved in the running app, with nobody watching. Use only when asked to run /m-feature with a spec reference, which starts that spec's feature or resumes it.
 disable-model-invocation: true
 ---
 
-Run one feature through GitHub: one map issue plus one issue per build step. You own order, routing, state and what the human sees; stage skills do the work. Spend depth where a change is hard to undo; move fast elsewhere.
+Turn one already-reviewed spec into a pull request a reviewer can merge, with nobody watching the run. The user starts it, or resumes it, with `/m-feature <spec ref>`; the argument may also be the feature's state item. This skill owns order, routing, the state and the few lines the chat shows; the stage skills it loads do the work. The reviewer gets a PR whose top shows whether each requirement holds in the running app, and every decision made without a human, with its sources.
 
-- Read [`references/github.md`](references/github.md) before the first command.
-- A decision nobody has made that everything else waits on: stop and say so. Never invent a step to cover it.
-- The human stays in this session until the final PR, unless they ask for an autonomous run (below): `--auto`, or they say they are away or to decide everything.
+# Done when
 
-# What the human sees
+A pull request from `feature/<name>` into the base is open on the host, its verdict Proved or Not verified from a final prove of the tree it shows, every slice of the plan closed under the state's Decided (verified with its evidence, or not verified with why), every debate listed in the PR, every `found-by-prove` and `mstack:contradiction` issue linked from it, and the final line printed. Or the run printed the single setup stop line and created nothing.
 
-Result first, one line per finding or decision, no recap. Between steps, write only when they must see or decide something. After each stage, short, no paragraphs:
+# Acceptance criteria
 
-```
-Checked   · up to 5 lines, one per finding
-Decided   · up to 3 lines, one per decision, with why
-Your call · what is left to ask (usually one thing)
-Sources   · links
-```
+- [ ] The host shows one open PR from `feature/<name>` into the base named under the state's Base; it is a draft (or carries the do-not-merge line) unless its verdict is Proved.
+- [ ] The state item has the headings of [`references/state.md`](references/state.md) in order; every Requirements line has a `from`; Spec holds the frozen copy's hash.
+- [ ] The `Slices ·` line lists every slice, and each has a closed Decided line: `verified` with its evidence, or `not verified` with why.
+- [ ] No slice has more than 2 debates; every Debates line appears in the PR's Debates section.
+- [ ] Every Contradictions entry names an open `mstack:contradiction` issue; every pre-existing break prove returned names a `found-by-prove` issue (opened or commented); each is linked from the PR and carries an `Origin · feature <name> · PR <link>` line.
+- [ ] Every step item is closed, or listed in its slice's not verified line.
+- [ ] No credential value appears in the state, any item, issue, commit message or the PR body; no PR media is a local path.
+- [ ] Every refused command appears under To merge with the setup-mstack entry that would allow it.
+- [ ] Every Assumed line appears under the PR's Decisions made without a human.
+- [ ] The PR verdict comes from a final prove whose tree equals the PR head's tree, or the PR notes the markdown-only publish-issues commit after it.
+- [ ] The step check baseline is cleared and the final evidence dir is deleted, or named in the final line.
+- [ ] Every message addressed to the human is a slice line, a debate line, the final PR line or the setup stop line.
 
-Always raise what changes the plan, even if a stage already settled it: it already exists, it breaks the repo's pattern, the infrastructure does not allow it. Say when a stage returned no answer.
+# Ground rules
 
-A turn that ends to wait on something running says the stage, step n of N, what runs and roughly how long.
+- **Adapters.** Every tracker and host action is an adapter operation (`tracker read-spec`, `host open-pr`, …). Read `references/trackers/<tracker>.md` and `references/hosts/<host>.md` before the first operation: tool commands live only there, which is what lets a run use any tracker and host. Git runs directly; the remote is `origin`, and anything compared against a remote branch is compared after a fetch, since a stale local branch puts other work in the diff.
+- **The state is the truth.** Read [`references/state.md`](references/state.md) before creating the state or resuming one: its headings, branches and resume points. It lives in the tracker and, with the pushed `feature/<name>`, is all a new session on another machine has. Write what a resume needs before relying on it; where the state and your memory disagree, the state wins.
+- **Nothing waits.** Where a human would once have been asked, decide and record why (Assumed), take it to a debate, or deliver the PR Not verified. The setup stop, before anything exists, is the run's only stop.
+- **Credentials** come only from environment variables `MSTACK_SECRET_<NAME>`. Stages get their names, never their values, and a value is written nowhere: the state, issues and PR are read by people who must not see it.
+- **A refused command** is recorded for the PR's To merge, and the run goes on with what does not depend on it; it is never retried in another form, since that is the bypass the refusal exists to block ([`references/escalation.md`](references/escalation.md), Refused commands).
+- **The spec is frozen** at Start: every stage reads the frozen copy, so a spec edited mid-run cannot move the target. A later change is noted in the PR.
+- **Chat is minimal**: one line per slice closed, one per debate, the final PR line, each in the form given where it is printed. Nobody is reading progress; the state holds the detail.
+- **Other skills' directories**: `<m-requirements dir>`, `<m-review dir>` and `<m-prove dir>` are this skill's sibling directories, where their scripts live.
 
 # Start
 
-1. `gh --version` ≥ 2.99.0 and `gh auth status`.
-2. Split the arguments into the request and run instructions: `--auto` or words asking not to be asked (an autonomous run), credentials, budgets. Run instructions are not the request.
-   - A credential stays in this conversation and reaches prove as its own input. It is never in text that gets posted: an issue, a comment, a PR body.
-   - A budget goes on the map under Settled up front.
-   - An autonomous run: `Mode: autonomous` goes there too, so a compacted or resumed session keeps the mode. Read [`references/unattended.md`](references/unattended.md) and run its check now, while the human is still here.
-3. The target. A request that is, or names, `#<n>`: `gh issue view <n>`. An open issue labelled `feature:map` is a feature in flight: go to Resume. Any other open issue: first `gh issue list --label feature:map --state open --search "<n> in:body"`; a map naming it as source is a feature in flight: Resume it. Otherwise it is the source issue: its body is the human's words, quoted in the provisional Goal. A pull request, a closed issue or no match: stop and ask which issue is meant, even in an autonomous run. What to build is never assumed.
-4. The base: the branch the source issue says to target, else the default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). Every branch a stage compares against is the remote one, after `git fetch`: `origin/<base>`, `origin/feature/<name>`. Merges land on GitHub, so a local copy may be missing or stale.
-5. Create labels `feature:map`, `build` and `needs:human`.
-6. Cut and push `feature/<name>` from `<base>`. First `git ls-remote --heads origin feature/<name>` must print nothing; a line is another feature's branch: pick another name.
-7. Create the map: the request verbatim as provisional Goal, without the run instructions, Base with the feature branch and the source issue, your provisional undo verdict, other headings empty.
-8. Start scan.
+Outcome: either the setup stop line and nothing created, or a state item, a pushed `feature/<name>` and a frozen spec, ready for Understand.
+
+- **Config first, before creating anything**, so the setup stop leaves nothing behind. Read `.mstack.yml` (`tracker`, `host`, optional `jira: project:`, `md: dir:` default `.mstack/`). Missing: deduce `host` from `git remote get-url origin` (github.com → `gh`, gitlab → `gitlab`, bitbucket.org → `bitbucket`) and `tracker` from the spec reference (`#123` or a GitHub issue URL → `gh`, `ABC-123` or an atlassian URL → `jira`, a path to a `.md` file → `md`). Then `tracker check`, `host check` and `tracker read-spec`. A value that cannot be deduced, a missing adapter file, a failed check or an unreadable spec: print this line and end.
+  ```
+  Stop · <what is missing: tracker | host | <tool> not installed or not authenticated | spec <ref> unreadable> · run /setup-mstack
+  ```
+- **One state per spec**, since two would split the truth. The argument may itself be a state (it has the state's headings), or a `feature:map` item may already name this spec (`tracker find-issue`): either way, Resume.
+- **A name of its own.** `<name>` is kebab-case from the spec title, and `feature/<name>` is new on the remote: branch names carry it, so two features never share a branch.
+- **Frozen spec**: the text `read-spec` returned, saved at `<git common dir>/mstack/spec/<name>.md` (`git rev-parse --path-format=absolute --git-common-dir`), its sha256 on the state, the text itself as a state comment so a resume elsewhere can restore it.
+- **Base**: the branch the spec names, else `host default-branch`.
+- **Labels** `feature:map build found-by-prove mstack:contradiction` exist (`tracker ensure-labels`).
+- **`feature/<name>`** cut from `origin/<base>` and pushed.
+- **State** created (`tracker create-state <name> <title> <body>`) with Spec, Base and a provisional How hard to undo; linked to the spec when the spec is a tracker item.
 
 # Resume
 
-A feature in flight is picked up from GitHub, never from memory: the session that started it may be gone.
+The session may be new, so rebuild from the state and the remote. Re-run Start's config and checks and settle the base. Read the state with its comments; restore the frozen copy from its comment when it is missing on disk; compare the live spec's hash with Spec's and note `Spec changed · <date>` once if it moved, continuing on the frozen copy. Read the feature branch's first-parent log and any local `step/<name>-*` branches: steps push nothing, so unmerged work exists only on the machine that built it. Bring up prerequisites and the baseline unless resuming at Closing. Then continue at the first outcome below that the state does not yet show; inside a slice, at the point [`references/state.md`](references/state.md) (Resume points) names.
 
-1. Start's steps 1 and 4. Credentials are never stored: ask for them again. `Mode: autonomous` under Settled up front: the run stays autonomous; run [`references/unattended.md`](references/unattended.md)'s check.
-2. Read the map body and its comments, its steps (`gh issue view <map> --json subIssues`), the feature branch under Base and its `git log`, and the step branches (`git ls-remote --heads origin`).
-3. The map carries `needs:human`: ask its question first (a `Stopped ·` comment holds it). A Replans line with no step created after it: replan.md step 3. Otherwise continue at the first unfinished stage: no scan comment → scan; no numbered Goal → grilling; no docs comment → docs; no step issues → plan (a proposed list in the comments is shown again for confirmation); an open step → its build, or its step check when its PR is open; every step closed and no review report → review; else Closing. Start scan Q9's prerequisites again first (Routing), unless resuming at Closing.
+# How hard to undo
 
-# Undo verdict
+If this ships wrong, how hard is it to undo? You decide; stages only report evidence. Hard is a change others come to depend on or data gets stored in (a schema, a public API, a stored format, a core dependency, for instance); easy is one a later commit reverses whole (names, folders, internal structure). It sets depth and tiers: build and quality review run strong when hard. Settle it again after scan and after docs, since a vendor limit can change it; then it holds unless a debate changes it.
 
-If this ships wrong, how hard is it to undo? You decide it; stages only report evidence.
+# Understand
 
-- Hard: schema, public API, stored data format, core dependency.
-- Easy: names, folders, internal structure.
+Outcome: on the state, the requirements block, the scan's nine lines, the docs answers, every open decision debated (`→ D<k>`), every contradiction with its issue; prerequisites running and the step check baseline recorded.
 
-It sets the depth of grilling and plan. Settle it and write it to the map three times: at the start; after scan (grilling uses it); after docs (plan and build use it — a vendor limit can change it). It stays fixed until a replan re-settles it, and remaining steps then run at the new depth. Whenever it changes, tell the human.
+- **Requirements and scan** start together, since neither needs the other: one fresh agent for requirements and the scan split by question group, each dispatched as [Dispatch](#dispatch) says.
+- **The requirements block is accepted** only once `python3 <m-requirements dir>/scripts/check.py --spec <frozen copy> --out <block file>` has judged it. A failing block goes back with its FAIL lines while each resend fixes some; when one stops improving, accept it and list each FAIL line under Assumed and the PR's What to watch, since nothing waits. Its six state sections go into the body verbatim; Laziest build and Trace go in a comment. It never runs again on resume: its ids are what everything after cites.
+- **Scan answers** go on the state as one comment; Where it runs comes from Q8. A scan agent missing one of its questions goes back for it, as [Dispatch](#dispatch) says.
+- **Prerequisites and the baseline** need scan Q6 and Q9 and exist before the first step check, which compares against the baseline. Read [`references/slice-loop.md`](references/slice-loop.md) before starting them.
+- **Docs.** Call the Skill tool with `m-research`, in this chat, once scan has returned the installed versions (Q1) and infrastructure (Q8) and requirements has returned the open decisions, since its questions need both. Ask: the hard limits of the service or library; the documented timeout, as a number; the vendor's security guidance (auth, secrets, what never to log); what changed in the installed version; and, for each hard-to-undo open decision, what the standard and vendor docs say and which alternatives they document, as quotable facts that ground its debate. A question with no subject is answered "not applicable". Done when its quoted answers are a state comment and their links are under Sources.
+- **Debates before planning.** Each open decision `O<n>` (all hard to undo; easy ones are already under Assumed) and each hard-to-undo contradiction goes to a debate with scan's versions and limits among the Facts, since requirements ran without them; so does a derived requirement that is the only line covering a hard-to-undo behaviour (whether it is required). Read [`references/escalation.md`](references/escalation.md) before the first. None of these count toward a slice's cap.
+- **Contradiction issues**: each contradiction gets one `mstack:contradiction` issue saying the reading built, its ref beside the entry; a ref already there is never opened twice. Read [`references/closing.md`](references/closing.md) (Issues) for its body before opening the first.
 
-# Stages
+# Plan
 
-The order is fixed, but for docs: its questions 1–4 need only scan's versions and Q8's infrastructure, so they start when scan returns, in the background while grilling runs. A grilling answer that changes a docs subject re-asks only that question. Question 5 waits for grilling; plan waits for both.
+Outcome: the plan block as a state comment, one step item per step with its blocking links, and the `Slices ·` line (item refs) at the top of Decided. No confirmation: the plan is saved and run.
 
-```
-scan → grilling → docs → plan → build ⇄ check → review ⇄ fix → prove
-                          ↑                                      │
-                          └────────────────── replan ────────────┘
-```
+- Call the Skill tool with `m-plan`, in this chat, giving it the state ref and, verbatim, Requirements (`retired by D<k>` markers included), Not doing, Considered, Contradictions, Assumed, Debates and How hard to undo; scan Q1–Q9; the docs answers; Where it runs. Done when it has returned the plan block and one `Step <n>` body per step.
+- An `Open ·` line is debated, then `m-plan` is loaded again with the decision. A step marked `· waits D?` gets its item only after that decision, so nothing is built on a guess.
+- Step items carry the `Step <n>` body verbatim (`tracker create-step`); `tracker link <blocked> <blocking>` for each Blocking pair. The plan's Assumed lines join the state's.
 
-| Stage | Returns | Runs in | Skill |
-|---|---|---|---|
-| scan | 9 numbered answers | 4 fresh agents, parallel | `/m-scan` |
-| grilling | Goal as numbered clauses · where it runs · boundary and data-state answers if asked · Considered · Not doing · decisions made alone | main chat | `/m-grilling` |
-| docs | 4 answers (5 in an autonomous run), each with a primary link | main chat | `/m-research` |
-| plan | ordered steps · blocking · design checks | main chat | `/m-plan` |
-| build | step branch · PR into the feature branch and its number, or a stop line | fresh agent | `/m-build` |
-| check | `STEP CHECK: PASS`, `FAIL` or `NOT RUN`, per step | main chat, a script | `/m-review` |
-| review | `report.py`'s output: confirmed findings, each failed by a frozen reproduction · counts | fresh agent, dispatches its own agents | `/m-review` |
-| prove | a verdict per requirement · what else broke · at closing, the final PR open | fresh agent | `/m-prove` |
+# Per slice
 
-Whenever the flow stops for the human's answer, add `needs:human` to the issue it waits on, and remove it when they answer ([`references/github.md`](references/github.md), Issues).
-
-"Runs in" is fixed. A thin "Returns": tell the human and continue, except:
-
-- Scan slices: A owns Q1, B Q2–5, C Q6 and Q9, D Q7–8. A slice missing one of its questions goes back naming it. You assemble the nine lines.
-- Docs uses the version scan reported, never the newest.
-- A review without `report.py`'s output did not finish: rerun from the step that aborted.
-- Build returns no PR: see Step results.
-
-## Docs
-
-Hand these to `/m-research`. No subject (e.g. no external call, so no vendor timeout) → "not applicable", a finished answer.
-
-1. Hard limits of the service or library: rate limits, payload sizes, quotas.
-2. The documented timeout, as a number. `/m-build` gets it as a fact for code that calls out.
-3. Vendor security guidance: auth, secrets, what never to log.
-4. What changed in the installed version.
-5. Autonomous run only: each hard-to-undo decision grilling put under Assumed. The answer confirms it or revises it on the map.
-
-Post the reply as a comment on the map; links under Sources.
-
-## Routing
-
-- grilling and plan need the human; docs dispatches its own agents. These three stay in the main chat. Review runs in a fresh agent so its hunt stays out of this conversation; it returns `Review · not run · no Agent tool`: run it here.
-- Run all four scan slices at once.
-- One build at a time: one step branch, one PR, one issue in flight.
-- When scan returns, start the prerequisites scan Q9 lists (a database, a service), each contained with `run_in_background` (m-review's `scripts/contain.py`), from a directory outside the checkout: the step check ends every contained process started inside it. Keep them up while steps are checked and reviewed; stop them by the pid contain printed before each prove, which starts its own, and start them again for a replan's steps. Without them the baseline is red, and no step check can judge the suite.
-- Then record the step check baseline on the feature branch: `/m-review` step check `baseline` with scan Q6's two commands, the whole suite and one test file. Where scan says test files launch a browser or a server, the suite command caps the files run at once at half the machine's cores, 4 at most, with the runner's flag scan names: one browser per core stalls the machine. A baseline recorded without that cap (a feature started before this rule) gets it with `step_check.py set-cmd` before the next step check. That baseline command is the suite command every later stage gets, the review included. A baseline that aborts at setup names what was missing: start it, record again. A red one: tell the human now, with its failing tests.
-- A step check after every build, on its step branch.
-- One review, after the last step passes its check, on the whole feature diff. After a replan prove triggered, skip it when what landed since the last review is under 300 changed lines and How hard to undo is easy, and go to Closing: the step checks, the replays and the re-prove judge a small fix, and a review there costs a round of hunters for little.
-- prove after the review and any fix step, and it opens the final PR; again after any replan, as a re-prove: it drives only what the replan's diff can reach, and the rest keeps its verdict.
-
-## Dispatch
-
-Always a fresh agent, never a fork: a fork inherits the plan's reasoning and agrees with it. The agent has not seen this conversation: its prompt carries only the inputs below. Map sections reach it verbatim: name the map issue and the sections, and the agent reads them itself (`gh issue view <map> --json body --jq .body`). A section that needs changing changes on the map first.
-
-First line of every prompt (without it, the agent works without the stage's rules):
+Read [`references/slice-loop.md`](references/slice-loop.md) before the first slice. Outcome per slice, in plan order: its Decided line closed (`verified` with what works now and its evidence, or `not verified` with why), and its line printed:
 
 ```
-Invoke the Skill tool with `<m-scan | m-build | m-review | m-prove>`. Then do the work below.
+S<k> · verified | not verified · <what works now | why>
 ```
 
-Each agent's model is a tier: cheap, standard or strong, the harness's quickest, middle and most capable, by its own names. A harness that offers no choice, or a tier that does not resolve, runs the agent on the session's model. Three judges stand after a build (step check, review, prove), so build runs on standard by default. `/m-research` and `/m-review` name the tier of the agents they dispatch.
-
-| Stage | subagent_type | Model |
-|---|---|---|
-| scan A | `Explore` | cheap |
-| scan B–D | `Explore` | standard |
-| build, fix mode included | `general-purpose` | standard; strong when the undo verdict is hard |
-| review | `general-purpose` | standard |
-| prove | `general-purpose` | strong |
-
-Inputs:
-
-| Stage | Inputs |
-|---|---|
-| scan A–D | the feature · the questions it owns |
-| docs | installed versions (scan) · the questions under Docs · target infrastructure (scan Q8) |
-| build | step issue number and Done when · the map number, to read Not doing from · scan Q2–Q9 · docs numbers or "not applicable" · the run recipe's path: scan Q9's, else a `SKILL.md` under `~/.claude/skills/` or `~/.agents/skills/` whose description names this repo (where `/m-prove` writes one), else scan Q9 · the step branch it is on |
-| build, fix mode | the fix step issue (claims, conditions, entry points) · the map number, to read Not doing from · the same scan, docs and recipe inputs · the fix branch it is on |
-| review | the feature review · base `origin/<base>`, after `git fetch` · the step check baseline's suite command (Routing) · a setup command for a fresh checkout, from scan Q9 · the map number, to read Goal, How hard to undo, Settled up front, Assumed and Not doing from |
-| prove | the map number, to read Goal, Settled up front, Assumed and Not doing from · scan Q9 · base branch `origin/<base>`, after `git fetch` · credentials from the run instructions or grilling, if any · each review finding still `stale`, as a risk area: a confirmed bug never shown fixed · on a re-prove, the last verdict comment and that prove's tree · closing only: the final pull request (map number, feature branch, title, labels, and its body with the Proved section's placeholders) |
-
-# Before every build and the review
-
-Re-read the map and the open steps. Where they disagree with what you were about to do, the map wins, or fix the map first.
-
-```bash
-gh issue view <map> --json title,body --jq .body
-gh issue view <map> --json subIssues --jq '.subIssues.nodes[] | select(.state=="OPEN") | "#\(.number) \(.title)"'
-```
-
-Before a build, cut the step branch, then dispatch it.
-
-# Step results
-
-Run the step check on the step branch with the PR number, against `origin/feature/<name>` after `git fetch`. Run it as its own command, unpiped, and read its result before a merge or anything else.
-
-- **PASS**: merge the step branch into the feature branch, close the step issue, add a line to Decided, start the next build.
-- **FAIL**: comment its output on the step issue; re-dispatch `/m-build` with that output, the same hand-off and the existing branch; check again. Only a PASS after a change clears a FAIL: running the check again without a build fixes nothing.
-- **`flaky · <files>`** on a PASS: the step changed no code, and test files failed on one run only and pass alone. Merge; note each file on the map once; it goes under the final PR's What to watch.
-- **`suite · intermittent`** on test files this step did not change: check once more, with no build; it does not count toward a second FAIL. Someone else's flake rarely repeats; intermittent again is this step's (a cold start, a race): a FAIL like any other.
-- **NOT RUN · suite unstable under load**: each suite run failed on different files, all passing alone: the machine runs too many at once. `step_check.py set-cmd` with the suite command running half as many files at once (scan's flag), then check again; it does not count toward a second FAIL. Still unstable at one file at a time: tell the human (in an autonomous run, stop with it).
-- **NOT RUN**, any other: a run hit its ceiling, 3 times its baseline run: something hangs, and nothing was judged. Comment it on the step issue and tell the human (in an autonomous run, stop with it). It is not a FAIL and does not count toward a second one.
-- **Second FAIL** on one step: replan. A re-cut step with the same Done when, even under a new issue number, is the same step: its next failed step check means replan. A changed Done when starts at zero.
-- **`credential?`** line: show the human before merging.
-- **`unpinned?`** line: the builder says no test can pin this step. Add its reason to the step's Decided line; prove judges the step alone.
-- **`credential placeholder`** line: a key-shaped value that says it is not real. It holds no merge; it stays in the step check output.
-- **`pinned · not run`**: the check lacked what it names. Comment that on the map once and tell the human.
-- **Suite "not comparable"**: the baseline was red and its output names no failing file, so no step check judges the suite. Tell the human now (in an autonomous run, stop with it).
-- **`suite · intermittent`** naming no file: the check could not tell whose failure it is. Not this step's fault: tell the human, as for NOT RUN; it does not count toward a second FAIL.
-- **Baseline red**: the suite was red when the feature started. The step check fails a step only on files outside the baseline's failing set, so comment that set on the map once and tell the human.
-- **No PR**: a missing decision, ask the human; an unobservable Done when or a contradiction, replan.
-
-After each step, compare what you learned against the plan. The approach is wrong: replan. A redesign waits for the human's confirmation.
-
-# Review results
-
-Read [`references/review-results.md`](references/review-results.md) when the review returns, then act on its report by it.
-
-# Replan
-
-Triggers: two failed step checks on one step · build returns no PR for an unobservable Done when or a contradiction · a finding still failing after two fix rounds · a patching loop: a new finding or `new` break in a non-test file that two repair steps of this feature already changed (review fix steps, and steps a replan added after a prove break) · a step shows the approach is wrong · prove returns not verified on a requirement or a `new` break. Scan findings feed grilling and plan, not replan.
-
-A trigger fires: read [`references/replan.md`](references/replan.md), then replan by it.
-
-# Autonomous run
-
-The human asked not to be asked: `--auto`, or they are away, or told you to decide everything. The rest of this skill holds, except:
-
-- Every point that waits on the human takes your recommendation: a grilling answer, the plan's confirmation, a replan's revised list, a disputed finding, a decision nobody has made, Your call. Record each on the map with its reason; a decision goes under Assumed. Nothing waits, so `needs:human` goes only where the lines below put it.
-- A recommendation that is hard to undo, or one you would otherwise stop for, is grounded first: run `/m-research` on it, asked as facts it can quote: what the standard or the vendor's docs say to do, and the alternatives they document. Decide on what serves the product's users best, and put the sources beside it under Assumed.
-- A `credential?` line stays unmerged for the human: leave that step open with `needs:human` on its issue, say so on the map, and go on with the steps that do not depend on it. Closing then runs with that step open, and the closing message puts it under To merge.
-- A replan still needs a trigger from Replan, never taste.
-- Requirements hold still:
-  - Every requirement keeps its full scope through a failure: no narrowing, no dropped clause, no addition to Not doing. Not doing is fixed once plan is done: a replan's `/m-plan` adds nothing to it.
-  - A clause's words are the human's and never change. Only its bound may change, once, as [`references/replan.md`](references/replan.md) says, and never to one that narrows it, a `bound —` clause included: keep `was: <old bound>` beside it on the map, say so under Assumed, and prove that line again: no build. The final PR stays a draft for the human to accept the new bound.
-- Two Replans lines do not stop the run. Stop as [`references/replan.md`](references/replan.md) says, under Stop, only when:
-  - The same requirement is not verified on two proves in a row, each after a step aimed at it, and `/m-research` on it quotes no documented alternative you have not tried: the approach is wrong.
-  - Two re-proves in a row fail only on `new` breaks, every requirement verified; or prove has triggered three replans (three `prove ·` lines under Replans). List the breaks still open under the PR's What to watch; it stays Not verified.
-  - The harness refuses a step merge ([`references/unattended.md`](references/unattended.md), Refused anyway): every later step, the review and prove build on the feature branch.
-  - A budget the human set (money, time, rounds) is spent. A replans budget counts every line under Replans.
-- Say each replan in one line as it starts, with what broke: the human may look in.
+- Steps are built one at a time, and each merges into `feature/<name>` only after its step check passes, so every step builds on checked work and every merge is pushed for resume.
+- After the slice's steps merge: quality review ⇄ fix, then slice prove ⇄ fix. Quality fixes come first because they change code the prove must see, and a prove is the expensive judge.
+- A failure is fixed by the builder in fix mode. A failure one more fix cannot settle goes to a debate ([`references/escalation.md`](references/escalation.md)); after 2 debates on a slice it is not verified and the run moves on.
 
 # Closing
 
-After the review and any fix step: read [`references/closing.md`](references/closing.md), then close by it. The run ends on its message to the human.
+When every slice is closed, read [`references/closing.md`](references/closing.md) before the final prove: final prove ⇄ fix, found-by-prove issues, the PR through the host adapter with its media attached, cleanup, the final line.
+
+# The judges
+
+The step check (a script), the quality review and the prove judge the work; the builder never judges its own. Each judge that is an agent is a fresh one that did not write the code and has not seen this chat, since an agent that shares the builder's reasoning agrees with it. For the same reason only the judge clears its own finding: your reading of the code settles nothing. A judge passes only when the work changes: tests, the spec and every Done when stay as they were, since changing one to pass hides the failure it was there to find.
+
+# Dispatch
+
+A stage that runs as an agent runs as a fresh one, never a fork, since a fork inherits this conversation's reasoning. It has not seen this chat and runs no tracker or host command, so paste verbatim every state section, step item and spec excerpt it needs, read just before; a section that needs changing changes on the state first.
+
+The prompt opens by having the agent load its stage's skill, so it works under that skill's rules:
+
+```
+Call the Skill tool with `<m-requirements | m-scan | m-build | m-prove>`. Then do the work below.
+```
+
+A dispatch is done when its reply is the return the stage's skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question it owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return (a scan question it owns), was not made under the skill: dispatch again. A second such reply means a resend will not fix it, since nothing waits: inside a slice it is that slice failing (a debate, counted toward its cap); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
+
+Models are tiers, cheap, standard and strong: the harness's quickest, middle and most capable. A tier that does not resolve runs on the session's model.
+
+| Stage | Runs in | subagent_type | Model |
+|---|---|---|---|
+| requirements | fresh agent loading `m-requirements` | `general-purpose` | standard; `check.py` checks its block |
+| scan A (Q1) | fresh agent loading `m-scan` | `Explore` | cheap |
+| scan B (Q2–5), C (Q6, Q9), D (Q7–8) | fresh agent loading `m-scan` | `Explore` | standard |
+| docs | this chat, `m-research` loaded; it dispatches its own agents | — | its own (standard) |
+| debate | this chat, `m-debate` loaded; it dispatches its own 5 agents | — | its own (3 strong, 2 standard) |
+| plan | this chat, `m-plan` loaded | — | session |
+| build, fix mode included | fresh agent loading `m-build`, one at a time | `general-purpose` | standard; strong when How hard to undo is hard |
+| step check | this chat, `step_check.py` | — | none |
+| quality review, re-review | this chat, `m-review` loaded; it dispatches its own fresh reviewer | — | standard; strong when How hard to undo is hard |
+| prove, slice and final | fresh agent loading `m-prove` (the supervisor) | `general-purpose` | strong; it dispatches its own drivers (Q1 standard, Q2 strong) |
+
+Inputs each stage needs:
+
+| Stage | Inputs |
+|---|---|
+| requirements | the frozen copy's path · the spec's ref · the checkout path (read-only) |
+| scan | the spec title and frozen copy's path · the question group it owns |
+| build | the step item's ref and body verbatim · Not doing verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
+| build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with source and `file:line`), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt) · a debate decision, when one led here |
+| debate | the block in [`references/escalation.md`](references/escalation.md) (Running a debate) |
+| quality review | the diff range `<slice start sha>..<slice end sha>` · How hard to undo · Not doing verbatim · the repo's rule files that exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`, `.cursor/rules/`, style guides the repo names) · scan Q1, Q4, Q5 · the docs answers with their quotes and links |
+| re-review | only the findings to recheck and the fix range |
+| prove, slice | `mode: slice` · the feature branch · the slice id and its `Slice S<k> · Done when e2e …` line verbatim · the Requirements lines it serves, verbatim · diff range `<slice start sha>..HEAD` · scan Q9 · Not doing · each `MSTACK_SECRET_<NAME>` set in the environment, by name, with what it unlocks |
+| prove, final | `mode: final` · the feature branch · every Requirements line verbatim but those `retired by D<k>` · every `Slice S<k>` line · base: the bare base branch name (m-prove adds `origin/`), after `git fetch` · scan Q9 · Not doing, Assumed · credential variable names · the PR body with the Proved section's placeholders ([`references/closing.md`](references/closing.md)) |
