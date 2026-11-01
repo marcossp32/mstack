@@ -22,7 +22,7 @@ import re
 import sys
 
 SECTIONS = ["Requirements", "Not doing", "Considered", "Contradictions",
-            "Open decisions", "Assumed", "Laziest build", "Trace"]
+            "Open decisions", "Assumed", "How to build", "Laziest build", "Trace"]
 ABSOLUTES = re.compile(r"\b(every|each|any|all|both|never|always|whenever|everyone|everything|anything|anyone|100%)\b", re.I)
 YES_NO = re.compile(r"^(should|shall|do|does|did|is|are|was|were|can|could|will|would|must|may|which|whether)\b", re.I)
 OPTION_HINT = re.compile(r"\b(or|either|e\.g\.|such as|for example|option|alternatively|instead of|versus|vs\.?)\b", re.I)
@@ -118,6 +118,12 @@ def main():
             fails.append(f"Not doing without a from excerpt: {line}")
         for q in qs:
             in_spec(q, "Not doing")
+    for line in items("How to build"):
+        qs = QUOTE.findall(line)
+        if not qs:
+            fails.append(f'How to build line must quote the spec: {line}')
+        for q in qs:
+            in_spec(q, "How to build")
     for line in items("Considered"):
         if " · why " not in line:
             fails.append(f"Considered without why: {line}")
@@ -166,8 +172,8 @@ def main():
         for tid in re.findall(r"\b([RCO]\d+)\b", target):
             if tid not in known:
                 fails.append(f"Trace names {tid}, which does not exist")
-        if not re.search(r"\b([RCO]\d+)\b|Not doing|Considered|context · \S", target):
-            fails.append(f"Trace target must be ids, Not doing, Considered or context · <why>: {line}")
+        if not re.search(r"\b([RCO]\d+)\b|Not doing|Considered|How to build|context · \S", target):
+            fails.append(f"Trace target must be ids, Not doing, Considered, How to build or context · <why>: {line}")
     remaining = re.sub(r"(?<!\w)\d+[.)](?!\w)", " ", remaining)  # list markers
     left = re.findall(r"[^\W_]{2,}", remaining)
     if left:

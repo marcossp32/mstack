@@ -7,11 +7,11 @@ Turn a frozen spec into the requirement lines a prover judges the change against
 
 # Done when
 
-One block is returned with the sections `## Requirements`, `## Not doing`, `## Considered`, `## Contradictions`, `## Open decisions`, `## Assumed`, `## Laziest build` and `## Trace`, in that order, each holding its lines or `none`, and `python3 <this skill's directory>/scripts/check.py --spec <frozen spec file> --out <block file>` prints `PASS`.
+One block is returned with the sections `## Requirements`, `## Not doing`, `## Considered`, `## Contradictions`, `## Open decisions`, `## Assumed`, `## How to build`, `## Laziest build` and `## Trace`, in that order, each holding its lines or `none`, and `python3 <this skill's directory>/scripts/check.py --spec <frozen spec file> --out <block file>` prints `PASS`.
 
 # Acceptance criteria
 
-- [ ] Every sentence of the spec (headings and list items included) has a `## Trace` line naming the requirements, `Not doing`, `Considered`, contradiction or open decision it maps to, or `context · <why>`, and every sentence that asks for an effect someone can observe maps to an R line.
+- [ ] Every sentence of the spec (headings and list items included) has a `## Trace` line naming the requirements, `Not doing`, `Considered`, `How to build`, contradiction or open decision it maps to, or `context · <why>`, and every sentence that asks for an effect someone can observe maps to an R line.
 - [ ] Every `asked` line has a `from` excerpt that appears in the spec verbatim; every `derived` line quotes the spec or names an earlier `asked` line.
 - [ ] Every asked line says what its excerpt says, in the spec's terms, adding only measures and bounds that an `## Assumed` line names against that id.
 - [ ] Ids run R1..Rn, unique, in order; no line carries `required by D<k>` or `retired by D<k>`.
@@ -40,6 +40,7 @@ A prover drives the running app and judges each line exactly as written, inventi
 - **One observable effect.** Each line is one effect someone outside the code can watch hold, with the trigger or state it depends on, and one reading. Two effects are two lines with the same excerpt. Say what is seen, not how to drive it, and name an implementation only where the spec names it.
 - **Bounded and measured.** An absolute or a set names the inputs it covers, and a vague term gets a measure written into the line: an unbounded `every` fails on the next input tried, an over-narrow one lets a lazy build pass. Prefer the spec's figure, then a limit the repo already enforces (`file:line` in the Assumed line), then the narrowest domain that still serves the spec's purpose; list each choice under Assumed. Choose once: a bound changed later keeps the change from counting as proved.
 - **Derived only where it shows.** What the spec implies but does not say (the empty state, a failing input or dependency, a limit reached) becomes a `derived` line only where a user of an asked effect would see the difference. Each costs a drive and never blocks, so each one has to earn that drive.
+- **How to build is kept, not dropped.** A sentence that says how to do the work rather than what must hold (make an inventory first, use this tool, follow this order) is no requirement, and as `context` it would never reach the people building: quote it verbatim under `## How to build`, and its Trace line points there.
 - **No lazy build passes.** Name the cheapest build that passes every line yet misses the spec (a hard-coded value, the empty case only, one input of a set) and close the gap by tightening the asked line's wording or bound within its excerpt; an asked line exists only where the spec asks. A gap the excerpt cannot close is a `derived` line. Record the last laziest build under `## Laziest build`.
 
 Read [references/wording.md](references/wording.md) before wording a line that resists this bar: it holds what makes a line provable and the words that most often hide an ambiguity.
@@ -74,10 +75,12 @@ C<n> · "<excerpt A>" vs "<excerpt B>" · reading <chosen> · why <reason> · un
 O<n> · <neutral problem> · from "<excerpt>" | from R<m> · facts <constraints from the spec>
 ## Assumed
 - <decision> · why <reason> · affects R<n>
+## How to build
+- "<spec sentence on how to do the work, verbatim>"
 ## Laziest build
 <the build that passes every line and misses the spec> · closed by <what changed>
 ## Trace
-"<spec sentence, verbatim>" → R<a> R<b> | Not doing | Considered | C<n> | O<n> | context · <why>
+"<spec sentence, verbatim>" → R<a> R<b> | Not doing | Considered | How to build | C<n> | O<n> | context · <why>
 ```
 
 - `from` with ` + ` joins excerpts when one effect needs two sentences (the effect and its condition).

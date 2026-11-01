@@ -32,6 +32,7 @@ The reply holds one plan block in the format under Output, followed by one `Step
 
 - The requirement lines, verbatim: `R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from …`. A line ending `· retired by D<k>` was overturned by that debate and gets no step, no `serves` and no `completes`; the line that replaced it carries its work.
 - Not doing, Considered, Contradictions with the reading chosen, Assumed, Debates.
+- How to build: the spec's own instructions on how to do the work, verbatim. Each lands in the steps it concerns (an inventory first, a tool, an order), quoted in their What you need to know.
 - How hard to undo (hard | easy), and where the app runs.
 - What the repo holds: what exists, how it does similar things, what it calls them, how it runs.
 - Docs answers: limits, timeouts, security guidance, version changes, with quotes.
@@ -47,6 +48,7 @@ Each step merges on its own and leaves the branch working, delivers a small case
 - It quotes the requirement it serves (`serves R<k> "<words>"`), since the builder never sees the requirement lines. A step with no requirement of its own (a migration, a shared helper) serves the requirement whose step needs it.
 - Over a set, it names the reference and the whole set (a table of values where there is one); the one that completes a bounded requirement names the bound's whole domain. Prove checks the whole set, and a step built to a sample comes back once per missing case.
 - Every behaviour the requirements and Assumed name (data state on failure, defaults, limits) lands in some Done when; nothing in Not doing does.
+- A requirement that compares with a reference (looks or behaves like a prototype, a mockup, a page of the base) is a set too: its members are the differences. It starts from an **inventory**: every difference between the surface and the reference at every width or state its bound names, on every axis its words name (composition, type, colour, motion, details…), written in the builder's notes before any change. The inventory comes in the first step that changes how that surface looks or behaves, whichever requirement that step serves (type or motion lines included), and that step and every later one on the surface close items of the same list; the last one's Done when is that every listed difference is closed, or named as out of the reference's reach with why. Ported part by part with no list, each prove finds the next few differences and costs a round.
 
 **Blocking.** A pair goes in only where B cannot start before A lands; a preferred order is not blocking.
 

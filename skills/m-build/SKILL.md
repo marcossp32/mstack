@@ -43,10 +43,15 @@ Either the step branch holds your commits, no tracked file is left modified, the
 
 **What only you can see.** No local check exercises behaviour that appears only off this machine or on a rare path, so it rests on you: bound every call out of the process with a timeout (the documented value where a docs answer gives one), release what an error path holds, and read per-environment values from the environment.
 
+**Reach stays where the item points.** A change the item scopes to one surface (a page, a template, a style, an endpoint) lands only there. A rule in a file that other surfaces also load is scoped to that surface (its selector, template or condition); where it cannot be, What changed names every other surface it changes. A change that leaks to pages the item never named is found by the final prove's regression hunt, a whole round later.
+
+**An inventory before a match.** A Done when that closes every difference from a reference (a prototype, a mockup, a base page) starts with the comparison, not the code: every difference between the surface and the reference at each width and state it names, on each axis it names, written under the notes' `## Inventory` before you change anything. Then close them all. One you cannot close stays on the list with why.
+
 ## Known traps
 
 - `contain.py --timeout` cuts a slow run that was fine, and the cut reads as a failure.
 - A foreground wait (`sleep`, an `until` loop) holds the turn until the shell tool's time limit; run long commands in the background, where the harness reports their exit.
+- A delete chained after other commands (`…; rm -rf <dir>`, `… && rm -rf …`) is refused by the permission check and costs a retry. Delete in a command of its own.
 - A server started outside contain (`&`, `Start-Process`) escapes containment; start it contained in the background and stop it with `contain.py stop <pid>`, the pid contain prints.
 
 # Stop instead
@@ -91,6 +96,9 @@ where the git common dir is `git rev-parse --path-format=absolute --git-common-d
 
 ## Pinned by
 - <test file that fails without this change · the Done when clause it pins>, or "none · <why nothing can>"
+
+## Inventory
+- <difference · reference value | surface value · closed | out of reach: why>, one per line; or "none" when the item asks for no match
 
 ## Disputed
 - <finding or failure id · why it is wrong · the code or output that shows it>, or "none"
