@@ -75,6 +75,10 @@ Afterwards the description holds no local media path: each is an uploaded URL, o
 
 Refused anyway: keep it ready and put `> **Not verified: do not merge.** This project cannot hold draft merge requests.` as the verdict alert's first line after its `[!…]` marker (`edit-pr`); the PR line says `draft unavailable`. A Proved MR, or one that is a draft, carries no such line.
 
+## ci-status `<n>`
+
+Not specified for this host yet: its commands are not checked against its docs. Return `unknown`; Closing names the CI lines under What to watch, and the PR cannot be Proved on them.
+
 ## Cannot do
 
 - Alerts (`> [!TIP]`) render from GitLab 17.10 on; an older instance shows them as plain quotes, the verdict line still read first.

@@ -58,6 +58,10 @@ Afterwards the body holds no local media path. Bitbucket has no inline upload fo
 
 `PUT $API/pullrequests/<n>` with `{"draft": <bool>}`. `draft` is documented on create, not on update, so re-read the PR to confirm it changed. Refused or ignored: keep it open and put `> **Not verified: do not merge.** This repo cannot hold draft pull requests.` as the verdict alert's first line after its `[!…]` marker (`edit-pr`); the PR line says `draft unavailable`. A Proved PR, or one that is a draft, carries no such line.
 
+## ci-status `<n>`
+
+Not specified for this host yet: its commands are not checked against its docs. Return `unknown`; Closing names the CI lines under What to watch, and the PR cannot be Proved on them.
+
 ## Cannot do
 
 - Labels, assignee, milestone: none on Bitbucket PRs.

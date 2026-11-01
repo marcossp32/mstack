@@ -41,6 +41,9 @@ Created at Start with Spec, Base and How hard to undo filled, other headings emp
 ## Assumed
 <decisions made without a debate, each with why and its sources: m-requirements' easy decisions, m-plan's, yours, a changed bound>
 
+## How to build
+<m-requirements' lines, verbatim: the spec's instructions on how to do the work, which plan and every build receive>
+
 ## Decided
 Slices · S1: <step ref> <step ref> · S2: <step ref> · …
 <one line per slice: open while in progress, closed when done (Slice lines below)>

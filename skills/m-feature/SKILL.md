@@ -8,14 +8,14 @@ Turn one already-reviewed spec into a pull request a reviewer can merge, with no
 
 # Done when
 
-A pull request from `feature/<name>` into the base is open on the host, its verdict Proved or Not verified from a final prove of the tree it shows, every slice of the plan closed under the state's Decided (verified with its evidence, or not verified with why), every debate listed in the PR, every `found-by-prove` and `mstack:contradiction` issue linked from it, and the final line printed. Or the run printed the single setup stop line and created nothing.
+A pull request from `feature/<name>` into the base is open on the host, its verdict Proved or Not verified from a final prove of the tree it shows, every slice of the plan closed under the state's Decided (verified with its evidence, or not verified with why), every debate listed in the PR, every `found-by-prove` and `mstack:contradiction` issue linked from it, and the final line printed. Or the run printed a stop line: the setup stop, with nothing created, or a stop for a person ([`references/escalation.md`](references/escalation.md), Stop for a person), with the state saved for a resume.
 
 # Acceptance criteria
 
 - [ ] The host shows one open PR from `feature/<name>` into the base named under the state's Base; it is a draft (or carries the do-not-merge line) unless its verdict is Proved.
 - [ ] The state item has the headings of [`references/state.md`](references/state.md) in order; every Requirements line has a `from`; Spec holds the frozen copy's hash.
 - [ ] The `Slices ·` line lists every slice, and each has a closed Decided line: `verified` with its evidence, or `not verified` with why.
-- [ ] No slice has more than 2 debates; every Debates line appears in the PR's Debates section.
+- [ ] Every Debates line appears in the PR's Debates section, and its record is a state comment.
 - [ ] Every Contradictions entry names an open `mstack:contradiction` issue; every pre-existing break prove returned names a `found-by-prove` issue (opened or commented); each is linked from the PR and carries an `Origin · feature <name> · PR <link>` line.
 - [ ] Every step item is closed, or listed in its slice's not verified line.
 - [ ] No credential value appears in the state, any item, issue, commit message or the PR body; no PR media is a local path.
@@ -23,13 +23,13 @@ A pull request from `feature/<name>` into the base is open on the host, its verd
 - [ ] Every Assumed line appears under the PR's Decisions made without a human.
 - [ ] The PR verdict comes from a final prove whose tree equals the PR head's tree, or the PR notes the markdown-only publish-issues commit after it.
 - [ ] The step check baseline is cleared and the final evidence dir is deleted, or named in the final line.
-- [ ] Every message addressed to the human is a slice line, a debate line, the final PR line or the setup stop line.
+- [ ] Every message addressed to the human is a slice line, a debate line, the final PR line or a stop line.
 
 # Ground rules
 
 - **Adapters.** Every tracker and host action is an adapter operation (`tracker read-spec`, `host open-pr`, …). Read `references/trackers/<tracker>.md` and `references/hosts/<host>.md` before the first operation: tool commands live only there, which is what lets a run use any tracker and host. Git runs directly; the remote is `origin`, and anything compared against a remote branch is compared after a fetch, since a stale local branch puts other work in the diff.
 - **The state is the truth.** Read [`references/state.md`](references/state.md) before creating the state or resuming one: its headings, branches and resume points. It lives in the tracker and, with the pushed `feature/<name>`, is all a new session on another machine has. Write what a resume needs before relying on it; where the state and your memory disagree, the state wins.
-- **Nothing waits.** Where a human would once have been asked, decide and record why (Assumed), take it to a debate, or deliver the PR Not verified. The setup stop, before anything exists, is the run's only stop.
+- **Two stops, nothing else waits.** The run stops at the setup stop, before anything exists, and when a requirement cannot hold without a person ([`references/escalation.md`](references/escalation.md), Stop for a person). Everywhere else a human would once have been asked, decide and record why (Assumed), research it, or take it to a debate. A Not verified PR is a failure, never a way out.
 - **Credentials** come only from environment variables `MSTACK_SECRET_<NAME>`. Stages get their names, never their values, and a value is written nowhere: the state, issues and PR are read by people who must not see it.
 - **A refused command** is recorded for the PR's To merge, and the run goes on with what does not depend on it; it is never retried in another form, since that is the bypass the refusal exists to block ([`references/escalation.md`](references/escalation.md), Refused commands).
 - **The spec is frozen** at Start: every stage reads the frozen copy, so a spec edited mid-run cannot move the target. A later change is noted in the PR.
@@ -65,18 +65,19 @@ If this ships wrong, how hard is it to undo? You decide; stages only report evid
 Outcome: on the state, the requirements block, the scan's nine lines, the docs answers, every open decision debated (`→ D<k>`), every contradiction with its issue; prerequisites running and the step check baseline recorded.
 
 - **Requirements and scan** start together, since neither needs the other: one fresh agent for requirements and the scan split by question group, each dispatched as [Dispatch](#dispatch) says.
-- **The requirements block is accepted** only once `python3 <m-requirements dir>/scripts/check.py --spec <frozen copy> --out <block file>` has judged it. A failing block goes back with its FAIL lines while each resend fixes some; when one stops improving, accept it and list each FAIL line under Assumed and the PR's What to watch, since nothing waits. Its six state sections go into the body verbatim; Laziest build and Trace go in a comment. It never runs again on resume: its ids are what everything after cites.
+- **The requirements block is accepted** only once `python3 <m-requirements dir>/scripts/check.py --spec <frozen copy> --out <block file>` has judged it. A failing block goes back with its FAIL lines while each resend fixes some; when one stops improving, accept it and list each FAIL line under Assumed and the PR's What to watch, since nothing waits. Its seven state sections go into the body verbatim; Laziest build and Trace go in a comment. It never runs again on resume: its ids are what everything after cites.
 - **Scan answers** go on the state as one comment; Where it runs comes from Q8. A scan agent missing one of its questions goes back for it, as [Dispatch](#dispatch) says.
 - **Prerequisites and the baseline** need scan Q6 and Q9 and exist before the first step check, which compares against the baseline. Read [`references/slice-loop.md`](references/slice-loop.md) before starting them.
 - **Docs.** Call the Skill tool with `m-research`, in this chat, once scan has returned the installed versions (Q1) and infrastructure (Q8) and requirements has returned the open decisions, since its questions need both. Ask: the hard limits of the service or library; the documented timeout, as a number; the vendor's security guidance (auth, secrets, what never to log); what changed in the installed version; and, for each hard-to-undo open decision, what the standard and vendor docs say and which alternatives they document, as quotable facts that ground its debate. A question with no subject is answered "not applicable". Done when its quoted answers are a state comment and their links are under Sources.
-- **Debates before planning.** Each open decision `O<n>` (all hard to undo; easy ones are already under Assumed) and each hard-to-undo contradiction goes to a debate with scan's versions and limits among the Facts, since requirements ran without them; so does a derived requirement that is the only line covering a hard-to-undo behaviour (whether it is required). Read [`references/escalation.md`](references/escalation.md) before the first. None of these count toward a slice's cap.
+- **Debates before planning.** Each open decision `O<n>` (all hard to undo; easy ones are already under Assumed) and each hard-to-undo contradiction goes to a debate with scan's versions and limits among the Facts, since requirements ran without them; so does a derived requirement that is the only line covering a hard-to-undo behaviour (whether it is required). Read [`references/escalation.md`](references/escalation.md) before the first.
+- **What only a person can give.** Read every accepted requirement for what driving it needs: a login or account (a buyer, an admin), a service key, an approval. One whose `MSTACK_SECRET_<NAME>` is not set in the environment stops the run for a person now ([`references/escalation.md`](references/escalation.md), Stop for a person), naming the variable and what it unlocks, before anything is planned or built: found at the final prove, it would leave the PR Not verified. A line judged by CI needs the pull request open: Closing opens it as a draft before the final prove.
 - **Contradiction issues**: each contradiction gets one `mstack:contradiction` issue saying the reading built, its ref beside the entry; a ref already there is never opened twice. Read [`references/closing.md`](references/closing.md) (Issues) for its body before opening the first.
 
 # Plan
 
 Outcome: the plan block as a state comment, one step item per step with its blocking links, and the `Slices ·` line (item refs) at the top of Decided. No confirmation: the plan is saved and run.
 
-- Call the Skill tool with `m-plan`, in this chat, giving it the state ref and, verbatim, Requirements (`retired by D<k>` markers included), Not doing, Considered, Contradictions, Assumed, Debates and How hard to undo; scan Q1–Q9; the docs answers; Where it runs. Done when it has returned the plan block and one `Step <n>` body per step.
+- Call the Skill tool with `m-plan`, in this chat, giving it the state ref and, verbatim, Requirements (`retired by D<k>` markers included), Not doing, Considered, Contradictions, Assumed, How to build, Debates and How hard to undo; scan Q1–Q9; the docs answers; Where it runs. Done when it has returned the plan block and one `Step <n>` body per step.
 - An `Open ·` line is debated, then `m-plan` is loaded again with the decision. A step marked `· waits D?` gets its item only after that decision, so nothing is built on a guess.
 - Step items carry the `Step <n>` body verbatim (`tracker create-step`); `tracker link <blocked> <blocking>` for each Blocking pair. The plan's Assumed lines join the state's.
 
@@ -90,7 +91,7 @@ S<k> · verified | not verified · <what works now | why>
 
 - Steps are built one at a time, and each merges into `feature/<name>` only after its step check passes, so every step builds on checked work and every merge is pushed for resume.
 - After the slice's steps merge: quality review ⇄ fix, then slice prove ⇄ fix. Quality fixes come first because they change code the prove must see, and a prove is the expensive judge.
-- A failure is fixed by the builder in fix mode. A failure one more fix cannot settle goes to a debate ([`references/escalation.md`](references/escalation.md)); after 2 debates on a slice it is not verified and the run moves on.
+- A failure is fixed by the builder in fix mode. A failure one more fix cannot settle goes to a debate ([`references/escalation.md`](references/escalation.md)). Rounds go on while they make progress; a loop changes the question or stops for a person ([`references/escalation.md`](references/escalation.md), Progress or loop).
 
 # Closing
 
@@ -110,7 +111,7 @@ The prompt opens by having the agent load its stage's skill, so it works under t
 Call the Skill tool with `<m-requirements | m-scan | m-build | m-prove>`. Then do the work below.
 ```
 
-A dispatch is done when its reply is the return the stage's skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question it owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return (a scan question it owns), was not made under the skill: dispatch again. A second such reply means a resend will not fix it, since nothing waits: inside a slice it is that slice failing (a debate, counted toward its cap); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
+A dispatch is done when its reply is the return the stage's skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question it owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return (a scan question it owns), was not made under the skill: dispatch again. A second such reply means a resend will not fix it, since nothing waits: inside a slice it is that slice failing (a debate, ); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
 
 Models are tiers, cheap, standard and strong: the harness's quickest, middle and most capable. A tier that does not resolve runs on the session's model.
 
@@ -120,7 +121,7 @@ Models are tiers, cheap, standard and strong: the harness's quickest, middle and
 | scan A (Q1) | fresh agent loading `m-scan` | `Explore` | cheap |
 | scan B (Q2–5), C (Q6, Q9), D (Q7–8) | fresh agent loading `m-scan` | `Explore` | standard |
 | docs | this chat, `m-research` loaded; it dispatches its own agents | — | its own (standard) |
-| debate | this chat, `m-debate` loaded; it dispatches its own 5 agents | — | its own (3 strong, 2 standard) |
+| debate | `m-debate` through the Skill tool, the block as its argument; it runs in its own context and dispatches its own 5 agents, so only its reply lines reach this chat | — | its own (3 strong, 2 standard) |
 | plan | this chat, `m-plan` loaded | — | session |
 | build, fix mode included | fresh agent loading `m-build`, one at a time | `general-purpose` | standard; strong when How hard to undo is hard |
 | step check | this chat, `step_check.py` | — | none |
@@ -133,7 +134,7 @@ Inputs each stage needs:
 |---|---|
 | requirements | the frozen copy's path · the spec's ref · the checkout path (read-only) |
 | scan | the spec title and frozen copy's path · the question group it owns |
-| build | the step item's ref and body verbatim · Not doing verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
+| build | the step item's ref and body verbatim · Not doing and How to build verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
 | build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with source and `file:line`), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt) · a debate decision, when one led here |
 | debate | the block in [`references/escalation.md`](references/escalation.md) (Running a debate) |
 | quality review | the diff range `<slice start sha>..<slice end sha>` · How hard to undo · Not doing verbatim · the repo's rule files that exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`, `.cursor/rules/`, style guides the repo names) · scan Q1, Q4, Q5 · the docs answers with their quotes and links |
