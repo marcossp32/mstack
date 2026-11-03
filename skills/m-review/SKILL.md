@@ -1,25 +1,24 @@
 ---
 name: m-review
-description: "Reviews a change without running the app: a script checks each build step against the suite's recorded baseline, and a static review reports only findings that a repo rule or the installed version's official docs condemn. Use when asked to check a build step, review a change, or recheck its findings after a fix."
+description: "Reviews a change without running the app: a script checks each build step against the suite's recorded baseline, and a static review reports only what a reader can prove from the diff: a changed line that cannot do what its requirement's words say, a bug with a concrete input that breaks it, a break of a repo rule or an official doc or standard for the installed version, or the same behaviour in clearly less code. Use when asked to check a build step, review a change against its requirements, or recheck its findings after a fix."
 ---
 
-Tells the caller whether a change is well made; whether it works is judged by driving the running app, not here. The step check is a script that gates each build step before it merges into the feature branch. The quality review is one fresh static agent that reads a range of commits and reports only what a written source condemns, so a builder can fix each finding and the caller can check it without trusting the reviewer.
+Tells the caller whether a change is well made and does what was asked, as far as reading can tell; whether it works in the running app is judged there, not here. The step check is a script that gates each build step before it merges into the feature branch. The quality review is one fresh static agent that reads a range of commits next to the requirements it serves and reports only findings that carry their own evidence, so a builder can fix each one to a clear end and the caller can check it without trusting the reviewer.
 
 # Done when
 
 - Step check: `step_check.py`'s output was returned whole, ending in `STEP CHECK: PASS`, `STEP CHECK: FAIL` or `STEP CHECK: NOT RUN · <why>`, or, where the script aborted, its message, which carries no verdict.
-- Quality review: `F<n>` lines in the format below, or none, followed by `QUALITY REVIEW: <n> findings` or `QUALITY REVIEW: clean`.
+- Quality review: `F<n>` lines in the format below, or none, then one `COVERAGE ·` line, then `QUALITY REVIEW: <n> findings` or `QUALITY REVIEW: clean`.
 - Re-review: one `F<n> · fixed` or `F<n> · still-failing · <why>` line per finding given, followed by `RE-REVIEW: <n> fixed · <m> still failing`.
 
 # Acceptance criteria
 
 - [ ] A step check result is the script's own output, unedited, with at most one `STEP CHECK:` line.
-- [ ] Every quality finding names a source with its location: a repo rule `file:line` with its words verbatim (present at HEAD), or a verbatim official-doc quote with its URL and the installed version.
-- [ ] Every quality finding names the `file:line` of a line the reviewed range adds or changes.
-- [ ] No quality finding is something a linter, formatter or type checker the repo runs would catch, or anything on Not doing.
-- [ ] No quality finding cites a test run, an app run or a reproduction as evidence.
+- [ ] Every quality finding names the `file:line` of a line the reviewed range adds or changes, and nothing on Not doing.
+- [ ] Every quality finding carries evidence a sceptical reader can check by reading: requirement words verbatim from the lines given; a concrete input or state with where it comes from; a repo rule `file:line` with its words verbatim at HEAD, or a verbatim official doc or standard quote with its URL and version; or the shorter code itself.
+- [ ] No quality finding is something a linter, formatter or type checker the repo runs would catch, depends on running the code, or is taste.
 - [ ] No finding carries a severity, a confidence or a "consider".
-- [ ] The count line matches the number of `F<n>` lines.
+- [ ] The coverage line names every requirement id given and counts every changed file; the count line matches the number of `F<n>` lines.
 - [ ] A re-review has exactly one line per finding it was given, the same ids, and no new finding.
 - [ ] Everything is returned as text: no tracker item, comment or pull request was created or changed by this run.
 
@@ -40,7 +39,7 @@ The baseline is recorded on the feature branch before the first check, because e
 
 What `check` judges, reading the step notes' `## Tests changed` and `## Pinned by` (without `--notes` nothing counts as listed or pinned):
 
-- **Suite no worse** than at the baseline. It reruns enough to tell a real failure from flakiness: a file red only sometimes is `intermittent` (a FAIL) when the step touched code a test could load, else a `flaky` note.
+- **Suite no worse** than at the baseline. It reruns enough to tell a real failure from flakiness: a file red only sometimes is `intermittent` (a FAIL) when the step touched code a test could load, else a `flaky` note. A file already intermittent at another step of the feature is a `flaky` note unless this step changed that test file: it flakes whatever the step does, and failing every step on it only buys a suite rerun.
 - **Weakened tests declared**: every existing test file or snapshot changed or deleted, and every added skip, focus, suppression or runner exclusion, is listed in Tests changed.
 - **No credentials** in the added lines: `credential` and `credential?` fail; the value belongs in an environment variable.
 - **Pinned**: each Pinned by test passes at HEAD and fails with the step's non-test changes reverted. It reverts in place, so it needs a checkout with no tracked changes and restores HEAD before exiting; a check killed mid-revert leaves a marker, and the next check restores those files itself, so they are never committed.
@@ -56,21 +55,23 @@ A suite run can outlast the shell tool's time limit, and a pipe or a timeout los
 
 # Quality review
 
-Reviews a range of merged commits statically: nothing runs, since whether the code works is the app-level proof's question.
+Reviews a range of merged commits statically: nothing runs. Why it exists: the app-level proof is the costliest stage, and many of its failures are visible to anyone who reads the diff next to the requirement (a hard-coded value where the requirement names a setting, a guard that drops a case the requirement names, a value read from the wrong place, a shared file changed for surfaces the requirement leaves out). Catching those here costs cents; catching them at prove costs a round. A wrong finding costs a fix round too, so the review reports only what it can show.
 
 What it reviews, and with what, comes from the caller where given:
 
 - the range `<start sha>..<end sha>`; with none given, the current branch from its merge-base with the base branch to HEAD;
+- the slice's `Slice S<k> · Done when e2e …` line and the Requirements lines it serves, verbatim, with the Assumed lines that name those ids (none given: the review judges no requirement, and the coverage line says so);
 - How hard to undo, and Not doing (none given: nothing is excluded);
 - installed versions (scan Q1), how the repo does similar things and its names (scan Q4, Q5), and docs answers already researched, with their quotes and links; where missing, the reviewer finds them itself;
 - which repo rule files exist.
 
-Dispatch one fresh `general-purpose` agent with web access for docs: model standard, strong when How hard to undo is hard or not given, since a missed rule there is costly to undo. Fresh, because whoever wrote or merged the code reads it with the author's eyes. Its prompt opens `Read <this skill's directory>/references/quality.md and follow it.`, then gives the inputs above verbatim. Its reply, the lines below, shows it done. With no Agent tool, read [`references/quality.md`](references/quality.md) before reviewing yourself, unless this session wrote the code under review: then return one line saying a fresh reviewer is needed and why.
+Dispatch one fresh `general-purpose` agent with web access for docs: model standard, strong when How hard to undo is hard or not given, since a miss there is costly to undo. Fresh, because whoever wrote or merged the code reads it with the author's eyes. Its prompt opens `Read <this skill's directory>/references/quality.md and follow it.`, then gives the inputs above verbatim. Its reply, the lines below, shows it done. With no Agent tool, read [`references/quality.md`](references/quality.md) before reviewing yourself, unless this session wrote the code under review: then return one line saying a fresh reviewer is needed and why.
 
-Before returning, hold the output to the bar, since the caller acts on each line: drop any `F<n>` line without a code `file:line` or a source, and any whose rule `file:line` does not hold its quoted words at HEAD; renumber from F1 and fix the count line. Return the rest verbatim:
+Before returning, hold the output to what you can check cheaply, since the caller acts on each line: drop any `F<n>` line whose code `file:line` is outside the range's changed lines, whose requirement words are not verbatim in the lines given, whose rule `file:line` does not hold its quoted words at HEAD, or that lacks its kind's evidence (a `bug` without an input, a `simpler` without the shorter code). If the coverage line misses a requirement id given or a changed file, send the reviewer back once to cover them. Renumber from F1, fix the count line, and return the rest verbatim:
 
 ```
-F<n> · <file:line> · <what is wrong, one sentence> · source <rule file:line "<words>" | "<doc quote>" <url> (<version>)> · fix <what would satisfy the source>
+F<n> · <file:line> · <requirement | bug | standard | simpler> · <what is wrong, one sentence> · source <evidence, by kind, as in quality.md> · fix <the end state that clears it>
+COVERAGE · <requirement ids and Done when checked | no requirements given> · <k>/<k> changed files
 QUALITY REVIEW: <n> findings | clean
 ```
 

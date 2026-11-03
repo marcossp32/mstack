@@ -44,10 +44,10 @@ What the principle does not make obvious:
 
 Outcome: the slice's diff reviewed to `QUALITY REVIEW: clean`, or every remaining finding taken to a debate.
 
-- After the last step merges, record the slice end sha, call the Skill tool with `m-review` and ask for its quality review of `<slice start sha>..<slice end sha>` with the inputs SKILL.md's Dispatch lists. Done when it returns `F<n>` lines and its `QUALITY REVIEW:` count line; comment them on the state. A reply that a fresh reviewer is needed instead goes, with the same request, to a fresh `general-purpose` agent that calls the Skill tool with `m-review`.
+- After the last step merges, record the slice end sha, call the Skill tool with `m-review` and ask for its quality review of `<slice start sha>..<slice end sha>` with the inputs SKILL.md's Dispatch lists, the slice's requirement lines among them: the review judges the diff against their words, so a gap a reader can see is fixed before the costlier prove. Done when it returns `F<n>` lines, its coverage line and its `QUALITY REVIEW:` count line; comment them on the state. A reply that a fresh reviewer is needed instead goes, with the same request, to a fresh `general-purpose` agent that calls the Skill tool with `m-review`.
 - Fix the findings as one fix item (every `F<n>` line verbatim; Done when: no listed finding holds), built, checked and merged like a step. Record the feature-branch sha before and after the merge: the re-review sees only that range.
 - Then ask `m-review` for its re-review of only those findings on that range. Done when it returns `F<n> · fixed | still-failing · <why>` per finding and `RE-REVIEW: <n> fixed · <m> still failing`. The whole diff is never reviewed again, since a fresh read of it finds new findings forever.
-- A finding still failing after two fix rounds, or disputed by the builder, goes to a debate on its own; the rest go on. Only m-review calls a finding fixed.
+- A finding still failing after two fix rounds, or disputed by the builder (a requirement finding disputed as a reading of the words included), goes to a debate on its own; the rest go on. Only m-review calls a finding fixed.
 
 ## Slice prove
 

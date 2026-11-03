@@ -34,8 +34,11 @@ Checks:
   1. Suite no worse than at the feature's start: red where it was green, or,
      where it was red, failing on a file that was not failing then. The
      worse files run alone first: one that fails alone fails the step. All
-     pass alone: a second suite run. Not worse then: a file this step changed
-     is a FAIL marked intermittent, others a `flaky` note. A file worse on
+     pass alone: a second suite run. Not worse then: a FAIL marked
+     intermittent when the step changed those files or code they may load,
+     unless each was intermittent before at another step of this feature
+     (recorded in the baseline), which flakes whatever the step does; then,
+     or when the step changed no code, a `flaky` note. A file worse on
      both runs is a FAIL (they depend on running together); different files
      each run, none changed by the step, is NOT RUN · suite unstable under
      load. No failing file found: the suite runs up to 3 times, as red on
@@ -352,6 +355,19 @@ def judge_red(a, base_info, r, changed, fails, notes, suite, rc, out, logs):
     if second == []:
         touched = sorted(set(first) & changed)
         code = [p for p in changed if not TEST_PATH.search(p) and not DOC_PATH.search(p)]
+        # A file already intermittent at another step of this feature flakes
+        # whatever the step's code is: failing each step on it only buys a
+        # suite rerun. The step's own test files are still its failure.
+        seen = base_info.setdefault("intermittent", {})
+        earlier = sorted({seen[f] for f in first if seen.get(f, a.label) != a.label})
+        if not touched and code and all(seen.get(f, a.label) != a.label for f in first):
+            notes.append(f"flaky · {', '.join(first)} · red on 1 of 2 suite runs, "
+                         "passes alone, and was intermittent before at "
+                         + ", ".join(earlier))
+            return
+        for f in first:
+            seen.setdefault(f, a.label)
+        write_json(baseline_path(a.base), base_info)
         if touched or code:
             why = ("this step changed them" if touched else
                    "this step changed code they may load: "
