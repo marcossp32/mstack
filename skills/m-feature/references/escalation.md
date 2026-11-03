@@ -25,10 +25,7 @@ Patches to one file that each satisfy the latest condition and break an earlier 
 Before each fix item and each debate, put the new failure beside the earlier ones on the same requirement: the slice line, its fix items, the Debates lines.
 
 - **Progress**: each round closed what it targeted, and what fails now is new or smaller (fewer items, other values, other files). Go on with the next fix or debate; there is no round limit while the work moves.
-- **Loop**: the same requirement fails with the same value after a fix or decision aimed at it; or a debate replies `Repeats · <earlier attempt>`; or two decisions on one requirement build the same mechanism in other words. A loop never gets another round of the same thing. Change the question:
-  1. Research first (`m-research`, the attempts and their values as facts): can this platform do what the requirement asks at all, and by which documented route?
-  2. A documented route exists that no attempt used: a debate whose Facts name every failed mechanism, with its value, as tried and failed; or a re-cut of the slice (`m-plan`) built on that route.
-  3. The docs say no route exists, or the line needs a person (a credential, an account, an approval): stop (below). Building around it would ship a requirement that does not hold.
+- **Loop**: the same requirement fails with the same value after a fix or decision aimed at it; or a debate replies `Repeats · <earlier attempt>`; or two decisions on one requirement build the same mechanism in other words. Another round of the same thing will fail the same way, so change the question. What a loop usually lacks is knowing whether the platform can do this at all, and by which route: research it (`m-research`), give a debate every failed mechanism and its value as facts so it does not propose them again, or re-cut the slice on a route no attempt used. When nothing documented allows it, or it needs a person (a credential, an account, an approval), stop (below): building around it ships a requirement that does not hold.
 
 ## Stop for a person
 
