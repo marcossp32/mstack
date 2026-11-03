@@ -3,60 +3,54 @@ name: m-requirements
 description: "Turns a frozen, already-reviewed spec into numbered, observable, bounded requirements, each traced to a verbatim excerpt, plus what the spec excludes, contradicts and leaves open. Use when asked to turn a spec into testable requirements."
 ---
 
-Turn a frozen spec into the requirement lines a prover judges the change against, and that its verdict rests on: each one observable effect, bounded, traced to a verbatim excerpt. Alongside them go what the spec excludes, where it contradicts itself, the hard-to-undo decisions it leaves open, and the easy decisions taken in their place. It runs unattended: nobody answers a question, so decide what is easy, state what is hard as a neutral problem for a debate, and record why each time. The block is the whole output; the spec and the repo are only read.
+Turn a frozen spec into the requirement lines the rest of an unattended pipeline works from: plan cuts steps from them, build builds them, and prove drives the running app (as the repo runs it locally) and judges each line exactly as written, inventing no tolerance and filling no gap. Nobody answers questions: decide what is easy, state what is hard as a neutral problem for a debate, and record why. The spec and the repo are only read; the block is the whole output.
+
+**Where the cost lands.** This step is cheap; proving is the most expensive stage, and a line prove cannot settle leaves the PR "Not verified", which counts as failure. Every ambiguity you leave is paid for at prove, often several rounds over. So write each line for a prover that will try hard, read literally, and keep looking for a difference until the line tells it where to stop.
 
 # Done when
 
-One block is returned with the sections `## Requirements`, `## Not doing`, `## Considered`, `## Contradictions`, `## Open decisions`, `## Assumed`, `## How to build`, `## Laziest build` and `## Trace`, in that order, each holding its lines or `none`, and `python3 <this skill's directory>/scripts/check.py --spec <frozen spec file> --out <block file>` prints `PASS`.
+One block is returned with the sections `## Requirements`, `## Not doing`, `## Considered`, `## Contradictions`, `## Open decisions`, `## Assumed`, `## How to build`, `## Laziest build` and `## Trace`, in that order, each holding its lines or `none`, and `python3 <this skill's directory>/scripts/check.py --spec <frozen spec file> --out <block file>` prints `PASS`. `check.py` settles shape, verbatim excerpts and Trace coverage; everything in The bar is your judgement. A WARN never fails the block.
 
 # Acceptance criteria
 
-- [ ] Every sentence of the spec (headings and list items included) has a `## Trace` line naming the requirements, `Not doing`, `Considered`, `How to build`, contradiction or open decision it maps to, or `context · <why>`, and every sentence that asks for an effect someone can observe maps to an R line.
-- [ ] Every `asked` line has a `from` excerpt that appears in the spec verbatim; every `derived` line quotes the spec or names an earlier `asked` line.
-- [ ] Every asked line says what its excerpt says, in the spec's terms, adding only measures and bounds that an `## Assumed` line names against that id.
-- [ ] Ids run R1..Rn, unique, in order; no line carries `required by D<k>` or `retired by D<k>`.
-- [ ] Every requirement with an absolute or a set (every, each, any, all, both, never, always) names its bound, never `—`.
-- [ ] Every vague term the spec uses (fast, large, secure, user-friendly) has a measure in its line, and an `## Assumed` line says where the measure came from.
-- [ ] Each requirement states one effect someone can observe from outside the code; none names an implementation the spec does not name.
-- [ ] `## Not doing` holds only what the spec itself excludes, each with its excerpt.
-- [ ] Each contradiction quotes both excerpts and names the reading chosen, why, and `undo hard | easy`.
-- [ ] No open decision contains an option, a preference or a yes/no question.
-- [ ] Every `O<n>` is hard to undo as Decisions defines it; every easy decision is an `## Assumed` line `- <decision> · why <reason> · affects R<n>`.
-- [ ] No requirement or excerpt contains `"`.
+- [ ] Every sentence that asks for an observable effect reaches an R line, and every asked line says what its excerpt says, adding only measures and bounds an `## Assumed` line names against that id.
+- [ ] Each line is one effect someone outside the code can observe, with one reading; every vague term and every comparison carries its measure, and an `## Assumed` line says where it came from.
+- [ ] Every line a local run cannot settle is reworded to what one can observe, or has an `## Assumed` line naming what settles it.
+- [ ] Each contradiction names the reading chosen, why, and `undo hard | easy`; every `O<n>` is hard to undo and neutral; every easy decision is an `## Assumed` line.
 - [ ] `## Laziest build` names one build that passes every line and still misses the spec, and the change that closed the gap.
 
 # Inputs
 
-- The frozen spec, in a file, and its reference. The frozen copy is the only spec: the live one may have moved since it was frozen.
-- The repo, to understand the spec's terms: a glossary, the names the code uses, limits it already enforces. Read it for what the spec's terms mean: versions and infrastructure decide no line here.
+- The frozen spec, in a file. It is the only spec: the live one may have moved.
+- The repo, to learn what the spec's terms mean (glossary, names in the code, limits it already enforces), what it already guarantees (stored formats, existing behaviour, public interfaces), and how it runs locally (which services, keys and data a local run has).
 
-Once returned, the ids and words are final: everything downstream cites them, and only a bound may change later.
+Once returned, ids and words are final: everything downstream cites them, and only a bound may change later, at the cost of the change not counting as proved.
 
 # The bar
 
-A prover drives the running app and judges each line exactly as written, inventing no tolerance and filling no gap. A word it cannot observe makes a line nobody can pass; a word it can read two ways makes a line a lazy build passes. So the lines are:
+- **Faithful.** Every asked line says what its excerpt says, in the spec's terms, adding only measures and bounds that an `## Assumed` line names. Every sentence of the spec (headings and list items too) ends somewhere in the Trace, and every sentence asking for an observable effect reaches an R line. A spec that already lists requirements is normalised, not reinterpreted; its labels (REQ-7) stay inside the excerpt. Read the whole spec before finalising any line: a later sentence may bound, exclude or contradict an earlier one — including a limit like "not pixel-perfect" or "don't chase X", which must land in the line it limits, or prove will chase exactly that.
+- **One effect, one line.** Each line is one effect someone outside the code can watch hold, with its trigger or state, and one reading. Two effects are two lines. One effect the spec states twice is **one** line whose `from` joins both excerpts with ` + `, and both sentences trace to it: a duplicate line is proved twice and can be judged two ways. Name an implementation only where the spec does.
+- **Bounded to what the change touches.** An absolute or a set names the inputs it covers; a vague term gets a measure in the line. Prefer the spec's figure, then a limit the repo enforces (`file:line` in Assumed), then the narrowest domain that still serves the spec's purpose. "Nothing else breaks" or "the app still works" bounded to the whole app fails on code the change never touched; bound it to the surfaces the change alters and the behaviours that depend on them.
+- **Comparisons pinned.** "Matches", "looks like", "same as before", "still works", "consistent with" are the costliest lines there are: each prover picks its own set and tolerance and finds a finer difference every round. A comparison line names the reference (a file, the base commit, a named screen or output), the finite list of aspects compared, and the tolerance or what is explicitly not compared — the spec's own limit where it gives one. See [references/wording.md](references/wording.md#comparisons).
+- **Settleable by a local run.** Prove runs the app as the repo runs it locally. A line that needs CI, production scale or data, an external service's key, or a person's account fails only at the end, after all the work. Word it, where the spec's purpose survives, as what a local run can observe (the request sent, the stub or sandbox the repo already uses); otherwise keep it and say so in `## Assumed` as `- R<n> needs <the key, account, CI job or environment, exactly> · why <what the local run lacks> · affects R<n>`, so the orchestrator can ask for it before any building starts.
+- **Derived only where it shows.** An implied effect (empty state, failing input or dependency, a limit reached) is a `derived` line only where a user of an asked effect would see the difference; each costs a drive.
+- **How to build is kept.** A sentence on how to do the work (make an inventory first, use this tool) is quoted verbatim under `## How to build`, not left as `context`, or it never reaches the builders.
+- **No lazy build passes.** Name the cheapest build that passes every line yet misses the spec (a hard-coded value, the empty case only, one input of a set) and close it by tightening wording or bound within the excerpt, or with a `derived` line. Record the last one under `## Laziest build`.
 
-- **Faithful.** Nothing added, nothing dropped: every asked line says what its excerpt says, in its words, and every sentence of the spec ends somewhere in the Trace. A spec that already lists requirements is normalised, not re-interpreted: split, reshaped, bounded, meaning unchanged, its own labels (REQ-7) kept inside the excerpt. A later sentence may bound, exclude or contradict an earlier one, so a line is final only against the whole spec. An example that shows something its requirement's words do not (a format, a value) is asked in its own right.
-- **One observable effect.** Each line is one effect someone outside the code can watch hold, with the trigger or state it depends on, and one reading. Two effects are two lines with the same excerpt. Say what is seen, not how to drive it, and name an implementation only where the spec names it.
-- **Bounded and measured.** An absolute or a set names the inputs it covers, and a vague term gets a measure written into the line: an unbounded `every` fails on the next input tried, an over-narrow one lets a lazy build pass. Prefer the spec's figure, then a limit the repo already enforces (`file:line` in the Assumed line), then the narrowest domain that still serves the spec's purpose; list each choice under Assumed. Choose once: a bound changed later keeps the change from counting as proved.
-- **Derived only where it shows.** What the spec implies but does not say (the empty state, a failing input or dependency, a limit reached) becomes a `derived` line only where a user of an asked effect would see the difference. Each costs a drive and never blocks, so each one has to earn that drive.
-- **How to build is kept, not dropped.** A sentence that says how to do the work rather than what must hold (make an inventory first, use this tool, follow this order) is no requirement, and as `context` it would never reach the people building: quote it verbatim under `## How to build`, and its Trace line points there.
-- **No lazy build passes.** Name the cheapest build that passes every line yet misses the spec (a hard-coded value, the empty case only, one input of a set) and close the gap by tightening the asked line's wording or bound within its excerpt; an asked line exists only where the spec asks. A gap the excerpt cannot close is a `derived` line. Record the last laziest build under `## Laziest build`.
-
-Read [references/wording.md](references/wording.md) before wording a line that resists this bar: it holds what makes a line provable and the words that most often hide an ambiguity.
-
-`check.py` settles the shape, the verbatim excerpts and the Trace's coverage; whether a line is faithful, observable and closed against the laziest build is the reader's judgement. A WARN never fails the block: it marks a word the script cannot judge, such as one in an open decision that may name an option.
+Read [references/wording.md](references/wording.md) before wording a line that resists this bar.
 
 # Decisions
 
-A decision is **hard to undo** when reversing it later costs more than a code change: what was stored, called or sent under it has to be migrated, broken or lost, or what others built on it (a public interface, a core dependency) has to change with it. One a code change alone reverses is **easy**.
+A decision is **hard to undo** when reversing it costs more than a code change: what was stored, called or sent under it must be migrated, broken or lost, or what others built on it (a public interface, a core dependency) must change too. Otherwise it is **easy**.
 
-- Easy: decide it, taking the reading that serves the app's users best and stays closest to the spec, as one `## Assumed` line: `- <decision> · why <reason, source when there is one> · affects R<n>`.
-- Hard: one `## Open decisions` line: `O<n> · <neutral problem> · from "<excerpt>" | from R<m> · facts <what the spec fixes or excludes>`. State what must hold and what constrains it, ending with `how?` at most, because an option, a preference or a yes/no question steers the debate: "Existing orders must survive the new status field; how?", not "Should we add a nullable column?". The outcome gets no requirement here: a debate that needs one adds it later as `derived · required by D<k>`.
+- Easy: take the reading that serves the app's users best and stays closest to the spec, as `- <decision> · why <reason, source when there is one> · affects R<n>` under `## Assumed`.
+- Hard: `O<n> · <neutral problem> · from "<excerpt>" | from R<m> · facts <what the spec and repo fix>`. State what must hold and what constrains it, ending at most with `how?`; an option, a preference or a yes/no question steers the debate: "Existing orders must survive the new status field; how?", not "Should we add a nullable column?". No requirement is written for the outcome; a debate adds it later.
 
 # Contradictions
 
-The spec was reviewed, so read it for its intent: two excerpts that cannot both hold are a contradiction; a vague word is not (it needs a measure). Choose the reading that serves the app best (often the more specific sentence, the one naming a surface, the safer one where data or access is at stake), word the affected lines in it, and trace the other excerpt to `C<n>`. `undo` says whether that reading is hard to undo as Decisions defines it, which decides whether it is debated.
+Two excerpts that cannot both hold are a contradiction; a vague word is not (it needs a measure). They hide most often where **two sentences act on the same thing** — the same field, screen, command, state or limit — so for each thing the spec changes, read every sentence that touches it side by side. Choose the reading that serves the app best (often the more specific sentence, the one naming a surface, the safer one where data or access is at stake), word the lines in it, and trace the other excerpt to `C<n>`. `undo` follows Decisions.
+
+A new rule can also contradict what the repo **already guarantees** (a stored format, an existing behaviour, a public contract). That has no second spec excerpt, so it is not a `C` line: if keeping both is hard to undo it is an `O` line with the guarantee and its `file:line` in `facts`; if easy, an Assumed line naming the guarantee and the reading chosen.
 
 # Output
 
@@ -83,6 +77,6 @@ O<n> · <neutral problem> · from "<excerpt>" | from R<m> · facts <constraints 
 "<spec sentence, verbatim>" → R<a> R<b> | Not doing | Considered | How to build | C<n> | O<n> | context · <why>
 ```
 
-- `from` with ` + ` joins excerpts when one effect needs two sentences (the effect and its condition).
+- Ids run R1..Rn in order; never write `required by D<k>` or `retired by D<k>` (a debate adds them).
 - `bound` is the inputs the line covers ("orders of one store, 0 to 10 000", "each role in the roles table"); `—` only when the line has no absolute or set.
-- Not doing excludes: build, review and prove leave it out, so it holds only what the spec itself excludes. Considered excludes nothing (optional or future items, ideas left out, each with why); review and prove still judge it.
+- Not doing holds only what the spec itself excludes, each with its excerpt: build, review and prove leave it out. Considered excludes nothing (optional or future items, ideas left out, each with why); prove still judges it.
