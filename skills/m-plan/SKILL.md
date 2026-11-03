@@ -50,6 +50,8 @@ Each step merges on its own and leaves the branch working, delivers a small case
 - Every behaviour the requirements and Assumed name (data state on failure, defaults, limits) lands in some Done when; nothing in Not doing does.
 - A requirement that compares with a reference (looks or behaves like a prototype, a mockup, a page of the base) is a set too: its members are the differences. What costs here is finding them piecemeal: ported part by part, each prove finds the next few differences and each costs a round. Every step that changes how that surface looks or behaves is part of the match, whatever requirement it serves (a section, the type, the motion): one built before the whole list exists ports its part blind, and its misses surface proves later. So the match is not the rest of the look, left for the end: plan for the builder to know every difference, across the widths, states and qualities the requirement names, before any of those steps. The list shows a user nothing, so it is not a step of its own but the opening work of the first step that touches the surface; later steps build against it, and the last Done when on the surface is checked against the whole list.
 
+**Shared choices.** A choice several steps make on their own (how a label or number is shown, what a shared attribute is called, where a value comes from) comes out different in each, since each builder decides with only its own body. Decide it once here, under Assumed with why, and state it in What you need to know of every step it touches.
+
 **Blocking.** A pair goes in only where B cannot start before A lands; a preferred order is not blocking.
 
 # Slices
@@ -83,7 +85,7 @@ Assumed  · choices made without asking, each with why; derived requirements no 
 Open     · only when present: <neutral problem> · spec "<excerpt>" · facts <versions, limits, exclusions>
 ```
 
-Then one body per step, headed `Step <n>`. Each is self-contained, since the builder has seen neither the plan nor the requirement lines: it says what to build, and the builder chooses how.
+Then one body per step, headed `Step <n>`. Each is self-contained, since the builder has seen neither the plan nor the requirement lines: it says what to build, and the builder chooses how. A selector, a file, a property or a markup shape named in the body is a guess made without the code open; when it is wrong, the builder either works around it or follows it into a broken result. Say what must be true and what constrains it (a limit, an existing test, a docs answer), and leave the route to the builder, who has the code in front of it.
 
 ```markdown
 ## What to do
