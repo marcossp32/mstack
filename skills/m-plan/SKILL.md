@@ -1,19 +1,30 @@
 ---
 name: m-plan
-description: "Cuts a change into ordered build steps grouped into slices that each end at something a user can check, and questions the design before any code exists. Use when asked to plan a change into buildable steps, or to re-cut a running plan after a decision."
+description: "Cuts a change into ordered build steps grouped into slices that each end at something a user can check, and questions the design before any code exists; writes the plan and each step body to files. Use when asked to plan a change into buildable steps, or to re-cut a running plan after a decision."
+argument-hint: "<the inputs below, inline or as paths of files holding them> · Out <directory to write the plan to>"
+context: fork
+agent: general-purpose
+background: false
 ---
 
-Turns a change's requirement lines, what the repo and its docs say, and how hard the change is to undo into a plan: build steps, each with a Done when a builder builds to, grouped into slices, each with a Done when e2e a prover drives in the running app. The design is questioned here, before code exists, because afterwards a wrong one costs a rewrite. Nobody answers questions during the work, so the plan decides what it can, records each choice under Assumed, and returns what only a debate can settle as an `Open ·` line. The reply is the whole output: whoever called creates the work items from it.
+Turns a change's requirement lines, what the repo and its docs say, and how hard the change is to undo into a plan: build steps, each with a Done when a builder builds to, grouped into slices, each with a Done when e2e a prover drives in the running app. The design is questioned here, before code exists, because afterwards a wrong one costs a rewrite. Nobody answers questions during the work, so the plan decides what it can, records each choice under Assumed, and returns what only a debate can settle as an `Open ·` line.
+
+You run in your own context. The plan and its step bodies are long, and your caller keeps them for weeks of work but should not carry them in its own context: it only acts on a few lines. So the plan goes to files, which the caller passes on as written (state comment, step items), and your reply is the short list under Reply.
+
+The input:
+
+$ARGUMENTS
 
 # Done when
 
-The reply holds one plan block in the format under Output, followed by one `Step <n>` body per step it lists, and nothing else was written anywhere. A decision the plan cannot settle that is hard to undo appears as an `Open ·` line, and every step that depends on it ends `· waits D?`.
+`<Out>/plan.md` holds one plan block in the format under Output followed by one `Step <n>` body per step it lists; `<Out>/step-<n>.md` holds each body alone; the reply is exactly the lines under Reply. Nothing else was written: no tracker item, repo file or git state. A decision the plan cannot settle that is hard to undo appears as an `Open ·` line, and every step that depends on it ends `· waits D?`.
 
 # Acceptance criteria
 
 - [ ] The block has the lines `Steps`, `Slices`, one `Slice S<k>` per slice, `Blocking`, `Design`, `Assumed`, in that order, and `Open` only when there is one; each uses the labels and `·` separators of the Output format.
 - [ ] Every step line ends in `serves R<k>` (then `· waits D?` where it waits), naming a requirement id present in the input and not `retired by D<k>`.
 - [ ] Every step body has the three headings of the Output format, and its `## Done when` ends `serves R<k> "<words>"` with the words verbatim from R<k>.
+- [ ] Each `step-<n>.md` is byte for byte the `Step <n>` body in `plan.md`, without the `Step <n>` heading, and holds no placeholder or reference to another file.
 - [ ] Every step number appears in exactly one slice; no slice is empty.
 - [ ] Every slice's Done when e2e names a surface (a page, an endpoint, a command), what a user sees there, and the requirement ids it serves.
 - [ ] Every `asked` and `derived · required by D<k>` requirement not `retired by D<k>` is completed by exactly one slice.
@@ -27,14 +38,17 @@ The reply holds one plan block in the format under Output, followed by one `Step
 - [ ] No line mentions a human, a confirmation, or a tracker or host command.
 - [ ] On a call that carries a decision, a step whose work is unchanged keeps its number, every new or changed step takes a number after the highest used, and no step `waits D?` on a decision now given.
 - [ ] On a re-cut, only unmerged work changed, the re-cut differs from the cut that failed, and the block carries one `Revised · S<k> · <cause> · <what changed> · D<k>` line.
+- [ ] The reply's `Plan`, `Steps`, `Slices`, `Blocking` and `Assumed` lines match the files, and every `Open ·` and `Revised ·` line of the block is in it verbatim.
 
 # Inputs
+
+Each may come inline or as the path of a file holding it (a frozen spec, a debate record, the plan of an earlier call); read the files. `Out` is the directory to write to; without one, use `plan/` in the current directory and say so in the reply's `Plan` line.
 
 - The requirement lines, verbatim: `R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from …`. A line ending `· retired by D<k>` was overturned by that debate and gets no step, no `serves` and no `completes`; the line that replaced it carries its work.
 - Not doing, Considered, Contradictions with the reading chosen, Assumed, Debates.
 - How to build: the spec's own instructions on how to do the work, verbatim. Each lands in the steps it concerns (an inventory first, a tool, an order), quoted in their What you need to know.
 - How hard to undo (hard | easy), and where the app runs.
-- What the repo holds: what exists, how it does similar things, what it calls them, how it runs.
+- What the repo holds: what exists, how it does similar things, what it calls them, how it runs. Read the repo yourself where this leaves a step's scope unclear; your reads stay in your context.
 - Docs answers: limits, timeouts, security guidance, version changes, with quotes.
 
 Plan with what is given. A missing input becomes an Assumed line saying what was missing and what the plan assumed instead.
@@ -73,7 +87,7 @@ A problem the plan can fix: change the plan and say so on the Design line. One i
 
 # Output
 
-Return this block. Its labels, `·` separators and line shapes are what callers parse, so keep them exactly; step numbers go in Slices, and the caller rewrites them to its own item refs.
+Write `<Out>/plan.md`: this block. Its labels, `·` separators and line shapes are what callers parse, so keep them exactly; step numbers go in Slices, and the caller rewrites them to its own item refs.
 
 ```
 Steps    · one line each, in order: <n>. <step> · Done when <observable> · serves R<k>
@@ -85,7 +99,7 @@ Assumed  · choices made without asking, each with why; derived requirements no 
 Open     · only when present: <neutral problem> · spec "<excerpt>" · facts <versions, limits, exclusions>
 ```
 
-Then one body per step, headed `Step <n>`. Each is self-contained, since the builder has seen neither the plan nor the requirement lines: it says what to build, and the builder chooses how. A selector, file or markup shape named here is a guess made without the code open, and a wrong one is worked around or followed into a broken result. Say what must hold and what constrains it (a limit, an existing test, a docs answer); the builder, with the code open, chooses the route.
+Then, in the same file, one body per step, headed `Step <n>`. Each is self-contained, since the builder has seen neither the plan nor the requirement lines: it says what to build, and the builder chooses how. A selector, file or markup shape named here is a guess made without the code open, and a wrong one is worked around or followed into a broken result. Say what must hold and what constrains it (a limit, an existing test, a docs answer); the builder, with the code open, chooses the route.
 
 ```markdown
 ## What to do
@@ -98,11 +112,39 @@ Then one body per step, headed `Step <n>`. Each is self-contained, since the bui
 <something observable> · serves R<k> "<requirement words>"
 ```
 
+Also write each body alone, without its `Step <n>` heading, to `<Out>/step-<n>.md`: that file becomes the step's work item as it stands, so it must be complete in itself.
+
 **Numbers.** Items may already exist for every number returned before, so a number always means the same work: a step whose work is unchanged keeps its number, and a new or changed step takes the next number after the highest used. A re-cut slice keeps its id, since its debates and its proofs are counted under it; a new slice takes the next unused id.
+
+# Reply
+
+The caller parses this and reads nothing else, so it carries everything the caller must act on; nothing before or after it:
+
+```
+Plan · <path of plan.md>
+Steps · <Out>/step-<n>.md · <every step number in the block, in order, each waiting one as <n> waits>
+Changed · new <numbers> · dropped <numbers>      only on a call that carries a decision: numbers not in the plan given, and numbers of that plan no longer in this one
+Slices · <the block's Slices line, verbatim>
+Blocking · <the block's Blocking line, verbatim>
+Assumed · <the block's Assumed line, verbatim>
+Open · <each Open line of the block, verbatim, one per line>      only when present
+Revised · <the block's Revised line, verbatim>                    only on a re-cut
+```
+
+Example:
+
+```
+Plan · /repo/.git/mstack/plan/draft-saving/1/plan.md
+Steps · /repo/.git/mstack/plan/draft-saving/1/step-<n>.md · 1 2 3 4 waits
+Slices · S1: 1 2 · S2: 3 4
+Blocking · 2 after 1 · 4 after 3
+Assumed · drafts autosave every edit, since the spec names no interval and the editor already debounces input
+Open · drafts must survive a deploy mid-edit; where they live decides what a rollback loses · spec "a draft is never lost" · facts Postgres 15 installed, no object store
+```
 
 # Calls that carry a decision
 
-A debate decision (`D<k> · <question> → <decision>` and its record) comes back as an input, and it binds: the plan follows it. Return the full block again, numbered as **Numbers** says.
+A debate decision (`D<k> · <question> → <decision>` and its record) comes back as an input, and it binds: the plan follows it. Write the full block and every step file again, numbered as **Numbers** says, to the `Out` of this call.
 
 - **An `Open ·` line settled**: plan the waiting steps on the decision; they lose `· waits D?`.
 - **A re-cut**, when a slice keeps failing or the decision retires or adds requirement lines. The input also holds the current plan, what failed with its evidence, and the merged steps, read from the branch's history rather than item state, which can lag it. The re-cut removes the cause the evidence shows (for instance a wrong Done when, a misplaced slice boundary, two steps in one, an approach that cannot meet the requirement); one that reproduces the failed cut misread the cause.

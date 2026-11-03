@@ -79,7 +79,7 @@ S<k> · not verified · <why, one sentence> · <D<a> D<b>> · open steps <refs |
 
 ## Step item body
 
-Exactly the `Step <n>` body `m-plan` returned; a fix step gets the same three headings, because m-build reads them:
+Exactly the `Step <n>` body `m-plan` wrote, created from its `step-<n>.md` file rather than retyped; a fix step gets the same three headings, because m-build reads them:
 
 ```markdown
 ## What to do
@@ -109,7 +109,8 @@ Exactly the `Step <n>` body `m-plan` returned; a fix step gets the same three he
 | Result | Destination |
 |---|---|
 | frozen spec | `<git common dir>/mstack/spec/<name>.md` and one state comment |
-| scan, docs, plan block, quality review, slice prove verdict | one state comment each (docs links also under Sources) |
+| scan, docs, quality review, slice prove verdict | one state comment each (docs links also under Sources) |
+| plan, each cut | files at `<git common dir>/mstack/plan/<name>/<cut>/`; `plan.md` (block and every `Step <n>` body) as one state comment; each `step-<n>.md` as its step item's body |
 | requirements | state body: Requirements, Not doing, Considered, Contradictions, Open decisions, Assumed |
 | debate | the `D<k>` line under Debates; the `## D<k> · record` block as a state comment; a revision's `Revised ·` line beside it and on the slice line |
 | build | commits on the step branch; notes at `<git common dir>/mstack/steps/<step branch with / replaced by ->.md` |

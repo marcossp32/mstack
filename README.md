@@ -104,11 +104,11 @@ m-debate: whenever a hard-to-undo decision or a failure a fix cannot settle come
 | `m-requirements` | Numbered, observable, bounded requirements, each tracing to a verbatim excerpt of the spec | Subagent |
 | `m-scan` | What the repo already answers: versions, what exists, how it tests and runs | 4 parallel subagents |
 | `m-research` | Vendor limits, timeouts, security guidance, version changes, quoted from primary sources | Main chat, one subagent per source |
-| `m-plan` | Build steps grouped into slices, each slice ending at something a user can check; design checks | Main chat |
+| `m-plan` | Build steps grouped into slices, each slice ending at something a user can check; design checks. Writes the plan and each step body to files | Own context |
 | `m-build` | One step into pinned commits on its branch, and a notes file | Subagent |
-| `m-review` | A script checks each step; a static quality review per slice reports only sourced findings | Script in main chat; the review in a subagent |
+| `m-review` | A script checks each step; a static quality review per slice judges the diff against its requirements and reports only findings with evidence | Script in main chat; the review in a subagent |
 | `m-prove` | Drives the running app: per slice, does it meet its Done when; at the end, replays everything and hunts regressions against the base | Subagent |
-| `m-debate` | Five fresh agents research a hard question; the answer best backed by checked sources wins | Main chat, 5 subagents |
+| `m-debate` | Five fresh agents research a hard question; the answer best backed by checked sources wins | Own context, 5 subagents |
 
 ### Slices
 

@@ -34,6 +34,7 @@ A pull request from `feature/<name>` into the base is open on the host, its verd
 - **A refused command** is recorded for the PR's To merge, and the run goes on with what does not depend on it; it is never retried in another form, since that is the bypass the refusal exists to block ([`references/escalation.md`](references/escalation.md), Refused commands).
 - **The spec is frozen** at Start: every stage reads the frozen copy, so a spec edited mid-run cannot move the target. A later change is noted in the PR.
 - **Chat is minimal**: one line per slice closed, one per debate, the final PR line, each in the form given where it is printed. Nobody is reading progress; the state holds the detail.
+- **Waiting keeps the context warm.** Long stages (a prove, a build, a background step check) leave this chat idle for an hour or more. The harness's prompt cache lives about an hour; the first call after it lapses rewrites this whole context, hundreds of thousands of tokens, and in past runs those rewrites were a tenth of the orchestrator's cost, while a short wake that checks and goes back to waiting costs almost nothing. So never let an idle gap, or a single foreground wait, outlast the cache: before each wait, arrange to be woken well inside the hour by whatever this harness offers (a scheduled wake, a background timer or command whose exit notifies you, a monitor), and on each wake check the stage and arrange the next one. A wake only checks: it reads nothing it does not need.
 - **Other skills' directories**: `<m-requirements dir>`, `<m-review dir>` and `<m-prove dir>` are this skill's sibling directories, where their scripts live.
 
 # Start
@@ -77,9 +78,13 @@ Outcome: on the state, the requirements block, the scan's nine lines, the docs a
 
 Outcome: the plan block as a state comment, one step item per step with its blocking links, and the `Slices ·` line (item refs) at the top of Decided. No confirmation: the plan is saved and run.
 
-- Call the Skill tool with `m-plan`, in this chat, giving it the state ref and, verbatim, Requirements (`retired by D<k>` markers included), Not doing, Considered, Contradictions, Assumed, How to build, Debates and How hard to undo; scan Q1–Q9; the docs answers; Where it runs. Done when it has returned the plan block and one `Step <n>` body per step.
-- An `Open ·` line is debated, then `m-plan` is loaded again with the decision. A step marked `· waits D?` gets its item only after that decision, so nothing is built on a guess.
-- Step items carry the `Step <n>` body verbatim (`tracker create-step`); `tracker link <blocked> <blocking>` for each Blocking pair. The plan's Assumed lines join the state's.
+`m-plan` runs in its own context and writes the plan to files, because what it reads and writes (the target repo, the plan, every step body) is tens of thousands of tokens that this chat would otherwise carry on every later call. Its reply is the few lines this chat acts on.
+
+- Call the Skill tool with `m-plan`, its argument: the state ref; verbatim, Requirements (`retired by D<k>` markers included), Not doing, Considered, Contradictions, Assumed, How to build, Debates and How hard to undo; scan Q1–Q9; the docs answers; Where it runs; and `Out · <git common dir>/mstack/plan/<name>/<cut>/`, `<cut>` being `1` for the first plan and the `D<k>` that leads to each later one. An input already in a file (the frozen spec, a debate record, the previous plan) goes by its path. Done when it replies with `Plan ·` and `Steps ·` lines naming files that exist.
+- The plan file becomes a state comment, fed from the file as the adapter allows; step item `<n>` is `tracker create-step` with `step-<n>.md` as its body, fed from the file too. Neither passes through this chat: a body retyped or filled into a template by hand drifts, or ships a placeholder instead of the work.
+- From the reply: `tracker link <blocked> <blocking>` for each Blocking pair; the `Slices ·` line with numbers rewritten to item refs; its Assumed lines join the state's.
+- An `Open ·` line is debated, then `m-plan` is called again with the decision and the plan's path; each step number without an item then gets one (`Changed · new` and those that waited), and each `dropped` one is closed with `Replaced by D<k>`. A step marked `· waits D?` (`<n> waits` in the reply) gets its item only after that decision, so nothing is built on a guess.
+- A resume that finds the plan comment but not every item creates the missing ones from the step files, or, on a machine without them, from the comment's `Step <n>` bodies written back to files first.
 
 # Per slice
 
@@ -122,7 +127,7 @@ Models are tiers, cheap, standard and strong: the harness's quickest, middle and
 | scan B (Q2–5), C (Q6, Q9), D (Q7–8) | fresh agent loading `m-scan` | `Explore` | standard |
 | docs | this chat, `m-research` loaded; it dispatches its own agents | — | its own (standard) |
 | debate | `m-debate` through the Skill tool, the block as its argument; it runs in its own context and dispatches its own 5 agents, so only its reply lines reach this chat | — | its own (3 strong, 2 standard) |
-| plan | this chat, `m-plan` loaded | — | session |
+| plan, re-cut | `m-plan` through the Skill tool, the inputs as its argument; it runs in its own context and writes the plan and step bodies to files, so only its reply lines reach this chat | — | its own |
 | build, fix mode included | fresh agent loading `m-build`, one at a time | `general-purpose` | standard; strong when How hard to undo is hard |
 | step check | this chat, `step_check.py` | — | none |
 | quality review, re-review | this chat, `m-review` loaded; it dispatches its own fresh reviewer | — | standard; strong when How hard to undo is hard |
@@ -134,7 +139,7 @@ Inputs each stage needs:
 |---|---|
 | requirements | the frozen copy's path · the spec's ref · the checkout path (read-only) |
 | scan | the spec title and frozen copy's path · the question group it owns |
-| build | the step item's ref and body verbatim · Not doing and How to build verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
+| build | the step item's ref and body verbatim, or the path of its step file, which reaches the builder as written · Not doing and How to build verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
 | build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with their kind, `file:line` and evidence), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt) · a debate decision, when one led here |
 | debate | the block in [`references/escalation.md`](references/escalation.md) (Running a debate) |
 | quality review | the diff range `<slice start sha>..<slice end sha>` · the slice's `Slice S<k> · Done when e2e …` line verbatim · the Requirements lines it serves, verbatim, and the Assumed lines that name those ids · How hard to undo · Not doing verbatim · the repo's rule files that exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`, `.cursor/rules/`, style guides the repo names) · scan Q1, Q4, Q5 · the docs answers with their quotes and links |
