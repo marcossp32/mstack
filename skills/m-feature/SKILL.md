@@ -135,7 +135,7 @@ Inputs each stage needs:
 | requirements | the frozen copy's path · the spec's ref · the checkout path (read-only) |
 | scan | the spec title and frozen copy's path · the question group it owns |
 | build | the step item's ref and body verbatim · Not doing and How to build verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
-| build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with source and `file:line`), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt) · a debate decision, when one led here |
+| build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with their kind, `file:line` and evidence), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt) · a debate decision, when one led here |
 | debate | the block in [`references/escalation.md`](references/escalation.md) (Running a debate) |
 | quality review | the diff range `<slice start sha>..<slice end sha>` · the slice's `Slice S<k> · Done when e2e …` line verbatim · the Requirements lines it serves, verbatim, and the Assumed lines that name those ids · How hard to undo · Not doing verbatim · the repo's rule files that exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`, `.cursor/rules/`, style guides the repo names) · scan Q1, Q4, Q5 · the docs answers with their quotes and links |
 | re-review | only the findings to recheck and the fix range |

@@ -35,6 +35,8 @@ Either the step branch holds your commits, no tracked file is left modified, the
 
 **Existing tests are evidence.** A test that fails after your change is telling you something about the change. Change or delete one only where the item changes the behaviour it pins. A test that disagrees with the spec is a stop line, because the spec, the tests and the Done when are what judge you: keep each as it is and make the code meet it.
 
+**Run what your change can break.** The step check reruns the whole suite and the repo's checks, so a full run of your own repeats it and costs the suite's whole runtime. Running nothing costs more: a step bounced for an existing test that loads a file you changed, or for a repo check on a changed file (line endings, lint, formatting), comes back to you after the whole check has run. Before handing back, run the existing tests that exercise what you changed, and the checks the repo applies to the files you changed; leave the whole suite to the step check.
+
 **Every loosened check declared.** Anything that makes an existing check accept more is loosening it: a changed or deleted test file or snapshot (an updated snapshot changes what its test accepts), or an added skip, focus, suppression or runner exclusion. The step check fails on any it finds unlisted in Tests changed, so list each with the item clause that asks for it.
 
 **Credentials in the environment.** A credential is read from an environment variable, named in What to watch, because a literal in a commit is published with the branch. The step check fails on a credential-like literal in the added lines, a password in a URL to another host, or a committed `.env`; a value that says it is not real is only noted.
@@ -68,12 +70,17 @@ A stop line is a finished answer: someone other than you settles it.
 
 You never judge your own work; agents that did not write it do, against these bars:
 
-- **Quality review**, static: a finding counts only with a source (the repo's rule files, or a verbatim quote from the official docs for the installed version) and the `file:line` that breaks it. Follow the repo's rules and the docs answers you were given.
+- **Step check**, a script: reruns the whole suite against its recorded baseline, runs each Pinned by test with and without your non-test changes, and fails on an unlisted loosened check or a credential literal.
+- **Quality review**, static, at a `file:line` you added or changed, each finding with its own evidence: a requirement the line as written cannot meet (its words quoted), a bug (a concrete input the code can reach and what it then does wrong), a broken written standard (a repo rule, the installed version's official docs, or a recognised standard such as accessibility or security), or code clearly simpler with what the repo or framework already provides. Meet the requirements' words, and follow the repo's rules and the docs answers you were given.
 - **Prove**: agents drive the running app against the Done when and the requirements it serves.
 
 # Fix mode
 
-The item's What to do lists what failed: quality findings (source and `file:line`), prove failures (the Done when or requirement, the value seen, evidence), or step-check output. Done means each is resolved at its root, not at the line named: the code satisfies the finding's source, the observation holds in the running app (pinned by a test that fails without the fix where a test can reach it), or the check passes. A missed Tests changed or Pinned by entry is fixed in the notes. A finding or failure you believe is wrong goes under Disputed with the code or output that shows it, and that code stays as it is, since someone other than you settles the dispute. Everything above still holds.
+The item's What to do lists what failed: quality findings (kind, `file:line` and evidence), prove failures (the Done when or requirement, the value seen, evidence), or step-check output. Done means each is resolved: the code meets the finding's evidence, the observation holds in the running app (pinned by a test that fails without the fix where a test can reach it), or the check passes.
+
+**The cause, wherever it reaches.** A finding or failure names one instance; the cause behind it often sits in sibling places too: other pages, components or controls, other states or sizes, copies of the same code. Fixing only the instance named sends the next round to find the sibling, and every round costs a fix build plus a re-prove. Find the cause, find where else it reaches, and close it there too, naming those places in What changed. A fix that moves or reshapes shared code also changes what it gave the files that load it, so recheck the requirements those files served before: a requirement the fix reopens fails a round later.
+
+A missed Tests changed or Pinned by entry is fixed in the notes. A finding or failure you believe is wrong goes under Disputed with the code or output that shows it, and that code stays as it is, since someone other than you settles the dispute. Everything above still holds.
 
 # Notes
 
