@@ -5,9 +5,12 @@
 
 Checks what a reader can verify without trusting the agent:
   - R ids are R1..Rn, unique, in order; each line has the shape
-    R<n> · <asked | derived> · "<requirement>" · bound <domain | —> · from "<excerpt>"[ + "<excerpt>"] | from R<m>[ · CI <check>]
+    R<n> · <asked | derived> · "<requirement>" · bound <domain | —> · from "<excerpt>"[ + "<excerpt>"] | from R<m>[ · CI <check> | · human]
     (`derived · required by D<k>` and a trailing ` · retired by D<k>` parse, but fail: a debate adds them later);
     ` · CI <check>` marks a line the host's CI settles (the check's name, or `all`);
+    ` · human` a line only a person can judge (taste no measure captures);
+  - WARN: a comparison or judgement word (matches, looks like, same as) on a line that is not
+    ` · human` and states no tolerance (±, within, exactly, not compared, byte for byte);
   - every quoted excerpt (R, Not doing, Considered, Contradictions, Open decisions, Trace) appears
     in the spec verbatim, whitespace runs aside;
   - an asked line quotes the spec; a derived line quotes it or names an earlier R line;
@@ -27,7 +30,9 @@ SECTIONS = ["Requirements", "Not doing", "Considered", "Contradictions",
 ABSOLUTES = re.compile(r"\b(every|each|any|all|both|never|always|whenever|everyone|everything|anything|anyone|100%)\b", re.I)
 YES_NO = re.compile(r"^(should|shall|do|does|did|is|are|was|were|can|could|will|would|must|may|which|whether)\b", re.I)
 OPTION_HINT = re.compile(r"\b(or|either|e\.g\.|such as|for example|option|alternatively|instead of|versus|vs\.?)\b", re.I)
-R_LINE = re.compile(r'^R(\d+) · (asked|derived(?: · required by D\d+)?) · "([^"]+)" · bound (.+?) · from (.+?)( · CI \S[^·]*?)?( · retired by D\d+)?$')
+R_LINE = re.compile(r'^R(\d+) · (asked|derived(?: · required by D\d+)?) · "([^"]+)" · bound (.+?) · from (.+?)( · CI \S[^·]*?)?( · human)?( · retired by D\d+)?$')
+COMPARISON = re.compile(r"\b(match(es|ing)?|look(s)? like|same as|identical|consistent with|faithful)\b", re.I)
+TOLERANCE = re.compile(r"±|\+/-|\bwithin\b|\bexactly\b|\bnot compared\b|\bbyte for byte\b|\btolerance\b|\bequals?\b", re.I)
 QUOTE = re.compile(r'"([^"]+)"')
 
 
@@ -94,7 +99,12 @@ def main():
         levels[rid] = level
         if level.startswith("derived · required"):
             fails.append(f"{rid} · `required by D<k>` comes from a debate, never from m-requirements")
-        if m.group(7):
+        if m.group(6) and m.group(7):
+            fails.append(f"{rid} · a line is settled by CI or by a person, not both")
+        if COMPARISON.search(words) and not m.group(7) and not TOLERANCE.search(words):
+            warns.append(f'{rid} · "{COMPARISON.search(words).group(0)}" with no tolerance: list the '
+                         "aspects compared and each one's tolerance, or what is not compared")
+        if m.group(8):
             fails.append(f"{rid} · `retired by D<k>` comes from a debate, never from m-requirements")
         if ABSOLUTES.search(words) and bound.strip() in ("—", "-", ""):
             fails.append(f'{rid} · "{ABSOLUTES.search(words).group(0)}" needs a bound, not —')

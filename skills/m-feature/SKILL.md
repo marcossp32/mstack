@@ -4,7 +4,7 @@ description: Takes one reviewed spec to a pull request proved in the running app
 disable-model-invocation: true
 ---
 
-Turn one already-reviewed spec into a pull request a reviewer can merge, with nobody watching the run. The user starts it, or resumes it, with `/m-feature <spec ref>`; the argument may also be the feature's state item. This skill owns order, routing, the state and the few lines the chat shows; the stage skills it loads do the work. The reviewer gets a PR whose top shows whether each requirement holds in the running app, and every decision made without a human, with its sources.
+Turn one already-reviewed spec into a pull request a reviewer can merge, with nobody watching the run. The user starts or resumes it with `/m-feature <spec ref>`; the argument may also be the feature's state item. This skill owns order, routing, the state and the few lines the chat shows; the stage skills it loads do the work. The reviewer gets a PR whose top shows whether each requirement holds in the running app, and every decision made without a human, with its sources.
 
 # Done when
 
@@ -95,9 +95,9 @@ Read [`references/slice-loop.md`](references/slice-loop.md) before the first sli
 S<k> · verified | not verified · <what works now | why>
 ```
 
-- Steps are built one at a time, and each merges into `feature/<name>` only after its step check passes, so every step builds on checked work and every merge is pushed for resume.
-- After the slice's steps merge: quality review ⇄ fix, then slice prove ⇄ fix. Quality fixes come first because they change code the prove must see, and a prove is the expensive judge.
-- A failure is fixed by the builder in fix mode. A failure one more fix cannot settle goes to a debate ([`references/escalation.md`](references/escalation.md)). Rounds go on while they make progress; a loop changes the question or stops for a person ([`references/escalation.md`](references/escalation.md), Progress or loop).
+- Steps are built one at a time, each merged into `feature/<name>` only after its step check passes, so each builds on checked work; every merge is pushed for resume.
+- After the slice's steps merge: quality review ⇄ fix, then slice prove ⇄ fix. Quality fixes come first: they change code the prove must see, and a prove is the costly judge.
+- A failure is fixed by the builder in fix mode. A failure one more fix cannot settle goes to a debate ([`references/escalation.md`](references/escalation.md)). Rounds go on while they progress; a loop changes the question or stops for a person ([`references/escalation.md`](references/escalation.md), Progress or loop).
 
 # Closing
 
@@ -109,7 +109,7 @@ The step check (a script), the quality review and the prove judge the work; the 
 
 # Dispatch
 
-A stage that runs as an agent runs as a fresh one, never a fork, since a fork inherits this conversation's reasoning. It has not seen this chat and runs no tracker or host command: paste verbatim every state section, step item and spec excerpt it needs, read just before; a section that needs changing changes on the state first.
+A stage that runs as an agent runs as a fresh one, never a fork, which inherits this conversation's reasoning. It has not seen this chat and runs no tracker or host command: paste verbatim every state section, step item and spec excerpt it needs, read just before; a section that needs changing changes on the state first.
 
 The prompt opens by having the agent load its stage's skill, so it works under that skill's rules:
 
@@ -117,9 +117,9 @@ The prompt opens by having the agent load its stage's skill, so it works under t
 Call the Skill tool with `<m-requirements | m-scan | m-build | m-prove>`. Then do the work below.
 ```
 
-A dispatch is done when its reply is the return the stage's skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question it owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return (a scan question it owns), was not made under the skill: dispatch again. A second such reply means a resend will not fix it, since nothing waits: inside a slice it is that slice failing (Progress or loop, then a debate); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
+A dispatch is done when its reply is the return the stage's skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question it owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return (a scan question it owns), was not made under the skill: dispatch again. A second such reply means a resend will not fix it: inside a slice it is that slice failing (Progress or loop, then a debate); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
 
-Models are tiers, cheap, standard and strong: the harness's quickest, middle and most capable. A tier that does not resolve runs on the session's model.
+Models are tiers, cheap, standard and strong: the harness's quickest, middle and most capable. A tier that does not resolve runs on the session's.
 
 | Stage | Runs in | subagent_type | Model |
 |---|---|---|---|
@@ -141,7 +141,7 @@ Inputs each stage needs:
 | requirements | the frozen copy's path · the spec's ref · the checkout path (read-only) |
 | scan | the spec title and frozen copy's path · the question group it owns |
 | build | the step item's ref and body verbatim, or the path of its step file, which reaches the builder as written · Not doing and How to build verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
-| build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with their kind, `file:line` and evidence), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt) · a debate decision, when one led here |
+| build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with their kind, `file:line` and evidence), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt; for a comparison, every differing cell), never prove's replays · a debate decision, when one led here |
 | debate | the block in [`references/escalation.md`](references/escalation.md) (Running a debate) |
 | quality review | the diff range `<slice start sha>..<slice end sha>` · the slice's `Slice S<k> · Done when e2e …` line verbatim · the Requirements lines it serves, verbatim, and the Assumed lines that name those ids · How hard to undo · Not doing verbatim · the repo's rule files that exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`, `.cursor/rules/`, style guides the repo names) · scan Q1, Q4, Q5 · the docs answers with their quotes and links |
 | re-review | only the findings to recheck and the fix range |

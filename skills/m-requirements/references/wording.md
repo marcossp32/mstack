@@ -20,12 +20,17 @@ EARS frames trigger and effect where that helps: `When <trigger>, the <subject> 
 A comparison without a stopping point is open-ended: the prover compares whatever it notices, at whatever precision it can reach, and each round notices more. A comparison line therefore carries three things:
 
 1. **The reference**, as something the prover can open: a file in the repo, the output at the base commit, a named screen or command.
-2. **The aspects compared**, as a closed list.
-3. **The tolerance**, or what is explicitly not compared. When the spec sets a limit ("roughly", "not pixel-perfect", "don't worry about X"), it goes here, in the line.
+2. **The aspects compared**, as a closed list of things a script can measure on both sides (text, order, count, size, colour, duration, presence), per element and per condition the spec names (viewport, state).
+3. **Each aspect's tolerance**, and what is explicitly not compared. When the spec sets a limit ("roughly", "not pixel-perfect", "don't worry about X"), it goes here, in the line.
+
+The list is written here, not left to the builder: a builder that draws up its own list and a prover that draws up another disagree every round, and each prove that names only part of the differences buys another round. A whole page can need dozens of cells; one run converged only once a debate turned "matches the prototype" into a 33-cell checklist. Write the cells.
+
+What is left once every measurable aspect is listed (the page "feels" like the prototype, the motion "reads" well) is taste. It is its own line ending ` · human`: prove never drives it, the pull request shows head beside the reference, and a person ticks it. Use it only for that remainder: a ` · human` line a script could have settled is a check pushed onto the reviewer.
 
 | Spec says | Unprovable line | Provable line |
 |---|---|---|
 | "The new page should look like the mockup." | `the page matches the mockup` | `the page shows the mockup's sections in the mockup's order, with its headings and button labels; spacing, colours and fonts are not compared` |
+| "Match the prototype, details included." | `the hero matches prototype.html` | `at 1280x720 and 390x844, each hero element of prototype.html (heading, subheading, button, image) has the prototype's text exactly, font size and weight within 1px and one step, colour exactly, position and size within 4px, and its entrance animation's duration within 50 ms; image content is not compared` + a separate `the hero feels like the prototype's · human` only if the spec asks for feel |
 | "Output stays the same as v1." | `output is the same as v1` | `for the inputs in the fixtures folder, the command's output at this change equals its output at the base commit, byte for byte except the timestamp line` |
 | "Existing exports still work." | `exports still work` | `each export format the change touches (the two listed in the export menu) still downloads a file that opens and lists the same rows as at the base commit` |
 

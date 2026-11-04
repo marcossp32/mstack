@@ -7,7 +7,8 @@
   cleanup.py --all              every run's dir in this repo
 
 Only paths inside <git common dir>/mstack/prove/ are deleted, so one allow
-rule for this script is safe where `rm -rf` is not.
+rule for this script is safe where `rm -rf` is not. A base worktree inside a
+deleted dir is pruned from git's list.
 """
 import os
 import shutil
@@ -69,6 +70,8 @@ def main():
             failed = True
     if not targets:
         print("nothing to delete")
+    else:  # a base worktree deleted with its run dir is still registered until pruned
+        subprocess.run(["git", "worktree", "prune"], capture_output=True)
     sys.exit(1 if failed else 0)
 
 

@@ -12,10 +12,10 @@ Either the step branch holds your commits, no tracked file is left modified, the
 # Acceptance criteria
 
 - [ ] The step branch has at least one commit beyond the branch it was cut from, and `git status` shows no modified tracked file.
-- [ ] The notes file opens with one sentence, then has the sections `What changed`, `Tests changed`, `Pinned by`, `Disputed`, `What to watch`, in that order, none empty.
+- [ ] The notes file opens with one sentence, then has the sections `What changed`, `Tests changed`, `Pinned by`, `Seen running`, `Disputed`, `What to watch`, in that order, none empty.
 - [ ] Every test file Pinned by names passes at HEAD and fails with the step's non-test changes reverted, or the section reads `none · <why nothing can>`.
 - [ ] Every existing test file or snapshot the branch changes or deletes, and every file where it adds a skip, focus, suppression or runner exclusion, is listed in Tests changed with the item clause that asks for it.
-- [ ] No added line holds a credential: each is read from an environment variable named in What to watch.
+- [ ] No added line holds a credential (a literal in a commit is published with the branch): each is read from an environment variable named in What to watch.
 - [ ] `python3 <this skill's directory>/scripts/contain.py sweep --kill --within <checkout>`, run after the final message, prints `REAP: ended 0` and no `orphan` line.
 - [ ] No branch was pushed and no pull request was opened.
 - [ ] Fix mode: every finding or failure the item lists is addressed by a commit or listed under Disputed with the code or output that shows it.
@@ -24,30 +24,30 @@ Either the step branch holds your commits, no tracked file is left modified, the
 
 - The step item, under the headings `What to do`, `What you need to know`, `Done when`.
 - Not doing: what the work excludes on purpose, given or where to read it.
-- When given: facts about the repo (what exists, which installed library already does it, how the repo does and names similar things, how it tests and runs, per-environment values, infrastructure limits) and docs answers, each quoted and linked. Docs answers are facts the repo cannot tell you; use them where the code calls out. What was not given, read from the repo.
+- When given: facts about the repo (what exists, which installed library does it, how the repo does and names similar things, how it tests and runs, per-environment values, limits) and docs answers, each quoted and linked. Docs answers are facts the repo cannot tell you. What was not given, read from the repo.
 - The step branch you are on and the branch it was cut from. With no step branch given, work on the branch checked out, unless it is the base or default branch: then cut a new branch from it, because nothing reaches the base except through review.
 
 # What the result must be
 
 **What was asked, at its scope.** Deliver what the item asks as it intends it, and make routine calls yourself. Anything the item does not ask for, a better approach, or a request that looks mistaken goes as one line in What to watch, and you build what was asked: unrequested work is unreviewed scope, and Not doing is excluded on purpose.
 
-**Pinned.** A green suite says nothing the old suite did not; the behaviour is pinned only by a test that fails without the step. The step check runs each Pinned by test at your HEAD (it must pass) and with your non-test changes reverted (it must fail); one that passes either way pins nothing and fails the step. A test is worth its assertion: assert the value the Done when names through the entry point a caller uses, and fake only what leaves the process, since a test that fakes the code under test passes whatever that code does. Pin what a user or caller observes, not how you built it (block order, attribute names, file layout): later steps change the how, and a test that fixes it makes them fight it. Where no test can reach the change (wiring only the running app shows), write `none · <why>`, and the running app judges it alone. A step that changes only manifests and lockfiles is not judged by the revert, since reverting leaves what was installed.
+**Pinned.** A green suite says nothing the old suite did not; the behaviour is pinned only by a test that fails without the step. The step check runs each Pinned by test at your HEAD (it must pass) and with your non-test changes reverted (it must fail); one that passes either way pins nothing and fails the step. A test is worth its assertion: assert the value the Done when names through the entry point a caller uses, and fake only what leaves the process, since a test that fakes the code under test passes whatever that code does. Pin what a user or caller observes, not how you built it (block order, attribute names, file layout): later steps change the how, and a test that fixes it makes them fight it. Where no test can reach the change (wiring only the running app shows), write `none · <why>`: the prove judges it alone. A step changing only manifests and lockfiles is not judged by the revert, which leaves what was installed.
 
-**Existing tests are evidence.** A test that fails after your change is telling you something about the change. Change or delete one only where the item changes the behaviour it pins. A test that disagrees with the spec is a stop line, because the spec, the tests and the Done when are what judge you: keep each as it is and make the code meet it.
+**Existing tests are evidence.** A test that fails after your change is telling you something. Change or delete one only where the item changes the behaviour it pins. A test that disagrees with the spec is a stop line, because the spec, the tests and the Done when are what judge you: keep each as it is and make the code meet it.
 
-**Run what your change can break.** The step check reruns the whole suite and the repo's checks, so a full run of your own repeats it and costs the suite's whole runtime. Running nothing costs more: a step bounced for an existing test that loads a file you changed, or for a repo check on a changed file (line endings, lint, formatting), comes back to you after the whole check has run. Before handing back, run the existing tests that exercise what you changed, and the checks the repo applies to the files you changed; leave the whole suite to the step check.
+**Run what your change can break.** A full run of your own repeats the step check's and costs the suite's whole runtime. Running nothing costs more: a step bounced for an existing test or a repo check (line endings, lint) on a file you changed comes back after the whole check has run. Before handing back, run the existing tests that exercise what you changed, and the checks the repo applies to the files you changed; leave the whole suite to the step check.
 
-**Every loosened check declared.** Anything that makes an existing check accept more is loosening it: a changed or deleted test file or snapshot (an updated snapshot changes what its test accepts), or an added skip, focus, suppression or runner exclusion. The step check fails on any it finds unlisted in Tests changed, so list each with the item clause that asks for it.
+**Every loosened check declared.** Anything that makes an existing check accept more is loosening it: a changed or deleted test file or snapshot, or an added skip, focus, suppression or runner exclusion. The step check fails on any it finds unlisted in Tests changed, so list each with the item clause that asks for it.
 
-**Credentials in the environment.** A credential is read from an environment variable, named in What to watch, because a literal in a commit is published with the branch. The step check fails on a credential-like literal in the added lines, a password in a URL to another host, or a committed `.env`; a value that says it is not real is only noted.
-
-**Nothing you start outlives you.** Test workers, servers and the browsers they launch otherwise survive the run and pile up under later ones until the machine crawls. This repo's way is `python3 <this skill's directory>/scripts/contain.py -- <command>` (`--env KEY=VALUE`, `--shell "<line>"` for pipes; run it with no arguments for the rest). Stop everything before you finish. Where contain will not start, run nothing uncontained and say so in What to watch.
+**Nothing you start outlives you.** Test workers, servers and their browsers otherwise pile up under later runs until the machine crawls. This repo's way is `python3 <this skill's directory>/scripts/contain.py -- <command>` (`--env KEY=VALUE`, `--shell "<line>"` for pipes; run it with no arguments for the rest). Stop everything before you finish. Where contain will not start, run nothing uncontained and say so in What to watch.
 
 **What only you can see.** No local check exercises behaviour that appears only off this machine or on a rare path, so it rests on you: bound every call out of the process with a timeout (the documented value where a docs answer gives one), release what an error path holds, and read per-environment values from the environment.
 
 **Reach stays where the item points.** A file other surfaces load carries your change to all of them. When the item names one surface (a page, a template, an endpoint), keep the change there or name in What changed what else it touches: an unnamed leak is found by the final prove's regression hunt, a round later.
 
-**Compare before you match.** When the item asks to match a reference (a prototype, a mockup, a base page), compare the two whole before changing anything: a difference you never saw is one you never close, and the prove finds it a round later. Leave the list in the notes, with what you could not close and why, so a fix round knows what was already tried. In fix mode on a match, compare the whole page again, not just the items listed: closing one difference often opens another.
+**Compare before you match.** When the item asks to match a reference (a prototype, a mockup, a base page), its Done when quotes the aspects and tolerances to meet. Measure every one on both sides before changing anything and again before handing back: a difference you never measured is one you never close, and the prove finds it a round later. Note in What to watch what you could not close and why. In fix mode, close every difference the prove named, then measure the whole list again: closing one often opens another.
+
+**See it run.** Where the Done when shows in the running app, start the app as the repo runs it locally (contained) and do what the Done when describes, as a user or caller would, before handing back. Steps handed over unrun came back from prove with a page answering 500 and a schema the platform rejected: a round for what one launch shows. Record what you ran and saw under Seen running. It is never evidence: an agent that did not write the code still proves it. Prove's replays, contract and evidence (`<git common dir>/mstack/replay/` and `prove/`) are not yours to read: a check you can see is one you build to, and then passing it proves nothing.
 
 ## Known traps
 
@@ -64,27 +64,27 @@ Return one stop line and no notes file as soon as you see one of these, before b
 - the spec contradicts itself, the repo or an existing test: quote both sides;
 - a decision nobody has made blocks the work: name it.
 
-A stop line is a finished answer: someone other than you settles it.
+A stop line is a finished answer: someone else settles it.
 
 # Who else judges it
 
 You never judge your own work; agents that did not write it do, against these bars:
 
-- **Step check**, a script: reruns the whole suite against its recorded baseline, runs each Pinned by test with and without your non-test changes, and fails on an unlisted loosened check or a credential literal.
-- **Quality review**, static, at a `file:line` you added or changed, each finding with its own evidence: a requirement the line as written cannot meet (its words quoted), a bug (a concrete input the code can reach and what it then does wrong), a broken written standard (a repo rule, the installed version's official docs, or a recognised standard such as accessibility or security), or code clearly simpler with what the repo or framework already provides. Meet the requirements' words, and follow the repo's rules and the docs answers you were given.
+- **Step check**, a script: the whole suite against its baseline, each Pinned by test with and without your changes, loosened checks and credential literals.
+- **Quality review**, static, at a `file:line` you added or changed, each finding with its evidence: a requirement the line cannot meet, a bug (a concrete input and what it then does wrong), a broken written standard (a repo rule, the installed version's docs, accessibility or security), or code clearly simpler with what the repo or framework provides. Meet the requirements' words, and follow the repo's rules and the docs answers you were given.
 - **Prove**: agents drive the running app against the Done when and the requirements it serves.
 
 # Fix mode
 
 The item's What to do lists what failed: quality findings (kind, `file:line` and evidence), prove failures (the Done when or requirement, the value seen, evidence), or step-check output. Done means each is resolved: the code meets the finding's evidence, the observation holds in the running app (pinned by a test that fails without the fix where a test can reach it), or the check passes.
 
-**The cause, wherever it reaches.** A finding or failure names one instance; the cause behind it often sits in sibling places too: other pages, components or controls, other states or sizes, copies of the same code. Fixing only the instance named sends the next round to find the sibling, and every round costs a fix build plus a re-prove. Find the cause, find where else it reaches, and close it there too, naming those places in What changed. A fix that moves or reshapes shared code also changes what it gave the files that load it, so recheck the requirements those files served before: a requirement the fix reopens fails a round later.
+**The cause, wherever it reaches.** A finding or failure names one instance; its cause often sits in sibling places too (other pages, controls, states, sizes, copies of the code). Fixing only the instance named sends the next round to find the sibling, at the cost of a fix build and a re-prove. Find the cause, find where else it reaches, and close it there too, naming those places in What changed. A fix that moves or reshapes shared code also changes what it gave the files that load it, so recheck the requirements those files served before: a requirement the fix reopens fails a round later.
 
-A missed Tests changed or Pinned by entry is fixed in the notes. A finding or failure you believe is wrong goes under Disputed with the code or output that shows it, and that code stays as it is, since someone other than you settles the dispute. Everything above still holds.
+A missed Tests changed or Pinned by entry is fixed in the notes. A finding or failure you believe is wrong goes under Disputed with the code or output that shows it, and that code stays as it is: someone else settles it. Everything above still holds.
 
 # Notes
 
-Commit on the step branch. Push nothing and open no pull request: what happens to the branch is decided after the judges, by whoever dispatched you. Write the notes, overwriting any earlier file, to
+Commit on the step branch; push nothing and open no pull request: whoever dispatched you decides what happens to the branch. Write the notes, overwriting any earlier file, to
 
 ```
 <git common dir>/mstack/steps/<step branch with / replaced by ->.md
@@ -103,6 +103,9 @@ where the git common dir is `git rev-parse --path-format=absolute --git-common-d
 
 ## Pinned by
 - <test file that fails without this change · the Done when clause it pins>, or "none · <why nothing can>"
+
+## Seen running
+- <what you did in the running app · what it showed>, or "none · <why the Done when does not show there>"
 
 ## Disputed
 - <finding or failure id · why it is wrong · the code or output that shows it>, or "none"

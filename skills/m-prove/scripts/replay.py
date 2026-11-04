@@ -3,12 +3,19 @@
 
 A line is S<k> (a slice's Done when e2e) or R<n> (a requirement).
 
-  replay.py save --feature <branch> --from <evidence dir>/q1/replay --clauses <evidence dir>/clauses.json [--lines S1,R3]
+  replay.py save --feature <branch> --from <evidence dir>/q1/replay --clauses <evidence dir>/clauses.json
+                 --base-check <evidence dir>/base-check.txt | --no-base "<why>" [--lines S1,R3]
       After Judge accepts Q1, naming the lines it accepted as verified. Copies each one's replay
       into <git common dir>/mstack/replay/<feature>/, replacing that line's older one. Refused:
       an entry whose clause is missing or not the line's in --clauses (it would pass a changed
-      requirement), and a command with shell syntax ($ % | & ; < > ` ' ") or run by a shell
-      (bash, sh, cmd, powershell): replays run as plain argv, no shell, the same on every OS.
+      requirement); a command with shell syntax ($ % | & ; < > ` ' ") or run by a shell
+      (bash, sh, cmd, powershell): replays run as plain argv, no shell, the same on every OS;
+      and a line --base-check shows passing on the base: it checks nothing the change made.
+      --base-check is the `batch --from <this same dir> --base` report, refused when it names
+      another dir or a line's files changed since; a line it does not name (one asking that
+      something keeps working) or could not run there is saved, with that recorded.
+      --no-base: no base at hand (slice mode); each line is saved as `base none · <why>`, and
+      the final checks it on its base (batch --feature --base).
   replay.py list --feature <branch>
       The lines that have a replay, one per line with its command and clause, or `none`.
   replay.py run --feature <branch> | --from <replay dir> --url <app url> [--data <dir>] [--clauses <file>]
@@ -27,9 +34,16 @@ A line is S<k> (a slice's Done when e2e) or R<n> (a requirement).
       --run: the run id; MSTACK_RUN is <run id>-<unix ms>, so a second attempt never meets the
       values the first created. Default replay-<unix ms>.
       Exit 0 = every replay passed, 1 = some failed, went stale or could not run.
-  replay.py batch --feature <branch> --clauses <evidence dir>/clauses.json --out <evidence dir>/replay.txt
-                  [--spec <run.json>] [--checkout <dir>] [--run <id>] [--env KEY=VALUE]... [--lines S1,R3]
-      The supervisor's run of the saved replays, with no app up. --spec defaults to run.json
+  replay.py batch --feature <branch> | --from <replay dir> --clauses <evidence dir>/clauses.json
+                  --out <evidence dir>/replay.txt [--spec <run.json>] [--checkout <dir>] [--base]
+                  [--run <id>] [--env KEY=VALUE]... [--lines S1,R3]
+      The supervisor's run of the saved replays (--from: a driver's unsaved ones), with no app up.
+      --base: --checkout is the final's base worktree, and --lines (required) the lines that
+      ask for new or changed behaviour. Each must fail there: one that
+      passes checks nothing the change made. No solo retry. Ends `BASE: <k> of <n> fail on the
+      base · vacuous <lines | none>`, exit 0 when none passed. With --feature it also records
+      the result: a vacuous line's replay is invalidated (the next prove drives it), the rest
+      are marked `base fails`. --spec defaults to run.json
       beside --out, then <git common dir>/mstack/run.json (runspec.py --help). Launches the
       app by the spec and waits for its health check (a spec without launch, a CLI or library:
       no app and no MSTACK_URL), runs the replays in chunks with a health check between them
@@ -40,7 +54,8 @@ A line is S<k> (a slice's Done when e2e) or R<n> (a requirement).
       batch broke it. Replays run side by side only when the spec's parallel is above 1 and it
       declares no restore. Each replay gets its own MSTACK_RUN. Stops the app and restores
       state before it exits. Prints a short table (events, the passes on one line, every other
-      line with its state and last output line, then REPLAY: PASS | FAIL · <passed> of <n>);
+      line with its state and last output line, then REPLAY: PASS | FAIL · <passed> of <n>,
+      or BASE: …);
       --out gets that, then each replay's full output. Exit 0 = every line passed. Run it in
       the background.
   replay.py invalidate --feature <branch> --lines R3,S2 --why "<D<k> · what changed>" [--retired]
@@ -64,6 +79,7 @@ It exits 0 when the line's observation holds and prints the observed value on
 its last line. `python`/`python3` as its program run this script's interpreter.
 """
 import argparse
+import hashlib
 import json
 import os
 import random
@@ -172,12 +188,60 @@ def shell_syntax(cmd):
     return None
 
 
+def dir_hash(path):
+    """sha256 over a replay dir's file names and contents: binds a base report to these files."""
+    h = hashlib.sha256()
+    for root, dirs, files in os.walk(path):
+        dirs.sort()
+        for f in sorted(files):
+            full = os.path.join(root, f)
+            h.update(os.path.relpath(full, path).replace(os.sep, "/").encode())
+            with open(full, "rb") as fh:
+                h.update(hashlib.sha256(fh.read()).digest())
+    return h.hexdigest()[:16]
+
+
+BOUND = re.compile(r"^# base-check of (.+) · ([SR]\d+)=([0-9a-f]+)$")
+ROW = re.compile(r"^([SR]\d+) · (pass|fail|flaky|stale|missing|not run) · ?(.*)$")
+VACUOUS = "passes on the base: it checks nothing the change made"
+
+
+def base_report(path, src):
+    """{line: (state, last output line)} from a batch --base report run on src's own files."""
+    try:
+        with open(path, encoding="utf-8-sig") as fh:
+            text = fh.read()
+    except OSError as e:
+        sys.exit(f"ABORT: --base-check {path}: {e}")
+    if "BASE: " not in text:
+        sys.exit(f"ABORT: --base-check {path} is not a batch --base report")
+    rows, bound = {}, {}
+    for row in text.splitlines():
+        b = BOUND.match(row)
+        if b:
+            if os.path.normcase(b.group(1)) != os.path.normcase(src):
+                sys.exit(f"ABORT: --base-check {path} checked {b.group(1)}, not {src}")
+            bound[b.group(2)] = b.group(3)
+            continue
+        m = ROW.match(row)
+        if m and m.group(1) not in rows:
+            rows[m.group(1)] = (m.group(2), m.group(3))
+    for line in list(rows):
+        line_dir = os.path.join(src, line)
+        if bound.get(line) != (dir_hash(line_dir) if os.path.isdir(line_dir) else None):
+            rows[line] = ("changed", "files changed after the base check")
+    return rows
+
+
 def cmd_save(a):
     src = os.path.realpath(a.source)
     new = load_index(src)
     if not new:
         sys.exit(f"ABORT: no replay.json with entries in {src}")
     clauses = load_clauses(a.clauses)
+    if bool(a.base_check) == bool((a.no_base or "").strip()):
+        sys.exit('ABORT: save needs --base-check <a batch --base report> or --no-base "<why>"')
+    on_base = base_report(a.base_check, src) if a.base_check else None
     dst = feature_dir(a.feature)
     os.makedirs(dst, exist_ok=True)
     index, invalid = load_index(dst), load_invalid(dst)
@@ -194,7 +258,11 @@ def cmd_save(a):
                else "clause is not this line's in --clauses"
                if line not in clauses or not same_clause(clause, clauses[line])
                else shell_syntax(cmd)
-               or (None if os.path.isdir(line_src) else f"no dir of its own at {line_src}"))
+               or (None if os.path.isdir(line_src) else f"no dir of its own at {line_src}")
+               or (on_base and on_base.get(line, ("",))[0] in ("pass", "flaky")
+                   and f"{VACUOUS} · {on_base[line][1]}")
+               or (on_base and on_base.get(line, ("",))[0] == "changed"
+                   and "its files changed after the base check: check it again") or None)
         if why:
             print(f"refused {line} · {why}")
             refused += 1
@@ -203,9 +271,13 @@ def cmd_save(a):
         if os.path.isdir(line_dir):
             shutil.rmtree(line_dir)
         shutil.copytree(line_src, line_dir)
-        index[line] = {"cmd": cmd, "clause": clauses[line]}
+        base = (f"none · {a.no_base.strip()}" if on_base is None
+                else "not checked · not in --base-check" if line not in on_base
+                else "fails" if on_base[line][0] == "fail"
+                else f"not run · {on_base[line][0]} · {on_base[line][1]}")
+        index[line] = {"cmd": cmd, "clause": clauses[line], "base": base}
         invalid.pop(line, None)
-        print(f"saved {line} · {cmd}")
+        print(f"saved {line} · {cmd} · base {base}")
     write_index(dst, index)
     write_index(dst, invalid, "invalidated.json")
     sys.exit(1 if refused else 0)
@@ -326,7 +398,10 @@ def cmd_run(a):
 def cmd_batch(a):
     """Every saved replay against an app this script launches, keeps healthy and stops."""
     import runspec
-    d = feature_dir(a.feature)
+    if a.base and not a.lines:
+        sys.exit("ABORT: --base needs --lines: the lines asking new or changed behaviour "
+                 "(one asking that something keeps working rightly passes on the base)")
+    d = os.path.realpath(a.source) if a.source else feature_dir(a.feature)
     index, invalid = load_index(d), load_invalid(d)
     if not index and not invalid:
         no_replays(a)
@@ -411,7 +486,7 @@ def cmd_batch(a):
             for line, st, last, block in done:
                 results[line] = (st, last)
                 log.append(block)
-        failed = [l for l in runnable if results[l][0] == "fail"]
+        failed = [] if a.base else [l for l in runnable if results[l][0] == "fail"]
         if failed:
             # Alone, on a fresh app: tells a replay broken by another beside it, or by state an
             # earlier one left, from one that fails on its own.
@@ -431,15 +506,41 @@ def cmd_batch(a):
     rows = [(l, *results[l]) for l in wanted]
     passed = [l for l, s, _ in rows if s == "pass"]
     ok = len(passed) == len(rows)
-    summary = (f"REPLAY: {'PASS' if ok else 'FAIL'} · {len(passed)} of {len(rows)} · "
-               f"{round(time.monotonic() - t0)}s · at once {workers} · restarts {state['restarts']}")
+    bind = []
+    tail = f"{round(time.monotonic() - t0)}s · at once {workers} · restarts {state['restarts']}"
+    if a.base:
+        ok = not passed
+        failing = [l for l, s, _ in rows if s == "fail"]
+        summary = (f"BASE: {len(failing)} of {len(rows)} fail on the base · "
+                   f"vacuous {' '.join(passed) or 'none'} · {tail}")
+        if a.feature:
+            record_base(d, index, invalid, passed, failing)
+        else:
+            bind = [f"# base-check of {d} · {l}={dir_hash(os.path.join(d, l))}"
+                      for l in wanted if os.path.isdir(os.path.join(d, l))]
+    else:
+        summary = f"REPLAY: {'PASS' if ok else 'FAIL'} · {len(passed)} of {len(rows)} · {tail}"
     table = events + ([f"pass · {' '.join(passed)}"] if passed else [])
-    table += [f"{l} · {s} · {last}" for l, s, last in rows if s != "pass"]
+    table += [f"{l} · {s} · {last}" for l, s, last in rows if s != "pass"] + bind
     with open(a.out, "w", encoding="utf-8") as fh:
         fh.write("\n".join(table + [summary, ""]))
         fh.write("\n".join(f"{l} · {s} · {last}" for l, s, last in rows) + "\n\n" + "".join(log))
     print("\n".join(table + [summary]))
     sys.exit(0 if ok else 1)
+
+
+def record_base(d, index, invalid, vacuous, failing):
+    """A saved replay that passes on the base is no check: drop it, so the next prove drives it."""
+    for line in vacuous:
+        index.pop(line, None)
+        if os.path.isdir(os.path.join(d, line)):
+            shutil.rmtree(os.path.join(d, line))
+        invalid[line] = VACUOUS
+    for line in failing:
+        if line in index:
+            index[line]["base"] = "fails"
+    write_index(d, index)
+    write_index(d, invalid, "invalidated.json")
 
 
 def cmd_list(a):
@@ -449,8 +550,9 @@ def cmd_list(a):
         if line not in index:
             print(f"{line} · invalidated · {invalid[line]}")
             continue
-        c = index[line].get("clause")
-        print(f"{line} · {index[line]['cmd']}" + (f" · {c}" if c else ""))
+        c, b = index[line].get("clause"), index[line].get("base")
+        print(f"{line} · {index[line]['cmd']}" + (f" · {c}" if c else "")
+              + f" · base {b or 'none · saved before base checks'}")
     if not index and not invalid:
         print("none")
 
@@ -523,6 +625,8 @@ def main():
     p.add_argument("--feature", required=True)
     p.add_argument("--from", dest="source", required=True)
     p.add_argument("--clauses", required=True)
+    p.add_argument("--base-check")
+    p.add_argument("--no-base")
     p.add_argument("--lines")
     p.set_defaults(fn=cmd_save)
     p = sub.add_parser("run")
@@ -538,7 +642,10 @@ def main():
     p.add_argument("--out")
     p.set_defaults(fn=cmd_run)
     p = sub.add_parser("batch")
-    p.add_argument("--feature", required=True)
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--feature")
+    g.add_argument("--from", dest="source")
+    p.add_argument("--base", action="store_true")
     p.add_argument("--spec")
     p.add_argument("--clauses", required=True)
     p.add_argument("--out", required=True)

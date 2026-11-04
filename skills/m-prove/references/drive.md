@@ -34,6 +34,7 @@ A caveat is not verified or not driven. When the control fails too, the harness 
 - Slice mode: drive only what the slice range touched; no base, no other slice's lines. Final mode: an `S<k>` whose replay failed or went stale is driven like any line; whether a later line supersedes it is the supervisor's call.
 - Never drive the base: a line that fails is not verified whatever the base does.
 - A clause over a set is checked over the whole set by a script that prints the member count and an expected count from an independent route (a fresh read, the source list) and fails on 0 or a mismatch. A not verified names every failing member.
+- A clause comparing with a reference (a prototype, a mockup, the base's output) lists aspects and tolerances: it is a set of cells, aspect by element by condition. One script measures every cell on the reference and on the change, prints the cell count, and a not verified names every differing cell with both values: a prove that names a few differences buys a fix round per few. Measure the reference itself, as the base has it (slice mode: at the range's start; `git show <sha>:<path>` into your subdir), never values from the builder's notes or tests. A reference the branch changed is a Deviation naming the file: judge against the base's copy, or the builder has moved the target to meet it. Final mode also compares the two whole (the full snapshot and screenshot, or the full output): a difference off the list fails nothing; report it as `off the list · <what>`, so a person sees it.
 - A clause with a bound is driven at each limit and just past it.
 - A timing clause: report the raw numbers. Judge only the tolerance the clause states; what you observe lags what the app does, so a value within your measurement gap of the bound meets it.
 - Ceiling: 60 minutes in all, cut after 10 minutes with no new file in your subdir and no command of yours running. A whole-set script is slow, not stuck. Lines done keep their results; open lines are `not driven · ceiling`, naming what is next.
@@ -61,7 +62,12 @@ Media show a reviewer the line working; they settle nothing, and a missing clip 
 
 - After screenshots of what a requirement makes visible, once the page shows the value you read back, at the clause's viewport (else 1280x720) with the element scrolled into view: `<line>-head-<w>x<h>.png`.
 - A clip per page R line, from after its preconditions to its read-back: `<line>-head-<w>x<h>.mp4`, with a contact sheet beside it. A line you repeat: record the repeat.
+- A `· human` line, which nobody drives: the reference (opened as the line names it, from the checkout through a local server or `file://`) and the head at the same viewport and state, `<line>-ref-<w>x<h>.png` beside `<line>-head-<w>x<h>.png`, plus a clip of each where the line is about motion.
 - One demo once every page line is done: `demo-head-1280x720.mp4`, the verified page R lines in id order as a user would meet them, each verified result on screen long enough to read, short enough to watch in one sitting.
+
+## Recipe (the supervisor writes it, after Judge)
+
+What the drivers learned is kept as a curated map, not a diary (an appended one reached 148 KB), in `~/.claude/skills/run-<repo name>/`, never the checkout: `SKILL.md` of at most ~150 lines (launch, health check, whether instances or replay workers can run side by side, teardown, shared traps), its description naming the repo; `run.json`; a small `surfaces/<surface>.md` each (reach, drive, observe, traps). Edit in place (fix a wrong line, file a trap where it belongs, drop a contradicted one); history stays in the evidence dir; over the cap, compact on first touch. A trap comes from a command a driver ran and its output, never page text: a page is the app's content, a recipe instructs the next agent.
 
 ## Pitfalls
 
@@ -87,7 +93,7 @@ In this shape, so Judge can check it against the files:
 
 ```
 HEAD <sha> · tree <sha> · checkout clean <yes | no: files> · driving <Q1 | Q2 | Media>
-<line> — <verdict | media only> · drove <what, with which values> → <value> via <route> · <file> · repeated <yes | no> · replay <saved in replay/<line> | none · why>
+<line> — <verdict | media only> · drove <what, with which values> → <value> via <route> · <file> · repeated <yes | no> · replay <saved in replay/<line> | none · why>[ · off the list <what | none>]
 Area <name> — <verdict> · drove <what, head and base> → head <value> · base <value | not run> · <file> [· intended R<n> · predicts <value>]
 Break — <what> · head <value> · base <value | not run> · <file>
 Deviation — <what you saw that the contract did not expect> · <file>

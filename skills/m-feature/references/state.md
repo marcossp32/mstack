@@ -23,7 +23,7 @@ Created at Start with Spec, Base and How hard to undo filled, other headings emp
 
 ```markdown
 ## Requirements
-<m-requirements' lines, verbatim: R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from "<spec excerpt>"[ + "<excerpt>"] | from R<m>[ · CI <check | all>]. Ids never renumber or get reused; words never change; a changed bound keeps `was: <old bound>` beside it; a line a debate overturned ends `· retired by D<k>` and is not proved>
+<m-requirements' lines, verbatim: R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from "<spec excerpt>"[ + "<excerpt>"] | from R<m>[ · CI <check | all> | · human]. Ids never renumber or get reused; words never change; a changed bound keeps `was: <old bound>` beside it; a line a debate overturned ends `· retired by D<k>` and is not proved>
 
 ## Spec
 <spec ref · url> · frozen sha256 <hash> · <date frozen> · copy at <git common dir>/mstack/spec/<name>.md and in a state comment
