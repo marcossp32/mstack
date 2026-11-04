@@ -11,7 +11,7 @@ No tool and no account: spec, state, steps and issues are plain Markdown files. 
 
 ## Every operation
 
-- Every file is written with the Write or Edit tool, so no body passes through a shell string.
+- Every file is written with the Write or Edit tool, so no body passes through a shell string. A body that is already a file (a plan, a step body, a debate record) is copied from it by a short script (`python3 -c` reading the file and writing or appending it), never retyped: retyping puts the whole body through this chat and lets it drift.
 - A ref is an absolute forward-slash path for a run file, or a repo-relative path for the spec and a published issue.
 
 ## Where the files live, and why
