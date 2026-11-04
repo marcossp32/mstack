@@ -12,7 +12,7 @@ A plain `derived` line never changes the verdict: it is reported. Neither does a
 
 ## Media
 
-Per R line, pick what shows it to a reviewer who will only look: for a page, Q1's clip and after screenshot beside Q2's before screenshot; otherwise the command and up to 15 lines of its output (for `verified · replay`, its block in `replay.txt`). Plus the demo.
+Per R line, pick what shows it to a reviewer who will only look: for a page, the media driver's clip and after screenshot beside Q2's before screenshot (recorded only once this verdict is clean: SKILL.md, Media); otherwise the command and up to 15 lines of its output (for `verified · replay`, its block in `replay.txt`). Plus the demo.
 
 - Look at each before it goes (a clip through its contact sheet): one showing a blank page, an error, a login wall, another page or a value other than the reported one is dropped and named on Harness. Media settle nothing, so dropping one never changes a verdict.
 - Mask tokens, secrets and personal data in screenshots and outputs; drop a clip that shows one, since a video cannot be masked.

@@ -27,6 +27,22 @@ A line is S<k> (a slice's Done when e2e) or R<n> (a requirement).
       --run: the run id; MSTACK_RUN is <run id>-<unix ms>, so a second attempt never meets the
       values the first created. Default replay-<unix ms>.
       Exit 0 = every replay passed, 1 = some failed, went stale or could not run.
+  replay.py batch --feature <branch> --clauses <evidence dir>/clauses.json --out <evidence dir>/replay.txt
+                  [--spec <run.json>] [--checkout <dir>] [--run <id>] [--env KEY=VALUE]... [--lines S1,R3]
+      The supervisor's run of the saved replays, with no app up. --spec defaults to run.json
+      beside --out, then <git common dir>/mstack/run.json (runspec.py --help). Launches the
+      app by the spec and waits for its health check (a spec without launch, a CLI or library:
+      no app and no MSTACK_URL), runs the replays in chunks with a health check between them
+      (a failed one restarts the app, at most 3 times; then the rest are `not run`), runs the
+      spec's restore before each replay when it declares one, and runs each failure again
+      alone on a freshly started app. One that then passes is `flaky · … passed only alone`:
+      not a pass, since a frozen check that fails once is a lead for a drive, but a sign the
+      batch broke it. Replays run side by side only when the spec's parallel is above 1 and it
+      declares no restore. Each replay gets its own MSTACK_RUN. Stops the app and restores
+      state before it exits. Prints a short table (events, the passes on one line, every other
+      line with its state and last output line, then REPLAY: PASS | FAIL · <passed> of <n>);
+      --out gets that, then each replay's full output. Exit 0 = every line passed. Run it in
+      the background.
   replay.py clear --feature <branch>
       At the end of the feature. Deletes that feature's replays, nothing else.
 
@@ -43,11 +59,16 @@ import shutil
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 TIMEOUT = 300
+CHUNK = 8          # batch: replays between two health checks, per worker
+MAX_RESTARTS = 3   # batch: app restarts before the remaining lines are `not run`
 SHELL_CHARS = set("$%|&;<>`'\"")
 SHELLS = {"bash", "sh", "zsh", "cmd", "powershell", "pwsh", "wsl"}
-CONTAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contain.py")
+HERE = os.path.dirname(os.path.abspath(__file__))
+CONTAIN = os.path.join(HERE, "contain.py")
+sys.path.insert(0, HERE)  # runspec.py, for batch
 # The interpreter itself, not a venv launcher in front of it: contain watches
 # its parent, and a launcher outlives the script that started it.
 PYTHON = getattr(sys, "_base_executable", None) or sys.executable
@@ -175,68 +196,87 @@ def mask(text, secrets):
     return text
 
 
-def cmd_run(a):
-    d = os.path.realpath(a.source) if a.source else feature_dir(a.feature)
-    index = load_index(d)
-    wanted = [x.strip() for x in a.lines.split(",")] if a.lines else sorted(index, key=order)
-    if not index:
-        msg = "REPLAY: none · no replays for this feature"
-        if a.out:  # the drive reads it whatever happened
-            with open(a.out, "w", encoding="utf-8") as fh:
-                fh.write(msg + "\n")
-        print(msg)
-        sys.exit(1)
-    clauses = load_clauses(a.clauses) if a.clauses else {}
+def parse_env(pairs):
     extra = {}
-    for kv in a.env or []:
+    for kv in pairs or []:
         k, sep, v = kv.partition("=")
         if not sep or not k:
             sys.exit(f"ABORT: --env {kv!r} needs KEY=VALUE")
         extra[k] = v
     secret_env = [v for k, v in os.environ.items() if k.upper().startswith("MSTACK_SECRET_")]
     secrets = sorted({v for v in [*extra.values(), *secret_env] if v}, key=len, reverse=True)
+    return extra, secrets
+
+
+def why_stale(index, line, clauses, check):
+    """Why a line cannot be replayed against these clauses, as (state, why), or None."""
+    if line not in index:
+        return "missing", "no replay for this line"
+    saved, cmd = index[line].get("clause"), index[line]["cmd"]
+    why = "no clause" if not saved else shell_syntax(cmd)
+    if not why and check:
+        why = ("clause gone" if line not in clauses
+               else None if same_clause(saved, clauses[line]) else "clause changed")
+    return ("stale", why) if why else None
+
+
+def run_one(d, index, line, env, secrets):
+    """Run one replay. Returns (state, last output line, log block)."""
+    cmd = index[line]["cmd"]
+    cwd = os.path.join(d, line)
+    argv = resolve(cmd.split(), env, cwd)
+    if argv is None:
+        return ("fail", f"cannot run: {cmd.split()[0]} not found",
+                f"$ {cmd}  # {line}\n{cmd.split()[0]} not found\n")
+    # Contained: a timeout ends the browser or server the check started too.
+    full = [PYTHON, CONTAIN, "--with-parent", "--timeout", str(TIMEOUT), "--"] + argv
+    try:
+        p = subprocess.run(full, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=TIMEOUT + 60)
+        out = (p.stdout or "") + (p.stderr or "")
+        state = "pass" if p.returncode == 0 else "fail"
+        if "contain: TIMEOUT" in out:
+            out += "\nTIMEOUT"
+    except subprocess.TimeoutExpired:
+        out, state = "TIMEOUT", "fail"
+    out = mask(out, secrets)
+    lines = [l for l in out.strip().splitlines()
+             if not l.startswith("contain: ") or l.startswith("contain: TIMEOUT")]
+    return state, (lines or [""])[-1][:200], f"$ {mask(cmd, secrets)}  # {line}\n{out}\n"
+
+
+def no_replays(a):
+    msg = "REPLAY: none · no replays for this feature"
+    if a.out:  # the drive reads it whatever happened
+        with open(a.out, "w", encoding="utf-8") as fh:
+            fh.write(msg + "\n")
+    print(msg)
+    sys.exit(1)
+
+
+def cmd_run(a):
+    d = os.path.realpath(a.source) if a.source else feature_dir(a.feature)
+    index = load_index(d)
+    wanted = [x.strip() for x in a.lines.split(",")] if a.lines else sorted(index, key=order)
+    if not index:
+        no_replays(a)
+    clauses = load_clauses(a.clauses) if a.clauses else {}
+    extra, secrets = parse_env(a.env)
     run_id = f"{a.run or 'replay'}-{int(time.time() * 1000)}"
     env = {**os.environ, **extra, "MSTACK_URL": a.url, "MSTACK_RUN": run_id}
     if a.data:
         env["MSTACK_DATA"] = os.path.realpath(a.data)
     results, log = [], [f"# MSTACK_RUN={run_id}\n"]
     for line in wanted:
-        if line not in index:
-            results.append((line, "missing", "no replay for this line"))
+        stale = why_stale(index, line, clauses, bool(a.clauses))
+        if stale:
+            results.append((line, *stale))
+            log.append(f"# {line} {stale[0]} · {stale[1]}\n")
             continue
-        saved, cmd = index[line].get("clause"), index[line]["cmd"]
-        why = "no clause" if not saved else shell_syntax(cmd)
-        if not why and a.clauses:
-            why = ("clause gone" if line not in clauses
-                   else None if same_clause(saved, clauses[line]) else "clause changed")
-        if why:
-            results.append((line, "stale", why))
-            log.append(f"# {line} stale · {why}\n")
-            continue
-        cwd = os.path.join(d, line)
-        argv = resolve(cmd.split(), env, cwd)
-        if argv is None:
-            results.append((line, "fail", f"cannot run: {cmd.split()[0]} not found"))
-            log.append(f"$ {cmd}  # {line}\n{cmd.split()[0]} not found\n")
-            continue
-        # Contained: a timeout ends the browser or server the check started too.
-        full = [PYTHON, CONTAIN, "--with-parent", "--timeout", str(TIMEOUT), "--"] + argv
-        try:
-            p = subprocess.run(full, cwd=cwd, env=env,
-                               capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", timeout=TIMEOUT + 60)
-            out = (p.stdout or "") + (p.stderr or "")
-            state = "pass" if p.returncode == 0 else "fail"
-            if "contain: TIMEOUT" in out:
-                out += "\nTIMEOUT"
-        except subprocess.TimeoutExpired:
-            out, state = "TIMEOUT", "fail"
-        out = mask(out, secrets)
-        lines = [l for l in out.strip().splitlines()
-                 if not l.startswith("contain: ") or l.startswith("contain: TIMEOUT")]
-        last = (lines or [""])[-1][:200]
+        state, last, block = run_one(d, index, line, env, secrets)
         results.append((line, state, last))
-        log.append(f"$ {mask(cmd, secrets)}  # {line}\n{out}\n")
+        log.append(block)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as fh:
             fh.write("".join(log))
@@ -245,6 +285,124 @@ def cmd_run(a):
     passed = sum(1 for _, s, _ in results if s == "pass")
     ok = passed == len(results)
     print(f"REPLAY: {'PASS' if ok else 'FAIL'} · {passed} of {len(results)}")
+    sys.exit(0 if ok else 1)
+
+
+def cmd_batch(a):
+    """Every saved replay against an app this script launches, keeps healthy and stops."""
+    import runspec
+    d = feature_dir(a.feature)
+    index = load_index(d)
+    if not index:
+        no_replays(a)
+    wanted = [x.strip() for x in a.lines.split(",")] if a.lines else sorted(index, key=order)
+    clauses = load_clauses(a.clauses)
+    checkout = os.path.realpath(a.checkout)
+    spec = runspec.load(runspec.locate(a.spec, os.path.dirname(os.path.realpath(a.out)), checkout))
+    launches = bool(spec.get("launch"))
+    extra, secrets = parse_env(a.env)
+    data = runspec.data_of(spec, checkout)
+    workers = runspec.parallel(spec)
+    out_dir = os.path.dirname(os.path.realpath(a.out))
+    app_log = os.path.join(out_dir, "replay-app.log")
+    restore_log = os.path.join(out_dir, "replay-restore.log")
+    results, log, events = {}, [], []
+    t0 = time.monotonic()
+    state = {"app": None, "restarts": 0}
+
+    def start_app():
+        if not launches:
+            return True
+        if state["app"]:
+            state["app"].stop()
+        state["app"] = runspec.App(spec, checkout, app_log)
+        up, secs, why = state["app"].start()
+        events.append(f"launch · {'up' if up else 'not up'} in {secs}s" + (f" · {why}" if why else ""))
+        return up
+
+    def ensure_up():
+        if not launches or (state["app"] and state["app"].healthy()):
+            return True
+        if state["restarts"] >= MAX_RESTARTS:
+            return False
+        state["restarts"] += 1
+        events.append("health check failed · restarting the app")
+        return start_app()
+
+    def restore():
+        if spec.get("restore"):
+            port = state["app"].port if state["app"] else spec.get("port")
+            rc, last, _ = runspec.shell(spec["restore"], spec, checkout, port, restore_log)
+            if rc != 0:
+                events.append(f"restore failed exit {rc} · {last}")
+
+    def one(line, attempt):
+        restore()
+        app = state["app"]
+        env = {**runspec.env_of(spec, checkout, app.port if app else spec.get("port")), **extra,
+               "MSTACK_RUN": f"{a.run or 'replay'}-{line}-{attempt}-{int(time.time() * 1000)}"}
+        if app:
+            env["MSTACK_URL"] = app.url
+        if data:
+            env["MSTACK_DATA"] = data
+        return (line, *run_one(d, index, line, env, secrets))
+
+    runnable = []
+    for line in wanted:
+        stale = why_stale(index, line, clauses, True)
+        if stale:
+            results[line] = stale
+            log.append(f"# {line} {stale[0]} · {stale[1]}\n")
+        else:
+            runnable.append(line)
+    try:
+        if runnable and not start_app():
+            for line in runnable:
+                results[line] = ("not run", "app not up on its health check")
+            runnable = []
+        chunk = CHUNK * workers
+        for i in range(0, len(runnable), chunk):
+            if not ensure_up():
+                for line in runnable[i:]:
+                    results[line] = ("not run", "app down after restarts")
+                break
+            batch = runnable[i:i + chunk]
+            if workers > 1:
+                with ThreadPoolExecutor(workers) as pool:
+                    done = list(pool.map(lambda l: one(l, 1), batch))
+            else:
+                done = [one(l, 1) for l in batch]
+            for line, st, last, block in done:
+                results[line] = (st, last)
+                log.append(block)
+        failed = [l for l in runnable if results[l][0] == "fail"]
+        if failed:
+            # Alone, on a fresh app: tells a replay broken by another beside it, or by state an
+            # earlier one left, from one that fails on its own.
+            events.append(f"solo retry of {len(failed)}" + (" on a fresh app" if launches else ""))
+            if start_app():
+                for line in failed:
+                    if not ensure_up():
+                        break
+                    _, st, last, block = one(line, 2)
+                    log.append(f"# {line} retried alone\n{block}")
+                    results[line] = (("flaky", f"{last} · passed only alone, failed in the batch")
+                                     if st == "pass" else (st, last))
+    finally:
+        if state["app"]:
+            state["app"].stop()
+        restore()  # leave shared state as the replays found it
+    rows = [(l, *results[l]) for l in wanted]
+    passed = [l for l, s, _ in rows if s == "pass"]
+    ok = len(passed) == len(rows)
+    summary = (f"REPLAY: {'PASS' if ok else 'FAIL'} · {len(passed)} of {len(rows)} · "
+               f"{round(time.monotonic() - t0)}s · at once {workers} · restarts {state['restarts']}")
+    table = events + ([f"pass · {' '.join(passed)}"] if passed else [])
+    table += [f"{l} · {s} · {last}" for l, s, last in rows if s != "pass"]
+    with open(a.out, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(table + [summary, ""]))
+        fh.write("\n".join(f"{l} · {s} · {last}" for l, s, last in rows) + "\n\n" + "".join(log))
+    print("\n".join(table + [summary]))
     sys.exit(0 if ok else 1)
 
 
@@ -269,7 +427,7 @@ def cmd_clear(a):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("save")
     p.add_argument("--feature", required=True)
@@ -289,6 +447,16 @@ def main():
     p.add_argument("--lines")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_run)
+    p = sub.add_parser("batch")
+    p.add_argument("--feature", required=True)
+    p.add_argument("--spec")
+    p.add_argument("--clauses", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--checkout", default=os.getcwd())
+    p.add_argument("--run")
+    p.add_argument("--env", action="append")
+    p.add_argument("--lines")
+    p.set_defaults(fn=cmd_batch)
     p = sub.add_parser("list")
     p.add_argument("--feature", required=True)
     p.set_defaults(fn=cmd_list)
