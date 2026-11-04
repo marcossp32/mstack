@@ -7,10 +7,12 @@ How a slice gets built, checked, reviewed and proved, from the prerequisites and
 Outcome: the prerequisites scan Q9 lists (a database, a service) running, and a step check baseline recorded on `feature/<name>` before the first step check, because every check is a comparison against it.
 
 - Nothing a skill starts outlives it: start each prerequisite under `python3 <m-review dir>/scripts/contain.py`, in the background, and keep its pid. Prove starts its own, so stop them before each prove and start them again after.
-- Record the baseline with `python3 <m-review dir>/scripts/step_check.py baseline --test-cmd "<scan Q6 suite | none>" --test-file-cmd "<scan Q6 one file, {test} for its path>"`; `set-cmd` swaps the suite command later without losing the verdict. A baseline that aborts at setup names what it lacked: provide it and record again.
+- Record the baseline with `python3 <m-review dir>/scripts/step_check.py baseline --test-cmd "<scan Q6 suite | none>" --test-file-cmd "<scan Q6 one file, {test} for its path>" --env <NAME=VALUE, per scan Q6 env>`; `set-cmd` swaps the suite command later without losing the verdict. A baseline that aborts at setup names what it lacked: provide it and record again. A Q6 command marked untried is the one to try first, on one file, before the baseline.
 - A red baseline is fine: the check then fails a step only for files outside the already-failing set. Comment that set on the state once; it goes under the PR's What to watch.
 
 Pitfalls, each a property of how the check runs:
+
+- The test environment never goes inside a command: an inline assignment runs in one shell only (cmd.exe on Windows, `sh` elsewhere), and in the other the suite never starts, which reads as a baseline with nothing in it. `--env` records it for every check; a secret goes as a bare `--env NAME`, set in the environment. Each agent that runs tests (build, prove) gets the same variables in its dispatch, set on its own runs.
 
 - The step check ends every contained process started inside the checkout, so a prerequisite started from there dies at the next check. Start them from outside it.
 - Test runners run many files at once, commonly one per core, and test files that each launch a browser or a server then stall the machine. Cap files at once (the runner's flag, from scan Q6) well below the core count, and give a resumed baseline the cap with `set-cmd`.

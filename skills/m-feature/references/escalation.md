@@ -43,16 +43,20 @@ A requirement failing again on an input its earlier fix did not cover (another c
   Id           · D<k>
   Problem      · <what must hold, under which conditions; how would you do it?>
   Spec         · <spec ref> · "<verbatim excerpt behind it>"
-  Facts        · <installed versions · infrastructure limits · Not doing · what was tried, how it failed, with evidence: command + output lines, file:line, replay>
-  Requirements · <the R lines it touches>
+  Facts        · <installed versions · infrastructure limits · Not doing · what was tried, how it failed, with evidence: command + output lines, file:line, replay; each with the commit or time it was seen>
+  Requirements · <every R line on the slices and files the decision touches, with its status now: proved · failing · not proved yet>
+  Decisions    · <the Debates lines on the same requirements, files or mechanism>
   Repo         · <absolute checkout path>
+  Runs         · <Where it runs: how the running system is reached, what in it is shared>
   Out          · <git common dir>/mstack/debates/D<k>.md
   ```
-  The Problem states what must hold and asks how, since a framed question gets its frame back: no options, no preference, no yes/no ("X must process N items without blocking Y; how?", not "Should we use a queue?"). A failed attempt is a fact, not part of the problem. Done when it replies with the `D<k> · <question> → <decision>` line and `Record · <path>`.
+  The Problem states what must hold and asks how, since a framed question gets its frame back: no options, no preference, no yes/no ("X must process N items without blocking Y; how?", not "Should we use a queue?"). A failed attempt is a fact, not part of the problem. Requirements include those already passing: a decision only sees the lines it is given, and one it was not given is one it may break. The debate re-checks Facts against the current state, but a fact without when it was seen cannot be told from a stale one. Done when it replies with the `D<k> · <question> → <decision>` line and `Record · <path>`.
 - **Record.** That first line plus `· record: state comment · <understand | plan | S<k> | final>` under Debates; the record file as a state comment (`tracker comment <state> <body>`, the body fed from the file, e.g. `< <path>` where the adapter reads stdin), never read into this chat; `→ D<k>` beside the Open decisions or Contradictions entry it settles. Print `D<k> · <question> → <decision>`.
   - `Requires · R<n>` makes that line `derived · required by D<k>`; its words stay.
   - `Adds · "<words>" · bound <domain | —>` appends `R<n> · derived · required by D<k> · "<words>" · bound <…> · from "<the record's Spec excerpt>"` with the next unused id; the affected slice is then revised (or planned, before Plan).
   - `Repeats · <attempt>`: the debate found nothing new; treat it as a loop (Progress or loop).
+  - `Undoes · D<j> · <what> · R<n> …`: those lines lose their proof; mark them on their slice lines and prove them again once the decision is built, with the slice it changes or in the next prove that covers them. Write `undone in part by D<k>` beside D<j> under Debates.
+  - `Stale · <fact> · now <what>`: correct the fact where the state holds it, so no later stage or debate is handed it again.
 - **A debate decides how, not what**: the spec is frozen, so a requirement keeps its words and reach and Not doing stays as the spec wrote it, whatever the decision.
 
 ## Acting on the decision

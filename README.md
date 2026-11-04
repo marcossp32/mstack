@@ -167,13 +167,13 @@ When a skill asks for a model tier, pass it to the Agent tool as:
 |---|---|
 | Questions about the spec | `m-requirements` decides what is easy; `m-debate` settles what is hard to undo |
 | Confirming the plan | Nobody: it is saved and run |
-| A finding the builder disputes, a fix that does not hold twice, a slice that keeps failing | `m-debate`, at most 2 per slice; after that the slice is Not verified and the run moves on |
+| A finding the builder disputes, a fix that does not hold twice, a slice that keeps failing | `m-debate`, with no limit while each one moves the work; a debate that finds nothing new is treated as a loop and the approach changes |
 | Credentials in a step | A failed step check; the builder moves them to an environment variable |
 | Repeated failures, a refused command | The pull request ships Not verified, saying what is missing and why; a refused command goes under **To merge** |
 
 The only stop is at the very start: no `.mstack.yml` and nothing to deduce it from, a tool not logged in, or a spec it cannot read. Then nothing has been created, and the line says to run `/setup-mstack`.
 
-**Debates.** `m-debate` sends only the problem, never options or a preference, to five agents with a clean context (three strong, two standard). They research the official docs, the internet and your code; they never start the app or run anything. A second round runs only without consensus, with the other verdicts anonymised. The decision best backed by sources the orchestrator checked wins, not the most votes. Every debate is recorded, with the positions against, and listed in the pull request.
+**Debates.** `m-debate` sends only the problem, never options or a preference, to five agents with a clean context (three strong, two standard). They research the official docs, the internet, your code and what the running system does now, observing without changing anything others share. Facts handed in are rechecked against the current state first. A second round runs only without consensus, with the other verdicts anonymised. The decision best backed by sources the orchestrator checked wins, not the most votes, and a fresh reviewer tries to break it against the current code before it returns. Every debate is recorded, with the positions against, and listed in the pull request.
 
 **Auto mode.** An unattended run merges step branches into the feature branch, pushes it, runs mstack's scripts and writes prove's run recipe under `~/.claude/skills/`. Claude Code's auto mode can refuse some of these by default, and a permission typed in a chat does not lift that. `/setup-mstack` checks your `~/.claude/settings.json` once and prints the block to add; mstack never edits that file. The block lives in `setup-mstack/references/auto-mode.md`. The final merge into the base branch stays yours.
 

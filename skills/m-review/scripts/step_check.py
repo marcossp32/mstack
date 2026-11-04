@@ -11,9 +11,14 @@ exactly one of `STEP CHECK: PASS`, `STEP CHECK: FAIL`,
 no verdict line.
 
   step_check.py baseline --test-cmd "<cmd>" | --test-cmd none [--test-file-cmd "<cmd with {test}>"]
+                         [--env NAME=VALUE | --env NAME ...]
       Once, on the feature branch before the first step. Records the suite's
       state for that branch, so later steps can be compared against it, and
       the command that runs one test file, for the pinned check.
+      --env is the environment the tests need, kept off the command line
+      (an inline assignment is shell-specific and fails in the other shell).
+      NAME=VALUE is recorded and set on every later run; a bare NAME (a
+      secret) must already be set in the environment and is never stored.
 
   step_check.py check --base origin/<feature branch> --notes <file> [--secrets-cmd "<cmd>"]
       Fetch first: a stale local feature branch puts earlier steps in the diff.
@@ -23,9 +28,10 @@ no verdict line.
       Exit 0 = PASS, 1 = FAIL, 2 = NOT RUN (a run hit its ceiling: no
       verdict, report it); an abort exits non-zero and prints no verdict.
 
-  step_check.py set-cmd --base <feature branch> --test-cmd "<cmd>"
+  step_check.py set-cmd --base <feature branch> --test-cmd "<cmd>" [--env ...]
       Swaps the suite command of the recorded baseline (e.g. fewer files at
-      once after an unstable-under-load NOT RUN); keeps its verdict.
+      once after an unstable-under-load NOT RUN); keeps its verdict. --env,
+      when given, replaces the recorded environment.
 
   step_check.py clear --base <feature branch>
       When the feature ends. Deletes its baseline, nothing else.
@@ -155,6 +161,32 @@ MAX_ALONE = 30
 FAIL_MARK = re.compile(r"(?i)\b(fail|failed|failing|failures?|error)\b|[✖✗×]")
 PASS_MARK = re.compile(r"\b(PASS|PASSED)\b|^\s*ok\b|[✔✓]")
 FAIL_WINDOW = 3
+# `NAME=value cmd`, `set NAME=value&& cmd`, `export NAME=...`: each runs in
+# one shell only, and in the other the suite never starts.
+INLINE_ENV = re.compile(r"^\s*(?:(?:set|export|env)\s+)?[A-Za-z_][A-Za-z0-9_]*=")
+# Set on every run from the recorded baseline's environment.
+RUN_ENV = {}
+
+
+def parse_env(pairs):
+    """--env values: NAME=VALUE recorded; a bare NAME must be set already."""
+    env = {}
+    for pair in pairs or []:
+        name, eq, value = pair.partition("=")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            die(f"--env {pair!r}: expected NAME=VALUE or NAME")
+        if eq:
+            env[name] = value
+        elif name not in os.environ:
+            die(f"--env {name}: not set in this environment; set it, then run again")
+    return env
+
+
+def no_inline_env(*cmds):
+    for c in cmds:
+        if c and INLINE_ENV.match(c):
+            die(f"the command sets an environment variable inline ({c.split('=')[0].split()[-1]}): "
+                "that form runs in one shell only. Give it as --env NAME=VALUE")
 
 
 def run_git(args, cwd):
@@ -195,13 +227,15 @@ def cmd_baseline(a):
         die("baseline runs on the feature branch, not a detached HEAD")
     if a.test_file_cmd and "{test}" not in a.test_file_cmd:
         die("--test-file-cmd must contain {test}, replaced by the file to run")
+    no_inline_env(a.test_cmd, a.test_file_cmd)
+    RUN_ENV.update(parse_env(a.env))
     _, head = git("rev-parse HEAD")
     if a.test_cmd == "none":
         data = {"cmd": None, "rc": None, "head": head, "created": now()}
         print("baseline: no test suite")
     else:
         print(f"running {a.test_cmd} ...")
-        rc, out, secs = timed(a.test_cmd, cwd=r, timeout=FIRST_RUN)
+        rc, out, secs = timed(a.test_cmd, cwd=r, timeout=FIRST_RUN, env=RUN_ENV)
         if timed_out(rc, out):
             die(f"NOT RUN · the suite did not finish within {FIRST_RUN}s: no "
                 "baseline recorded\n" + tail(out, 1500), 2)
@@ -226,6 +260,7 @@ def cmd_baseline(a):
                   + (", ".join(data["failing"]) or "no file found in its output: "
                      "later steps cannot be compared"))
     data["file_cmd"] = a.test_file_cmd
+    data["env"] = RUN_ENV
     data["branch"] = branch
     write_json(baseline_path(branch), data)
     print(f"baseline for {branch}")
@@ -281,7 +316,7 @@ def check_suite(a, base_info, r, changed, fails, notes):
     limit = ceiling(base_info.get("seconds"), SUITE_FLOOR)
 
     def suite(run):
-        rc, out, secs = timed(base_info["cmd"], cwd=r, timeout=limit)
+        rc, out, secs = timed(base_info["cmd"], cwd=r, timeout=limit, env=RUN_ENV)
         if timed_out(rc, out):
             raise NotRun(f"the suite did not finish within {limit}s, 3 times its "
                          f"baseline run or more · log {save_log(a.label, run, out)}")
@@ -543,7 +578,7 @@ def pinned_files(section, r):
 
 
 def run_pinned(cmd, path, r, limit):
-    return timed(cmd.replace("{test}", path), cwd=r, timeout=limit)
+    return timed(cmd.replace("{test}", path), cwd=r, timeout=limit, env=RUN_ENV)
 
 
 def marker_path():
@@ -674,6 +709,7 @@ def cmd_check(a):
     if base_info is None:
         die(f"no baseline for {a.base}. On that branch, run: "
             "step_check.py baseline --test-cmd <cmd>")
+    RUN_ENV.update(base_info.get("env") or {})
     undo_killed_revert(r)
     if tracked_changes(r):
         die("tracked files differ from HEAD (git status): the check runs on the "
@@ -720,8 +756,12 @@ def cmd_set_cmd(a):
         die(f"no baseline for {a.base}: record one with baseline")
     if data.get("cmd") is None:
         die("this baseline has no test suite")
+    no_inline_env(a.test_cmd)
     print(f"suite command: {data['cmd']} -> {a.test_cmd}")
     data.update({"cmd": a.test_cmd, "seconds": None, "cmd_set": now()})
+    if a.env is not None:
+        data["env"] = parse_env(a.env)
+        print("environment: " + (", ".join(data["env"]) or "none"))
     write_json(path, data)
 
 
@@ -743,6 +783,9 @@ def main():
                    help="the command that runs the whole suite, or 'none'")
     p.add_argument("--test-file-cmd",
                    help="the command that runs one test file, with {test} for its path")
+    p.add_argument("--env", action="append", metavar="NAME=VALUE",
+                   help="a variable the tests need, set on every run; a bare "
+                   "NAME must already be set and is not stored. Repeatable")
     p.set_defaults(fn=cmd_baseline)
     p = sub.add_parser("check")
     p.add_argument("--base", required=True, help="the feature branch")
@@ -754,6 +797,8 @@ def main():
     p.add_argument("--base", required=True, help="the feature branch")
     p.add_argument("--test-cmd", required=True,
                    help="the new command that runs the whole suite")
+    p.add_argument("--env", action="append", metavar="NAME=VALUE",
+                   help="replaces the recorded environment. Repeatable")
     p.set_defaults(fn=cmd_set_cmd)
     p = sub.add_parser("clear")
     p.add_argument("--base", required=True, help="the feature branch that ended")
