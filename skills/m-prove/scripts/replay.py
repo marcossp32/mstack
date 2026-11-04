@@ -43,6 +43,18 @@ A line is S<k> (a slice's Done when e2e) or R<n> (a requirement).
       line with its state and last output line, then REPLAY: PASS | FAIL · <passed> of <n>);
       --out gets that, then each replay's full output. Exit 0 = every line passed. Run it in
       the background.
+  replay.py invalidate --feature <branch> --lines R3,S2 --why "<D<k> · what changed>" [--retired]
+      When a decision undoes a line or changes its surface. Its words may stay the same, so
+      its replay would still match its clause and could pass against what no longer holds.
+      Deletes those lines' replays and records why; run, batch and list then show each as
+      `stale · invalidated · <why>`, so the next prove drives it. A later save lifts it.
+      --retired: the lines are retired (no prove has them any more): their replays are
+      deleted and nothing is recorded, so they never show up again.
+  replay.py audit --from <evidence dir>/replay.txt [--skip R1,S2] [--rate 0.2] [--seed <n>]
+      A repeat final's spot audit. Picks at random about --rate (at least one) of the lines
+      batch passed, minus --skip (the lines a driver drives anyway), for Q1 to drive with fresh
+      values. Prints `AUDIT: <lines> · <k> of <n> passed by replay` or `AUDIT: none · no line
+      passed by replay alone`. The script picks, so nobody chooses which replays get checked.
   replay.py clear --feature <branch>
       At the end of the feature. Deletes that feature's replays, nothing else.
 
@@ -54,6 +66,7 @@ its last line. `python`/`python3` as its program run this script's interpreter.
 import argparse
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -107,9 +120,26 @@ def load_index(d):
         return json.load(fh)
 
 
-def write_index(d, index):
-    with open(os.path.join(d, "replay.json"), "w", encoding="utf-8") as fh:
+def write_index(d, index, name="replay.json"):
+    with open(os.path.join(d, name), "w", encoding="utf-8") as fh:
         json.dump(index, fh, indent=2, ensure_ascii=False)
+
+
+def load_invalid(d):
+    """{line: why} for the lines a decision invalidated, kept beside replay.json."""
+    path = os.path.join(d, "invalidated.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8-sig") as fh:
+        return json.load(fh)
+
+
+def split_lines(arg):
+    lines = [x.strip() for x in (arg or "").split(",") if x.strip()]
+    bad = [l for l in lines if not re.fullmatch(r"[SR]\d+", l)]
+    if bad:
+        sys.exit(f"ABORT: lines are S<k> or R<n>: {', '.join(bad)}")
+    return lines
 
 
 def same_clause(a, b):
@@ -150,8 +180,8 @@ def cmd_save(a):
     clauses = load_clauses(a.clauses)
     dst = feature_dir(a.feature)
     os.makedirs(dst, exist_ok=True)
-    index = load_index(dst)
-    keep = {x.strip() for x in a.lines.split(",")} if a.lines else None
+    index, invalid = load_index(dst), load_invalid(dst)
+    keep ={x.strip() for x in a.lines.split(",")} if a.lines else None
     refused = 0
     for line, entry in new.items():
         if keep is not None and line not in keep:
@@ -174,8 +204,10 @@ def cmd_save(a):
             shutil.rmtree(line_dir)
         shutil.copytree(line_src, line_dir)
         index[line] = {"cmd": cmd, "clause": clauses[line]}
+        invalid.pop(line, None)
         print(f"saved {line} · {cmd}")
     write_index(dst, index)
+    write_index(dst, invalid, "invalidated.json")
     sys.exit(1 if refused else 0)
 
 
@@ -208,9 +240,11 @@ def parse_env(pairs):
     return extra, secrets
 
 
-def why_stale(index, line, clauses, check):
+def why_stale(index, line, clauses, check, invalid=None):
     """Why a line cannot be replayed against these clauses, as (state, why), or None."""
     if line not in index:
+        if invalid and line in invalid:
+            return "stale", f"invalidated · {invalid[line]}"
         return "missing", "no replay for this line"
     saved, cmd = index[line].get("clause"), index[line]["cmd"]
     why = "no clause" if not saved else shell_syntax(cmd)
@@ -257,9 +291,10 @@ def no_replays(a):
 
 def cmd_run(a):
     d = os.path.realpath(a.source) if a.source else feature_dir(a.feature)
-    index = load_index(d)
-    wanted = [x.strip() for x in a.lines.split(",")] if a.lines else sorted(index, key=order)
-    if not index:
+    index, invalid = load_index(d), load_invalid(d)
+    wanted = ([x.strip() for x in a.lines.split(",")] if a.lines
+              else sorted({*index, *invalid}, key=order))
+    if not index and not invalid:
         no_replays(a)
     clauses = load_clauses(a.clauses) if a.clauses else {}
     extra, secrets = parse_env(a.env)
@@ -269,7 +304,7 @@ def cmd_run(a):
         env["MSTACK_DATA"] = os.path.realpath(a.data)
     results, log = [], [f"# MSTACK_RUN={run_id}\n"]
     for line in wanted:
-        stale = why_stale(index, line, clauses, bool(a.clauses))
+        stale = why_stale(index, line, clauses, bool(a.clauses), invalid)
         if stale:
             results.append((line, *stale))
             log.append(f"# {line} {stale[0]} · {stale[1]}\n")
@@ -292,10 +327,11 @@ def cmd_batch(a):
     """Every saved replay against an app this script launches, keeps healthy and stops."""
     import runspec
     d = feature_dir(a.feature)
-    index = load_index(d)
-    if not index:
+    index, invalid = load_index(d), load_invalid(d)
+    if not index and not invalid:
         no_replays(a)
-    wanted = [x.strip() for x in a.lines.split(",")] if a.lines else sorted(index, key=order)
+    wanted = ([x.strip() for x in a.lines.split(",")] if a.lines
+              else sorted({*index, *invalid}, key=order))
     clauses = load_clauses(a.clauses)
     checkout = os.path.realpath(a.checkout)
     spec = runspec.load(runspec.locate(a.spec, os.path.dirname(os.path.realpath(a.out)), checkout))
@@ -349,7 +385,7 @@ def cmd_batch(a):
 
     runnable = []
     for line in wanted:
-        stale = why_stale(index, line, clauses, True)
+        stale = why_stale(index, line, clauses, True, invalid)
         if stale:
             results[line] = stale
             log.append(f"# {line} {stale[0]} · {stale[1]}\n")
@@ -407,12 +443,66 @@ def cmd_batch(a):
 
 
 def cmd_list(a):
-    index = load_index(feature_dir(a.feature))
-    for line in sorted(index, key=order):
+    d = feature_dir(a.feature)
+    index, invalid = load_index(d), load_invalid(d)
+    for line in sorted({*index, *invalid}, key=order):
+        if line not in index:
+            print(f"{line} · invalidated · {invalid[line]}")
+            continue
         c = index[line].get("clause")
         print(f"{line} · {index[line]['cmd']}" + (f" · {c}" if c else ""))
-    if not index:
+    if not index and not invalid:
         print("none")
+
+
+def cmd_invalidate(a):
+    lines = split_lines(a.lines)
+    if not lines or not a.why.strip():
+        sys.exit("ABORT: invalidate needs --lines and a --why naming the decision")
+    d = feature_dir(a.feature)
+    os.makedirs(d, exist_ok=True)
+    index, invalid = load_index(d), load_invalid(d)
+    for line in lines:
+        had = index.pop(line, None) is not None
+        line_dir = os.path.join(d, line)
+        if os.path.isdir(line_dir):
+            shutil.rmtree(line_dir)
+        if a.retired:
+            invalid.pop(line, None)
+            print(f"retired {line} · {'replay deleted' if had else 'had no replay'} · {a.why.strip()}")
+            continue
+        invalid[line] = a.why.strip()
+        print(f"invalidated {line} · {'replay deleted' if had else 'had no replay'} · {invalid[line]}")
+    write_index(d, index)
+    write_index(d, invalid, "invalidated.json")
+
+
+def passed_in(report):
+    """The lines a batch report's `pass · …` row names, before its REPLAY: summary."""
+    try:
+        with open(report, encoding="utf-8-sig") as fh:
+            for row in fh:
+                if row.startswith("REPLAY:"):
+                    break
+                if row.startswith("pass · "):
+                    return row[len("pass · "):].split()
+    except OSError as e:
+        sys.exit(f"ABORT: --from {report}: {e}")
+    return []
+
+
+def cmd_audit(a):
+    if not 0 < a.rate <= 1:
+        sys.exit("ABORT: --rate is above 0 and at most 1")
+    skip = set(split_lines(a.skip))
+    pool = sorted((l for l in passed_in(a.source) if l not in skip), key=order)
+    if not pool:
+        print("AUDIT: none · no line passed by replay alone")
+        return
+    k = min(len(pool), max(1, round(a.rate * len(pool))))
+    rng = random.Random(a.seed) if a.seed is not None else random.SystemRandom()
+    picked = sorted(rng.sample(pool, k), key=order)
+    print(f"AUDIT: {' '.join(picked)} · {k} of {len(pool)} passed by replay")
 
 
 def cmd_clear(a):
@@ -460,6 +550,18 @@ def main():
     p = sub.add_parser("list")
     p.add_argument("--feature", required=True)
     p.set_defaults(fn=cmd_list)
+    p = sub.add_parser("invalidate")
+    p.add_argument("--feature", required=True)
+    p.add_argument("--lines", required=True)
+    p.add_argument("--why", required=True)
+    p.add_argument("--retired", action="store_true")
+    p.set_defaults(fn=cmd_invalidate)
+    p = sub.add_parser("audit")
+    p.add_argument("--from", dest="source", required=True)
+    p.add_argument("--skip")
+    p.add_argument("--rate", type=float, default=0.2)
+    p.add_argument("--seed", type=int)
+    p.set_defaults(fn=cmd_audit)
     p = sub.add_parser("clear")
     p.add_argument("--feature", required=True)
     p.set_defaults(fn=cmd_clear)

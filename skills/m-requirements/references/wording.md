@@ -33,10 +33,10 @@ A comparison without a stopping point is open-ended: the prover compares whateve
 
 ## Lines a local run cannot settle
 
-Prove has what a local run has: the repo's start command, its seed or fixture data, its stubs. A line needing CI, production volume, a real third-party key or a person's account surfaces only at the final prove. Two ways out, in order:
+Prove has what a local run has: the repo's start command, its seed or fixture data, its stubs. A line about a CI check passing is the exception: mark it ` · CI <check | all>` and the orchestrator settles it from the host's results, nobody drives it. A line needing production volume, a real third-party key or a person's account surfaces only at the final prove. Two ways out, in order:
 
 - Reword to what is observable locally and still serves the purpose: "sends the payment request with the order total" instead of "the customer is charged", where the repo already stubs the provider.
-- Otherwise keep the line and flag it in Assumed: `- R<n> needs <the key, account, CI job or environment, exactly> · why <what the local run lacks> · affects R<n>`.
+- Otherwise keep the line and flag it in Assumed: `- R<n> needs <the key, account or environment, exactly> · why <what the local run lacks> · affects R<n>`.
 
 ## Words that usually hide a gap
 

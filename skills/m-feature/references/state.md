@@ -23,7 +23,7 @@ Created at Start with Spec, Base and How hard to undo filled, other headings emp
 
 ```markdown
 ## Requirements
-<m-requirements' lines, verbatim: R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from "<spec excerpt>"[ + "<excerpt>"] | from R<m>. Ids never renumber or get reused; words never change; a changed bound keeps `was: <old bound>` beside it; a line a debate overturned ends `· retired by D<k>` and is not proved>
+<m-requirements' lines, verbatim: R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from "<spec excerpt>"[ + "<excerpt>"] | from R<m>[ · CI <check | all>]. Ids never renumber or get reused; words never change; a changed bound keeps `was: <old bound>` beside it; a line a debate overturned ends `· retired by D<k>` and is not proved>
 
 ## Spec
 <spec ref · url> · frozen sha256 <hash> · <date frozen> · copy at <git common dir>/mstack/spec/<name>.md and in a state comment
@@ -74,7 +74,7 @@ Resume reads these, so rewrite the open line as each point finishes:
 ```
 S<k> · open · start <sha> · <steps merged: refs> · quality <pending | F<n>… open | clean> · prove <pending | fix round <n> | verified> · debates <n>
 S<k> · verified · <what a user can now do, one sentence> · evidence <verdict comment date> · replays S<k> R<n>…
-S<k> · not verified · <why, one sentence> · <D<a> D<b>> · open steps <refs | none>
+S<k> · not verified · <why, one sentence> · <D<a> D<b>> · open steps <refs | none> · gap accepted by D<k>
 ```
 
 ## Step item body
@@ -128,4 +128,4 @@ Inside an open slice, the first of these that holds:
 3. Prove not `verified`: slice prove.
 4. Else close the slice line.
 
-At Closing, run the final prove again (replays make it cheap), and edit the PR `host find-pr` finds rather than opening a second.
+At Closing, run the final prove again, as a repeat final when the previous final's Return block is a state comment (only what changed is driven again), and edit the PR `host find-pr` finds rather than opening a second.
