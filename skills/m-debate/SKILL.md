@@ -7,7 +7,7 @@ agent: general-purpose
 background: false
 ---
 
-Settle the question in the block below with no human. Five fresh agents research it from the repo, the running system, the docs and the internet; the decision best backed by sources you checked in this run wins, and a fresh reviewer tests it against the code as it is now before you reply. The full record goes to a file, because it is long and the caller keeps it, not reads it. Your reply is a few lines the caller acts on.
+Settle the question in the block below with no human. Five fresh agents research it from the repo, the running system, the docs and the internet; the decision best backed by sources you checked in this run wins, and a fresh reviewer tests it against the code as it is now before you reply. The full record goes to a file the caller keeps, not reads; your reply is a few lines it acts on.
 
 The block:
 
@@ -60,15 +60,15 @@ The decision is always one a debater proposed: the caller cannot go on without o
 
 **Buildable and consistent.** Write the decision in its proposers' words, concrete enough to build. When it adds behaviour observable from outside the code that no listed requirement covers, add one `Adds` line worded as a requirement (what someone outside the code observes, no `"` inside; a bound naming the inputs it covers when the words hold every, any, never or all, else `bound —`). When it makes an existing derived requirement necessary, add `Requires`. The decision, its `Adds` and the requirements must agree with each other: a decision that accepts what its own `Adds` forbids sends a prove round to find it.
 
-**Reviewed before it returns.** Debaters each test their own idea; nobody yet tested the chosen one, with its `Adds`, against everything it touches as it stands now. Dispatch one fresh `general-purpose` agent on `strong` with the "Review" prompt of debater.md, in the foreground. It tries to break the decision against the current code and running system: a requirement it would stop holding (above all one already proved), a Fact no longer true, an earlier decision it undoes, its own `Adds` or `Requires`, a part not concrete enough to build. It costs one agent for a few minutes; what it catches otherwise costs a prove round and another debate. A finding you confirm is a new Fact: choose again among the positions that answer it, or, when none does, give it to the debaters as a Fact for another round; review whatever is chosen. An earlier decision undone on purpose is not a failure, but the caller must know (`Undoes`), since what was proved under it is no longer proved.
+**Reviewed before it returns.** Debaters each test their own idea; nobody yet tested the chosen one, with its `Adds`, against everything it touches now. Dispatch one fresh `general-purpose` agent on `strong` with the "Review" prompt of debater.md, in the foreground. It tries to break the decision against the current code and running system: a requirement it would stop holding (above all one already proved), a Fact no longer true, an earlier decision it undoes, its own `Adds` or `Requires`, a part not concrete enough to build. It costs one agent a few minutes; what it catches otherwise costs a prove round and a debate. A finding you confirm is a new Fact: choose again among the positions that answer it, or, when none does, give it to the debaters as a Fact for another round; review whatever is chosen. An earlier decision undone on purpose is not a failure, but the caller must know (`Undoes`), since what was proved under it is no longer proved.
 
-**A repeated decision is a finding.** When `Facts` show an earlier attempt and the chosen decision is that attempt again in other words, say so in the reply's `Repeats` line: the caller needs to know the debate found nothing new.
+**A repeated decision is a finding.** When `Facts` show an earlier attempt and the chosen decision is that attempt again in other words, say so in `Repeats`: the caller needs to know the debate found nothing new.
 
-Before replying, confirm the checkout is at the commit you noted with no change the debate made, and that nothing the debate started still runs.
+Before replying, confirm the checkout is at the commit you noted, unchanged, and nothing the debate started still runs.
 
 # Reply
 
-The caller parses this; nothing before or after it:
+The caller parses exactly these lines, nothing else: a caveat, correction or anything not run goes in the record (or a Stale line), never another line.
 
 ```
 D<k> · <Dispatched question> → <chosen decision, one sentence>
