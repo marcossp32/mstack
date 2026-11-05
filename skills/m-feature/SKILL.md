@@ -70,7 +70,7 @@ If this ships wrong, how hard is it to undo? You decide; stages only report evid
 
 Done when the state holds the requirements block, the scan answers, the docs answers, every open decision debated (`→ D<k>`), every contradiction with its issue, and every line only a person can unlock either has its credential set or has stopped the run; the prerequisites run and the step check baseline is recorded. Then Plan.
 
-- **Requirements and scan** start together, since neither needs the other: one fresh agent for requirements and the scan split by scan slice, each dispatched as Dispatch says.
+- **Requirements and scan** start together, since neither needs the other: one fresh agent for requirements and the scan split by question group, each dispatched as Dispatch says.
 - **The requirements block is accepted** once `python3 <m-requirements dir>/scripts/check.py --spec <frozen copy> --out <block file>` passes it. A failing block goes back with its FAIL lines while each resend fixes some; when one stops improving, accept it and list each FAIL line under Assumed and the PR's What to watch. Its seven state sections (Requirements, Not doing, Considered, Contradictions, Open decisions, Assumed, How to build) go into the body verbatim; Laziest build and Trace go in a comment. It never runs again on resume: its ids are what everything after cites.
 - **Scan answers** go on the state as one comment; Where it runs comes from Q8.
 - **Prerequisites and the baseline** need scan Q6 and Q9 and exist before the first step check, which compares against the baseline. Read [`references/slice-loop.md`](references/slice-loop.md) before starting them.
@@ -120,15 +120,15 @@ The prompt opens by having the agent load its stage's skill, so it works under t
 Call the Skill tool with `<m-requirements | m-scan | m-build | m-prove>`. Then do the work below.
 ```
 
-A dispatch is done when its reply is the return its skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question its scan slice owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return, was not made under the skill: dispatch again. A second such reply means a resend will not fix it: inside a slice, that slice is failing (Progress or loop, then a debate); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
+A dispatch is done when its reply is the return its skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question its question group owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return, was not made under the skill: dispatch again. A second such reply means a resend will not fix it: inside a slice, that slice is failing (Progress or loop, then a debate); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
 
 Models are tiers: cheap, standard and strong, the harness's quickest, middle and most capable. A tier that does not resolve runs on the session's.
 
 | Stage | Runs in | subagent_type | Model |
 |---|---|---|---|
 | requirements | fresh agent loading `m-requirements` | `general-purpose` | standard; `check.py` checks its block |
-| scan slice A (Q1) | fresh agent loading `m-scan` | `Explore` | cheap |
-| scan slices B (Q2–5), C (Q6, Q9), D (Q7–8) | fresh agent loading `m-scan` | `Explore` | standard |
+| scan question group A (Q1) | fresh agent loading `m-scan` | `Explore` | cheap |
+| scan question groups B (Q2–5), C (Q6, Q9), D (Q7–8) | fresh agent loading `m-scan` | `Explore` | standard |
 | docs | this chat, `m-research` loaded; it dispatches its own agents | — | its own |
 | debate | `m-debate` through the Skill tool, the block as its argument; it runs in its own context and dispatches its own agents, so only its reply lines reach this chat | — | its own |
 | plan, re-cut | `m-plan` through the Skill tool, the paths of its inputs as its argument; it runs in its own context, so only its reply lines reach this chat | — | the session's |
@@ -142,7 +142,7 @@ Inputs each stage needs:
 | Stage | Inputs |
 |---|---|
 | requirements | the frozen copy's path · the spec's ref · the checkout path (read-only) |
-| scan | the spec title and frozen copy's path · the scan slice it owns |
+| scan | the spec title and frozen copy's path · the question group it owns |
 | build | the step item's ref and body verbatim, or the path of its step file, which reaches the builder as written · Not doing and How to build verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
 | build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with their kind, `file:line` and evidence), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt; for a comparison, every differing cell), never prove's replays · a debate decision, when one led here |
 | debate | the block in escalation.md (Running a debate) |

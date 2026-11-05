@@ -38,7 +38,7 @@ A requirement failing again on an input its earlier fix did not cover (another c
 ## Running a debate
 
 - **Ground** a hard-to-undo decision in quotable facts first: where docs did not already answer it, call the Skill tool with `m-research` for it.
-- **Ask neutrally.** Call the Skill tool with `m-debate` and this block as its argument, with the next unused `D<k>`. It runs in its own context and dispatches its own five agents, so its research never enters this chat:
+- **Ask neutrally.** Call the Skill tool with `m-debate` and this block as its argument, with the next unused `D<k>`. It runs in its own context and dispatches its own agents, so its research never enters this chat:
   ```
   Id           · D<k>
   Problem      · <what must hold, under which conditions; how would you do it?>

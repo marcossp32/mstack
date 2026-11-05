@@ -48,9 +48,10 @@ Then the body. Comments on a step or issue go under a final `## Comments` headin
 ```bash
 git rev-parse --path-format=absolute --git-common-dir     # inside a git repo; $MD lives under it
 python3 --version
+node --version
 ```
 
-Nothing to authenticate, so no login command: the only failures are being outside a git repo and having no Python.
+Nothing to authenticate, so no login command: the only failures are being outside a git repo and having no Python or no Node.
 
 ## read-spec `<ref>`
 

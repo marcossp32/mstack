@@ -16,7 +16,7 @@ Pitfalls, each a property of how the check runs:
 
 - The step check ends every contained process started inside the checkout, so a prerequisite started from there dies at the next check. Start them from outside it.
 - Test runners run many files at once, commonly one per core, and test files that each launch a browser or a server then stall the machine. Cap files at once (the runner's flag, from scan Q6) well below the core count, and give a resumed baseline the cap with `set-cmd`.
-- The verdict is the script's last lines and its exit code, and suite runs are long: run every `step_check.py` call on its own, unpiped, in the background, and read its result before acting, since a pipe or a tool timeout loses it.
+- The verdict is the script's last lines, and suite runs are long: run every `step_check.py` call on its own, unpiped, in the background, and read its result before acting, since a pipe or a tool timeout loses it.
 
 ## Step
 
@@ -47,7 +47,7 @@ What the principle does not make obvious:
 Outcome: the slice's diff reviewed to `QUALITY REVIEW: clean`, or every remaining finding taken to a debate.
 
 - After the last step merges, record the slice end sha, call the Skill tool with `m-review` and ask for its quality review of `<slice start sha>..<slice end sha>` with the inputs SKILL.md's Dispatch lists, the slice's requirement lines among them: the review judges the diff against their words, so a gap a reader can see is fixed before the costlier prove. Done when it returns `F<n>` lines, its coverage line and its `QUALITY REVIEW:` count line; comment them on the state. A reply `Fresh reviewer needed · <why>` goes, with the same request, to a fresh `general-purpose` agent that calls the Skill tool with `m-review`.
-- Fix the findings as one fix item (every `F<n>` line verbatim; Done when: no listed finding holds), built, checked and merged like a step. Record the feature-branch sha before and after the merge: the re-review sees only that range.
+- Fix the findings as one fix item (every `F<n>` line verbatim; Done when as state.md gives a fix item's), built, checked and merged like a step. Record the feature-branch sha before and after the merge: the re-review sees only that range.
 - Then ask `m-review` for its re-review of only those findings on that range. Done when it returns `F<n> · fixed | still-failing · <why>` per finding and `RE-REVIEW: <n> fixed · <m> still failing`. The whole diff is never reviewed again, since a fresh read of it finds new findings forever.
 - A finding still failing after two fix rounds, or disputed by the builder (a requirement finding disputed as a reading of the words included), goes to a debate on its own; the rest go on. Only m-review calls a finding fixed.
 

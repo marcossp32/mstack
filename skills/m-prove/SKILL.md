@@ -171,7 +171,7 @@ HEAD <sha> · tree <sha> · mode final · base <sha | none> · hunt <whole | <sh
 Verdict — <Proved | Not verified · human check | Not verified> · <why, one line, when not Proved>
 Replays — <line> <pass | fail | stale | missing> · <last output line>, …
 S<k> "<Done when e2e>" — <verified | not verified | superseded by <S<j> | R<n>> "<its words>" | not driven> · <what was driven> → <value>   only S lines whose replay did not pass
-R<n> <level> "<clause>" — <verified · replay | verified | not verified | not driven | human check | settled by caller · CI <check>> · <what was driven, where> (asked <surface>, if different) → <value> via <route>
+R<n> <level> "<clause>" — <verified · replay | verified | not verified | not driven | human check | settled by caller · CI <check | all>> · <what was driven, where> (asked <surface>, if different) → <value> via <route>
 B<n> <what broke> — <new | pre-existing | base not run> · <what was driven> → head <value> · base <value> · <file:line>
 Covered — <risk area> · <what was driven> [· intended R<n>] | not driven · <routes tried | ceiling · what is next>
 Not driven — <line> · <precondition> · <routes tried>

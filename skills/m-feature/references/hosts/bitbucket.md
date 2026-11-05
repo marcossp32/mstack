@@ -20,7 +20,7 @@ git remote get-url origin                   # <ws>/<repo> is what follows bitbuc
 curl -fsS -o /dev/null -H "Authorization: Bearer $BITBUCKET_API_TOKEN" "https://api.bitbucket.org/2.0/repositories/<ws>/<repo>"    # token set, repo readable
 ```
 
-- `<ws>/<repo>` reads the same from an https, `git@bitbucket.org:` or `ssh://` remote; `$API` below is the URL the `curl` line checks.
+- `<ws>/<repo>` reads the same from an https, `git@bitbucket.org:` or `ssh://` remote; `$API` below is `https://api.bitbucket.org/2.0/repositories/<ws>/<repo>`: set `API` to it once, with `<ws>/<repo>` read from the remote, before the first op.
 - The token is an Atlassian API token created for Bitbucket under Bitbucket personal settings → API tokens, with the scopes `read:repository:bitbucket`, `write:repository:bitbucket` (the API marks Downloads uploads as repository writes), `read:pullrequest:bitbucket` and `write:pullrequest:bitbucket`, exported by the human as `BITBUCKET_API_TOKEN`, a name this adapter chose. There is no login command: a missing or failing token is fixed by creating and exporting one. It is never asked for, printed or stored, and expands at run time only.
 - Atlassian documents `Authorization: Bearer <api token>` for API tokens, which needs no email, beside basic auth `<atlassian account email>:<api token>`. App passwords were removed in 2026.
 

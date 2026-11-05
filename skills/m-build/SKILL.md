@@ -24,7 +24,7 @@ Either the step branch holds your commits, no tracked file is left modified, the
 # Inputs
 
 - The step item, under the headings `What to do`, `What you need to know`, `Done when`.
-- Not doing: what the work excludes on purpose, given or where to read it.
+- Not doing: what the work excludes on purpose, given or where to read it; and How to build, the requirements' choices on how the work is built, when given.
 - When given: facts about the repo (what exists, which installed library does it, how the repo does and names similar things, how it tests and runs, per-environment values, limits) and docs answers, each quoted and linked. Docs answers are facts the repo cannot tell you. What was not given, read from the repo.
 - The step branch you are on and the branch it was cut from. With no step branch given, work on the branch checked out, unless it is the base or default branch: then cut a new branch from it, because nothing reaches the base except through review.
 
