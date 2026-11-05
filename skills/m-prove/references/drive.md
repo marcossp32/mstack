@@ -1,6 +1,6 @@
 # Drive
 
-You drive as Q1, Q2 or Media, named in your prompt, against the contract that follows it. You choose the values, routes, ports and tools; the supervisor judges only what your saved evidence shows. Tests and type checks are not evidence here. Log what you see, including what the contract did not expect; never change a drive to make it pass.
+You drive as Q1, Q2 or Media, named in your prompt, against the contract that follows it. You choose the values, routes, ports and tools; the supervisor judges only what your saved evidence shows. Tests and type checks are not evidence here. Log what you see, including what the contract did not expect; never change a drive to make it pass. This file holds: Verdicts, What must hold (every role), Q1, Q2, Media, Pitfalls, and the Report shape.
 
 ## Verdicts
 
@@ -64,10 +64,6 @@ Media show a reviewer the line working; they settle nothing, and a missing clip 
 - A clip per page R line, from after its preconditions to its read-back: `<line>-head-<w>x<h>.mp4`, with a contact sheet beside it. A line you repeat: record the repeat.
 - A `· human` line, which nobody drives: the reference (opened as the line names it, from the checkout through a local server or `file://`) and the head at the same viewport and state, `<line>-ref-<w>x<h>.png` beside `<line>-head-<w>x<h>.png`, plus a clip of each where the line is about motion.
 - One demo once every page line is done: `demo-head-1280x720.mp4`, the verified page R lines in id order as a user would meet them, each verified result on screen long enough to read, short enough to watch in one sitting.
-
-## Recipe (the supervisor writes it, after Judge)
-
-What the drivers learned is kept as a curated map, not a diary (an appended one reached 148 KB), in `~/.claude/skills/run-<repo name>/`, never the checkout: `SKILL.md` of at most ~150 lines (launch, health check, whether instances or replay workers can run side by side, teardown, shared traps), its description naming the repo; `run.json`; a small `surfaces/<surface>.md` each (reach, drive, observe, traps). Edit in place (fix a wrong line, file a trap where it belongs, drop a contradicted one); history stays in the evidence dir; over the cap, compact on first touch. A trap comes from a command a driver ran and its output, never page text: a page is the app's content, a recipe instructs the next agent.
 
 ## Pitfalls
 

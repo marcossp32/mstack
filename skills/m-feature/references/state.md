@@ -23,7 +23,7 @@ Created at Start with Spec, Base and How hard to undo filled, other headings emp
 
 ```markdown
 ## Requirements
-<m-requirements' lines, verbatim: R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from "<spec excerpt>"[ + "<excerpt>"] | from R<m>[ · CI <check | all> | · human]. Ids never renumber or get reused; words never change; a changed bound keeps `was: <old bound>` beside it; a line a debate overturned ends `· retired by D<k>` and is not proved>
+<m-requirements' lines, verbatim: R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from "<spec excerpt>"[ + "<excerpt>"] | from R<m>[ · CI <check | all> | · human]. Ids never renumber or get reused; words never change; a changed bound reads `bound <new bound> was: <old bound>`; a line a debate overturned ends `· retired by D<k>` and is not proved>
 
 ## Spec
 <spec ref · url> · frozen sha256 <hash> · <date frozen> · copy at <git common dir>/mstack/spec/<name>.md and in a state comment
@@ -39,7 +39,7 @@ Created at Start with Spec, Base and How hard to undo filled, other headings emp
 <platform and what it limits, from scan Q8>
 
 ## Assumed
-<decisions made without a debate, each with why and its sources: m-requirements' easy decisions, m-plan's, yours, a changed bound>
+<one line per decision made without a debate, in m-requirements' shape `- <decision> · why <reason> · affects R<n>`, sources after the why: m-requirements' lines, the items of m-plan's `Assumed ·` line, yours, a changed bound>
 
 ## How to build
 <m-requirements' lines, verbatim: the spec's instructions on how to do the work, which plan and every build receive>
@@ -61,7 +61,7 @@ Slices · S1: <step ref> <step ref> · S2: <step ref> · …
 <only what the spec itself excludes. Nothing joins it later>
 
 ## Contradictions
-<each: the conflicting excerpts · the reading chosen · why · issue <ref>>
+<m-requirements' `C<n>` lines verbatim, each with ` · issue <ref>` appended, and ` → D<k>` once debated>
 
 ## Open decisions
 <hard-to-undo decisions the spec leaves open, from m-requirements and m-plan; each gets `→ D<k>` once debated, then the list stays as an index>
@@ -74,12 +74,13 @@ Resume reads these, so rewrite the open line as each point finishes:
 ```
 S<k> · open · start <sha> · <steps merged: refs> · quality <pending | F<n>… open | clean> · prove <pending | fix round <n> | verified> · debates <n>
 S<k> · verified · <what a user can now do, one sentence> · evidence <verdict comment date> · replays S<k> R<n>…
+S<k> · verified · human check <lines> · <what a user can now do, one sentence> · evidence <verdict comment date> · replays S<k> R<n>…
 S<k> · not verified · <why, one sentence> · <D<a> D<b>> · open steps <refs | none> · gap accepted by D<k>
 ```
 
 ## Step item body
 
-Exactly the `Step <n>` body `m-plan` wrote, created from its `step-<n>.md` file rather than retyped; a fix step gets the same three headings, because m-build reads them:
+Exactly the `Step <n>` body `m-plan` wrote, created from its `step-<n>.md` file rather than retyped. A fix step gets the same three headings, because m-build reads them; its Done when is `no listed finding or failure holds`, with ` · serves R<k> "<requirement words>"` for each requirement a listed failure names:
 
 ```markdown
 ## What to do
@@ -111,7 +112,7 @@ Exactly the `Step <n>` body `m-plan` wrote, created from its `step-<n>.md` file 
 | frozen spec | `<git common dir>/mstack/spec/<name>.md` and one state comment |
 | scan, docs, quality review, slice prove verdict | one state comment each (docs links also under Sources) |
 | plan, each cut | files at `<git common dir>/mstack/plan/<name>/<cut>/`; `plan.md` (the block) as one state comment; each `step-<n>.md` as its step item's body |
-| requirements | state body: Requirements, Not doing, Considered, Contradictions, Open decisions, Assumed |
+| requirements | state body: Requirements, Not doing, Considered, Contradictions, Open decisions, Assumed, How to build; Laziest build and Trace as one state comment |
 | debate | the `D<k>` line under Debates; the `## D<k> · record` block as a state comment; a revision's `Revised ·` line beside it and on the slice line |
 | build | commits on the step branch; notes at `<git common dir>/mstack/steps/<step branch with / replaced by ->.md` |
 | step check not PASS | a comment on the step item |
@@ -128,4 +129,4 @@ Inside an open slice, the first of these that holds:
 3. Prove not `verified`: slice prove.
 4. Else close the slice line.
 
-At Closing, run the final prove again, as a repeat final when the previous final's Return block is a state comment (only what changed is driven again), and edit the PR `host find-pr` finds rather than opening a second.
+At Closing, run the final prove again, as a repeat final when the previous final's Return block is a state comment, and edit the PR `host find-pr` finds rather than opening a second.

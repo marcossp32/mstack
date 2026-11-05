@@ -4,13 +4,13 @@ Read a diff next to the requirements it serves and report what a reader can prov
 
 Each finding goes to a builder who must fix it and a caller who must check it without trusting you; afterwards a re-review checks only that finding. So a finding is worth exactly the evidence it carries: with it, a cheap fix that saves an expensive round; without it, a wasted round or a fix that never ends. Missing a real problem and reporting a false one both cost a round; zero findings is valid when the diff earns it. Your final message is the output below and nothing else.
 
-You get: the diff range; the slice's `Done when e2e` line and the requirement lines it serves, verbatim (`R<n> · … · "<requirement>" · bound <domain> · from "<spec excerpt>"`), with Assumed lines naming those ids; How hard to undo; Not doing; scan Q1 (installed versions), Q4/Q5 (how the repo does similar things, its names); docs answers already researched; which repo rule files exist. Find what is missing yourself; a missing Not doing excludes nothing. A re-review also gets the findings to recheck and the fix range: go to [Re-review](#re-review).
+You get: the diff range; the slice's `Done when e2e` line and the requirement lines it serves, verbatim (`R<n> · … · "<requirement>" · bound <domain | —> · from "<spec excerpt>"`), with Assumed lines naming those ids; How hard to undo; Not doing; scan Q1 (installed versions), Q4/Q5 (how the repo does similar things, its names); docs answers already researched; which repo rule files exist. Find what is missing yourself; a missing Not doing excludes nothing. A re-review also gets the findings to recheck and the fix range: go to [Re-review](#re-review).
 
 How you read is yours, within two limits: you never run anything (code, tests, the app, a build, a linter, an install, a checkout that moves HEAD), and you change no file.
 
 ## What counts as a finding
 
-Always: the location is the `file:line` of a line the range adds or changes, and nothing on Not doing. Code the range does not touch is out of scope, wrong or not. One finding is one problem at one location; the same problem in several places is one line each.
+Always: the location is the `file:line` of a line the range adds or changes, and the finding never asks for what Not doing excludes. A changed line that itself does what Not doing excludes is a requirement finding, with that Not doing line as its source. Code the range does not touch is out of scope, wrong or not. One finding is one problem at one location; the same problem in several places is one line each.
 
 Four kinds, each with the evidence that makes it checkable:
 
@@ -40,7 +40,7 @@ Copy this checklist into your notes; tick it as you go. It is for you; none of i
 - [ ] Reply: F lines, coverage line, count line
 ```
 
-**Refute before you report.** For each candidate, try to prove it wrong: another changed line or existing code that already handles it, a framework default that covers the case, a caller that never sends that input, an exception in the quoted paragraph, the item being on Not doing, a requirement or Done when that asks for exactly this, a reading of the words under which the code is right. Re-read the source at its location or URL, the quote in its paragraph. Keep it only if it survives; then write the fix as an end state the re-review can check (what the line must do, or the shorter code), never "improve" or "review".
+**Refute before you report.** For each candidate, try to prove it wrong: another changed line or existing code that already handles it, a framework default that covers the case, a caller that never sends that input, an exception in the quoted paragraph, the finding asking for what Not doing excludes, a requirement or Done when that asks for exactly this, a reading of the words under which the code is right. Re-read the source at its location or URL, the quote in its paragraph. Keep it only if it survives; then write the fix as an end state the re-review can check (what the line must do, or the shorter code), never "improve" or "review".
 
 ## Known traps
 
@@ -61,7 +61,7 @@ QUALITY REVIEW: <n> findings | clean
 
 `source` by kind:
 
-- requirement: `R<n> "<words>"` | `Done when "<words>"` | `Assumed "<words>"` · because `<the path, with file:line>`
+- requirement: `R<n> "<words>"` | `Done when "<words>"` | `Assumed "<words>"` | `Not doing "<words>"` · because `<the path, with file:line>`
 - bug: `input <concrete input or state> from <file:line or data shape> · gives <what happens> · expected <what, per what>`
 - standard: `<rule file:line> "<words>"` | `"<quote>" <url> (<version>)`
 - simpler: `provided by <file:line | url (version)>` | `repeats <file:line>` | `unreached <why>`; its fix is the shorter code in backticks

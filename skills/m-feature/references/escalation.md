@@ -33,7 +33,7 @@ The run stops in two places only: the setup stop at Start, and here, when a requ
 
 ## Bound rule
 
-A requirement failing again on an input its earlier fix did not cover (another character, another page of what its words name) has no domain yet, and fixing input by input never ends. Give it one before another fix: the domain the standard or vendor documents, found by calling the Skill tool with `m-research`. It becomes the bound, with `was: <old bound>` beside it and a line under Assumed, when it covers the failed input and everything the words name; one that would narrow the requirement (from `bound —` included) goes to a debate, since the spec is frozen. Then one fix item for the whole new bound. A changed bound keeps the PR from Proved: a person accepts it, under Notes for reviewers. A requirement that fails past a documented bound goes to a debate, not to another bound.
+A requirement failing again on an input its earlier fix did not cover (another character, another page of what its words name) has no domain yet, and fixing input by input never ends. Give it one before another fix: the domain the standard or vendor documents, found by calling the Skill tool with `m-research`. It becomes the bound, written `bound <new bound> was: <old bound>`, and a line under Assumed, when it covers the failed input and everything the words name; one that would narrow the requirement (from `bound —` included) goes to a debate, since the spec is frozen. Then one fix item for the whole new bound. A changed bound keeps the PR from Proved: a person accepts it, under Notes for reviewers. A requirement that fails past a documented bound goes to a debate, not to another bound.
 
 ## Running a debate
 

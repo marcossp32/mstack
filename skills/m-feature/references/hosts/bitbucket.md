@@ -16,11 +16,11 @@ Bitbucket Cloud has no first-party CLI for pull requests (`acli` covers Jira, no
 ```bash
 curl --version | head -1
 python3 --version
-API="https://api.bitbucket.org/2.0/repositories/$(git remote get-url origin | sed -E 's#.*bitbucket\.org[:/]##; s#\.git$##')"
-curl -fsS -o /dev/null -H "Authorization: Bearer $BITBUCKET_API_TOKEN" "$API"    # token set, repo readable
+git remote get-url origin                   # <ws>/<repo> is what follows bitbucket.org: or bitbucket.org/, less .git
+curl -fsS -o /dev/null -H "Authorization: Bearer $BITBUCKET_API_TOKEN" "https://api.bitbucket.org/2.0/repositories/<ws>/<repo>"    # token set, repo readable
 ```
 
-- The `API` line reads `<ws>/<repo>` from an https, `git@bitbucket.org:` or `ssh://` remote alike.
+- `<ws>/<repo>` reads the same from an https, `git@bitbucket.org:` or `ssh://` remote; `$API` below is the URL the `curl` line checks.
 - The token is an Atlassian API token created for Bitbucket under Bitbucket personal settings → API tokens, with the scopes `read:repository:bitbucket`, `write:repository:bitbucket` (the API marks Downloads uploads as repository writes), `read:pullrequest:bitbucket` and `write:pullrequest:bitbucket`, exported by the human as `BITBUCKET_API_TOKEN`, a name this adapter chose. There is no login command: a missing or failing token is fixed by creating and exporting one. It is never asked for, printed or stored, and expands at run time only.
 - Atlassian documents `Authorization: Bearer <api token>` for API tokens, which needs no email, beside basic auth `<atlassian account email>:<api token>`. App passwords were removed in 2026.
 

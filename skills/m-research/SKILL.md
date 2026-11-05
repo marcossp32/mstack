@@ -14,7 +14,7 @@ The reply holds one report block per question, in question order, each with an A
 - [ ] Every Quote appears word for word on the page its Source links.
 - [ ] Every Source is the owner of the fact (its docs, API reference, changelog, spec, or source at the tag), never a blog, Q&A site or aggregator.
 - [ ] Every Source is for the pinned version, or the block carries an Inference saying the quote is from another version.
-- [ ] Every number an Answer gives appears with its unit in the raw text of its Source page.
+- [ ] Every number an Answer gives appears with its unit in the raw text of its Source page, or its Quote says it came through a summariser.
 - [ ] Where primary sources disagree, the block carries a Conflict quoting the other, with both versions.
 - [ ] Every `Not found` names the owner's pages that were read.
 
@@ -24,7 +24,7 @@ Whoever is handed the questions runs **Dispatch**. A subagent whose prompt names
 
 - **Pin the version** of each library or API first, from the request or the lockfile, since an answer for another version is a wrong answer; a hosted service with no version is pinned by the page date. A question about something the work does not use, with no library, service or standard to ask about, is **not applicable** and gets no search.
 - **One subagent per owner.** Dispatch the questions one owner's docs answer (one library, one service) to one fresh `general-purpose` subagent, model tier `standard`, so those pages are read once and you stay the checker of answers you did not write; owners run in parallel, in the background. The prompt opens with ``Call the Skill tool with `m-research`, then follow its "Answer the questions" section, and open your reply with `Loaded · m-research`.`` and carries each question verbatim, the pinned version, and the owner's docs domain when known. Done when every owner's reply is in, each opening with that line. Where no subagent can be started, answer them yourself under **Answer the questions** and check as below.
-- **Check every reply against the acceptance criteria** before it goes out. Confirm on the raw page yourself every number an Answer gives and both sides of every Conflict, since a summary is where a number changes. A reply that falls short goes back with what fell short, or its answer becomes **not found**: another round costs a subagent's time, a weak answer costs whatever is built on it.
+- **Check every reply against the acceptance criteria** before it goes out. Confirm on the raw page yourself every number an Answer gives and both sides of every Conflict, since a summary is where a number changes; where you cannot read the raw page either, the summariser mark stays on the Quote. A reply that falls short goes back once with what fell short; one that falls short again becomes **not found**: another round costs a subagent's time, a weak answer costs whatever is built on it.
 - **Return** the blocks in question order, then **Sources**.
 
 # Answer the questions

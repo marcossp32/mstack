@@ -26,7 +26,7 @@ The script reads the entries from this block; change them only here.
     "allow": [
       "$defaults",
       "mstack step merges: a local `git merge` (or `git merge --squash`) of a `step/*` branch into a `feature/*` branch, the `git push` of that `feature/*` branch, and deleting the merged `step/*` branch, after mstack's step_check.py printed `STEP CHECK: PASS` for that step. Never a merge into, or a push to, the base or default branch. The step check, the quality review and the prove are the user's chosen review for steps; a feature branch reaches the base only through a final pull request a human merges. Not Merge Without Review.",
-      "mstack review scripts: running mstack's scripts (step_check.py, contain.py, cleanup.py, replay.py, prepare.py, runspec.py, and check.py, m-requirements' output checker, run unattended by m-feature) from an installed `m-*/scripts` skill directory (`m-requirements/scripts` for check.py). They run the test suite, install, build, start and stop the app under test in containment, replay saved proofs, check requirements against their spec, and delete only the evidence directories mstack created; they skip, disable or loosen no check. Not CI Bypass.",
+      "mstack review scripts: running mstack's scripts (step_check.py, contain.py, cleanup.py, replay.py, prepare.py, runspec.py, plan_check.py, m-plan's plan checker, and check.py, m-requirements' output checker, run unattended by m-feature and m-plan) from an installed `m-*/scripts` skill directory (`m-requirements/scripts` for check.py). They run the test suite, install, build, start and stop the app under test in containment, replay saved proofs, check requirements against their spec and plans against their requirements, and delete only the evidence directories mstack created; they skip, disable or loosen no check. Not CI Bypass.",
       "mstack run recipes: m-prove writing or editing a run recipe under `~/.claude/skills/run-<repo>/` (its `SKILL.md`, `run.json` and `surfaces/*.md`: how to install, launch, health-check and stop the repo under test, and the traps its drivers hit), from commands its drivers ran. It grants no permission and changes no setting or other skill. Not Self-Modification."
     ]
   },
@@ -41,5 +41,5 @@ Merge it into the existing file: append the three `mstack …` entries to an exi
 ## Why each entry
 
 - **step merges**: m-feature merges each passing step locally and pushes `feature/*` so a later session can resume from the remote. "Git Push Destination" already allows the push; the entry frames the local merge as reviewed. Base and default branch are excluded so a human always merges the final pull request.
-- **review scripts**: the step check and prove run the suite, containment and replays unattended. They must not read as skipping checks.
+- **review scripts**: the step check and prove run the suite, containment and replays unattended, and the plan and requirements checkers run with nobody to approve them. They must not read as skipping checks.
 - **run recipes**: m-prove records how to start the app in a skill under `~/.claude/skills/`, a config surface "Self-Modification" guards.

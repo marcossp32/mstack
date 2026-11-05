@@ -1,6 +1,6 @@
 # Debater and reviewer prompts
 
-Fill the `<…>` placeholders from the dispatched block. Each section is the whole prompt for its round. `<Facts>` carries the stale corrections and the earlier decisions; `<commit>` is the checkout's commit noted before dispatch.
+Fill the `<…>` placeholders from the dispatched block. Each section is the whole prompt for its round. `<Facts>` carries the stale corrections and the earlier decisions; `<commit>` is the checkout's commit noted before dispatch, or `no commit readable, read at <time>`.
 
 ## Round 1
 

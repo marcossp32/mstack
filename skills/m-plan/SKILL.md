@@ -1,7 +1,7 @@
 ---
 name: m-plan
-description: "Cuts a change into ordered build steps grouped into slices that each end at something a user can check, and questions the design before any code exists; writes the plan and each step body to files. Use when asked to plan a change into buildable steps, or to re-cut a running plan after a decision."
-argument-hint: "<paths of the files holding the inputs below> · Out <directory to write the plan to>"
+description: "Cuts a change into ordered build steps grouped into slices that each end at something a user can check, and questions the design before any code exists. Use when asked to plan a change into buildable steps, or to re-cut a running plan after a decision."
+argument-hint: "[paths of the files holding the inputs] · Out [directory to write the plan to]"
 context: fork
 agent: general-purpose
 background: false
@@ -9,7 +9,7 @@ background: false
 
 Turns a change's requirement lines, what the repo and its docs say, and how hard the change is to undo into a plan: build steps, each with a Done when a builder builds to, grouped into slices, each with a Done when e2e a prover drives in the running app. The design is questioned here, before code exists, because afterwards a wrong one costs a rewrite. Nobody answers questions during the work, so the plan decides what it can, records each choice under Assumed, and returns what only a debate can settle as an `Open ·` line.
 
-You run in your own context. The plan and its step bodies are long, and your caller keeps them for weeks of work but should not carry them in its own context: it only acts on a few lines. So the plan goes to files, which the caller passes on as written (state comment, step items), and your reply is the short list under Reply.
+The plan and its step bodies are long and live for weeks of work, but only a few of their lines are acted on. So the plan goes to files, passed on as written (the plan as a state comment, each step body as a work item), and the reply is the short list under Reply.
 
 The input:
 
@@ -17,35 +17,20 @@ $ARGUMENTS
 
 # Done when
 
-`<Out>/plan.md` holds the plan block in the format under Output, `<Out>/step-<n>.md` holds the body of each step it lists, `python3 <this skill's directory>/scripts/plan_check.py <Out> --requirements <the file holding the requirement lines>` prints `PLAN CHECK: PASS` (with `--previous <the earlier Out>` on a call that carries a decision), and the reply is exactly the lines under Reply. Nothing else was written: no tracker item, repo file or git state. A decision the plan cannot settle that is hard to undo appears as an `Open ·` line, and every step that depends on it ends `· waits D?`.
-
-The script checks the shape: the block's lines and order, every step's file, headings and quoted requirement words, each step in one slice, `completes` within `serves`, every requirement completed once, and on a decision call that a changed body took a new number. A FAIL line is fixed in the files and the script run again. What it cannot judge is below.
-
-# Acceptance criteria
-
-- [ ] `plan_check.py` prints `PLAN CHECK: PASS`.
-- [ ] Every slice's Done when e2e names a surface (a page, an endpoint, a command), what a user sees there, and the requirement ids it serves.
-- [ ] Every Done when that completes a requirement whose bound is not `—` names that bound's whole domain.
-- [ ] No Done when names anything listed under Not doing.
-- [ ] Every `Open ·` line quotes a spec excerpt and contains no option, no preference and no yes/no question.
-- [ ] Blocking lists only pairs where B cannot start before A lands, or reads `none`.
-- [ ] Design names what the review found and what it changed in the plan; when How hard to undo is hard, it names each hard-to-undo surface the plan creates and what was weighed about it.
-- [ ] No line mentions a human, a confirmation, or a tracker or host command.
-- [ ] On a call that carries a decision, a step whose work is unchanged keeps its number and no step `waits D?` on a decision now given.
-- [ ] On a re-cut, only unmerged work changed, the re-cut differs from the cut that failed, and the block carries one `Revised · S<k> · <cause> · <what changed> · D<k>` line.
+`<Out>/plan.md` holds the plan block, `<Out>/step-<n>.md` holds the body of each step it lists, `plan_check.py` prints `PLAN CHECK: PASS` on them (under Check), and the reply is exactly the lines under Reply. Nothing else was written: no tracker item, repo file or git state.
 
 # Inputs
 
-Each comes as the path of a file holding it (the caller's state, the frozen spec, a debate record, the plan of an earlier call), so the requirement words reach you exactly as they were frozen; read the files. `Out` is the directory to write to, outside the checkout. Without `Out`, or without the requirement lines, write nothing and reply only `Stop · no <Out | requirements> given`: a plan written into the checkout dirties the tree every later step starts from, and one made without the requirements plans a guess.
+Each comes as the path of a file holding it (a state, the frozen spec, a debate record, an earlier plan), so the requirement words reach you exactly as they were frozen; read the files. `Out` is the directory to write to, outside the checkout. Without `Out`, or without the requirement lines, write nothing and reply only `Stop · no <Out | requirements> given`: a plan written into the checkout dirties the tree every later step starts from, and one made without the requirements plans a guess.
 
-- The requirement lines, verbatim: `R<n> · <asked | derived | derived · required by D<k>> · "<words>" · bound <domain | —> · from …`. A line ending `· retired by D<k>` was overturned by that debate and gets no step, no `serves` and no `completes`; the line that replaced it carries its work.
+- The requirement lines (`R<n> · …`). Their quoted words are what each step quotes, character for character. A line ending `· retired by D<k>` was overturned by that debate and gets no step, no `serves` and no `completes`; the line that replaced it carries its work.
 - Not doing, Considered, Contradictions with the reading chosen, Assumed, Debates.
 - How to build: the spec's own instructions on how to do the work, verbatim. Each lands in the steps it concerns (an inventory first, a tool, an order), quoted in their What you need to know.
 - How hard to undo (hard | easy), and where the app runs.
-- What the repo holds: what exists, how it does similar things, what it calls them, how it runs. Read the repo yourself where this leaves a step's scope unclear; your reads stay in your context.
+- What the repo holds: what exists, how it does similar things, what it calls them, how it runs. Read the repo yourself where this leaves a step's scope unclear.
 - Docs answers: limits, timeouts, security guidance, version changes, with quotes.
 
-Plan with what is given. A missing input becomes an Assumed line saying what was missing and what the plan assumed instead.
+Plan with what is given. A missing input becomes an Assumed entry saying what was missing and what the plan assumed instead.
 
 # Steps
 
@@ -66,22 +51,24 @@ Each step merges on its own and leaves the branch working, delivers a small case
 
 A slice is the unit of proof: a run of consecutive steps ending at a **surface**, where something a user can check appears (a page, an endpoint, a command). Usually one step; a step with no surface of its own joins the next one that has one.
 
-- Its **Done when e2e** is the sentence a prover drives: the surface and what a user sees there. It describes the user's view, not the steps.
+- Its **Done when e2e** is the sentence a prover drives: the surface, what a user sees there, and the requirement ids it serves. It describes the user's view, not the steps.
 - `completes R<n>` goes on the last slice that serves R<n>: after it, R<n> holds in full, over its whole bound.
-- A plain `derived` requirement that no surface can reach (nothing shows it, the environment cannot produce its state) is completed by no slice; its Assumed line says why, and prove reports it not driven.
+- A plain `derived` requirement that no surface can reach (nothing shows it, the environment cannot produce its state) is still built, so some step serves it, but no slice completes it; its Assumed entry says why, and prove reports it not driven.
 
 # Design
 
 Question the design while changing it is still free. The bar: it fits this change and the cases it really has, keeps each decision likely to change in one place, gives callers interfaces they use whole and can trust, and adds no abstraction without two real cases yet; that last outweighs extensibility. Spend effort in proportion to How hard to undo: a schema, public API or stored format deserves a hard look, copy and layout barely any. Later review flags design only where a repo rule or doc names it, so this is where design judgement happens.
 
-A problem the plan can fix: change the plan and say so on the Design line. One it cannot fix is a decision:
+The Design line says what the review found and what it changed in the plan; when How hard to undo is hard, it names each hard-to-undo surface the plan creates and what was weighed about it. A problem the plan can fix: change the plan. One it cannot fix is a decision:
 
 - Easy to undo: decide it for the product's users and list it under Assumed with why.
 - Hard to undo: return an `Open ·` line stating a neutral problem with the spec excerpt behind it and the facts that constrain it. Options, a preference or a yes/no question steer the debate that settles it, so the line states only what must hold. Plan everything else, and end each step that depends on it `· waits D?`.
 
-# Output
+# Files
 
-Write `<Out>/plan.md`: this block and nothing else. Its labels, `·` separators and line shapes are what callers parse, so keep them exactly; step numbers go in Slices, and the caller rewrites them to its own item refs.
+The plan runs with nobody to ask and is turned into work items by tooling, so no line in it or in a step body asks a person for anything (a confirmation, a review) or names a tracker or host command.
+
+Write `<Out>/plan.md`: this block and nothing else. Its labels, `·` separators and line shapes are parsed, so keep them exactly; step numbers go in Slices and are later rewritten to item refs.
 
 ```
 Steps    · one line each, in order: <n>. <step> · Done when <observable> · serves R<k>
@@ -100,17 +87,27 @@ Then each step's body in its own file, `<Out>/step-<n>.md`, with no heading of i
 <what to build, in the repo's words, and its scope>
 
 ## What you need to know
-<earlier decisions, docs answers and Assumed lines that matter here, stated in full, not "see the state">
+<earlier decisions, docs answers and Assumed entries that matter here, stated in full, not "see the state">
 
 ## Done when
 <something observable> · serves R<k> "<requirement words>"
 ```
 
-**Numbers.** Items may already exist for every number returned before, so a number always means the same work: a step whose work is unchanged keeps its number, and a new or changed step takes the next number after the highest used. A re-cut slice keeps its id, since its debates and its proofs are counted under it; a new slice takes the next unused id.
+**Numbers.** A number returned before may already name a work item, so a number always means the same work: a step whose work is unchanged keeps its number, and a new or changed step takes the next number after the highest used. A re-cut slice keeps its id, since its debates and its proofs are counted under it; a new slice takes the next unused id.
+
+# Check
+
+Run:
+
+```sh
+python3 <this skill's directory>/scripts/plan_check.py <Out> --requirements <the file holding the requirement lines>
+```
+
+On a call that carries a decision, add `--previous <the earlier Out>`. It checks the shape: the block's lines and order, every step's file, headings and quoted requirement words, each step in one slice, `completes` within `serves`, every requirement completed once, and with `--previous` that a changed body took a new number. Fix each `- FAIL` line in the files and run it again until it prints `PLAN CHECK: PASS`. The rest of this skill is what it cannot judge.
 
 # Reply
 
-The caller parses this and reads nothing else: it never opens the plan or the step files, only hands them to the tracker by path. So the reply carries everything the caller acts on; nothing before or after it:
+The reply is all that leaves this context, and the plan and step files are passed on by path without being opened, so the reply carries every line acted on; nothing before or after it:
 
 ```
 Plan · <path of plan.md>
@@ -127,7 +124,7 @@ Check · PLAN CHECK: PASS
 
 One `Step` line per step and one `Slice` line per slice, in block order; a waiting step's line ends `· waits D?`. `Changed` only on a call that carries a decision: the numbers not in the plan given, and the numbers of that plan no longer in this one. `Open` once per Open line, only when there is one. `Revised` only on a re-cut.
 
-Example:
+Illustrative, for a first cut:
 
 ```
 Plan · /repo/.git/mstack/plan/draft-saving/1/plan.md
@@ -145,10 +142,10 @@ Check · PLAN CHECK: PASS
 
 # Calls that carry a decision
 
-A debate decision (`D<k> · <question> → <decision>` and its record) comes back as an input, and it binds: the plan follows it. Write the full block and every step file again, numbered as **Numbers** says, to the `Out` of this call, and run the check with `--previous` set to the earlier `Out`.
+A debate decision (`D<k> · <question> → <decision>` and its record) binds: the plan follows it. Write the full block and every step file again, numbered as **Numbers** says, to the `Out` of this call.
 
 - **An `Open ·` line settled**: plan the waiting steps on the decision; they lose `· waits D?`.
 - **A re-cut**, when a slice keeps failing or the decision retires or adds requirement lines. The input also holds the current plan, what failed with its evidence, and the merged steps, read from the branch's history rather than item state, which can lag it. The re-cut removes the cause the evidence shows (for instance a wrong Done when, a misplaced slice boundary, two steps in one, an approach that cannot meet the requirement); one that reproduces the failed cut misread the cause.
   - Merged steps are history: the re-cut changes unmerged steps and adds new ones. New steps for a failing slice join it. New steps for a requirement line the decision added or replaced join the slice serving it while that slice has unmerged steps, else a new slice. Another slice changes only where the re-cut moves a `completes` or a blocking pair.
   - Requirement words stay as given and Not doing stays as given: every requirement keeps its full scope and a slice that completes it.
-  - Add one line `Revised · S<k> · <cause> · <what changed> · D<k>` for the caller to record.
+  - Add one line `Revised · S<k> · <cause> · <what changed> · D<k>` at the end of the block.

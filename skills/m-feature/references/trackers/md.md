@@ -84,26 +84,10 @@ Appends the comment and sets `status: closed`.
 
 Searches every run's files under `$MD`, so a state in flight for a spec is found, and the published issues. A match carries the label, `status: open`, and at least half the query's words; returns per match ref = path, title, body, or nothing. An issue another unmerged feature opened is visible only on this machine.
 
-Run this script as written: it is the match rule above, and `grep -iF` aborts on the GNU grep 3.0 that Git for Windows ships.
+Run the script as written: it is the match rule above, and `grep -iF` aborts on the GNU grep 3.0 that Git for Windows ships. It prints each match as `=== <ref> | <title>` and its body, or `no match`.
 
 ```bash
-python3 -I - '<label>' '<query>' "$MD" "<md.dir>/issues" <<'EOF'
-import pathlib, re, sys
-label, query, roots = sys.argv[1], sys.argv[2], sys.argv[3:]
-words = [w.lower() for w in re.findall(r"\w+", query) if len(w) > 2]
-for root in roots:
-    if not pathlib.Path(root).is_dir(): continue
-    for f in sorted(pathlib.Path(root).rglob("*.md")):
-        if "pending" in f.parts: continue
-        t = f.read_text(encoding="utf-8").replace("\r\n", "\n")
-        m = re.match(r"---\n(.*?)\n---\n?(.*)", t, re.S)
-        if not m: continue
-        meta = dict(l.split(":", 1) for l in m.group(1).splitlines() if ":" in l)
-        labels = [x.strip() for x in meta.get("labels", "").split(",")]
-        if label not in labels or meta.get("status", "").strip() != "open": continue
-        if sum(w in t.lower() for w in words) * 2 >= len(words):
-            print(f"=== {f.as_posix()} | {meta.get('title', '').strip()}\n{m.group(2)}")
-EOF
+node <this skill's directory>/scripts/find_issue.mjs '<label>' '<query>' "$MD" "<md.dir>/issues"
 ```
 
 ## open-issue `<title>` `<body>` `<labels>`

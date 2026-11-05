@@ -12,7 +12,7 @@ The report gives every check's result, each failure with the command or edit tha
 
 # Acceptance criteria
 
-- [ ] `.mstack.yml` has the shape under The file: the header line, `tracker` and `host`, a nested `jira:` → `project:` only when tracker is `jira` and a project key is known, a nested `md:` → `dir:` only when tracker is `md` and the directory is not `.mstack/`.
+- [ ] `.mstack.yml` has the shape under The file: the header line, `tracker` and `host`, a nested `jira:` → `project:` only when tracker is `jira` and a project key is known, a nested `md:` → `dir:` only when tracker is `md` and the human named a directory other than `.mstack/` for it.
 - [ ] `tracker` names a file `../m-feature/references/trackers/<tracker>.md` and `host` a file `../m-feature/references/hosts/<host>.md`.
 - [ ] `.mstack.yml` contains no token, password, key, URL with credentials or run command; when git ignores it, the report lists it as a FAIL with the ignoring rule and its fix (un-ignore it so the team's runs share it).
 - [ ] `.mstack.yml` is the only file created or changed: `~/.claude/settings.json`, `.claude/settings*.json`, the git history and the tracker and host are as they were.
@@ -24,8 +24,8 @@ The report gives every check's result, each failure with the command or edit tha
 
 Setup reads and reports; the human makes every change outside `.mstack.yml`, because each one is theirs to see and own.
 
-- **Credentials stay with their tools.** Each tool has its own login, and setup only checks that it works; it never asks for, prints or stores a credential. Where an adapter reads a token from an environment variable, name the variable, never its value. The app credentials a prove run uses live in `MSTACK_SECRET_<NAME>` environment variables the human sets, never in this file.
-- **The human adds the auto mode block.** Setup prints it and where it goes, and runs nothing that writes a settings file (`claude auto-mode reset` among them): a run granting itself permissions is what the classifier exists to stop, and the human must see what they allow. mstack never edits `~/.claude/settings.json`.
+- **Credentials stay with their tools.** Each tool has its own login, and setup only checks that it works. Where an adapter reads a token from an environment variable, name the variable, never its value. The app credentials a prove run uses live in `MSTACK_SECRET_<NAME>` environment variables the human sets, never in this file.
+- **The human adds the auto mode block.** Setup prints it and where it goes, and runs nothing that writes a settings file (`claude auto-mode reset` among them): a run granting itself permissions is what the classifier exists to stop, and the human must see what they allow.
 - **Git and logins are the human's.** Setup changes no git state and starts no interactive login; it names the commit and the tool's own login command for the human to run.
 - **The tracker and host are only checked.** Run each adapter's `check` operation and nothing else: creating, editing or commenting there belongs to a run.
 - **No run commands in the file**: `/m-scan` and the run recipe own how the app runs.
@@ -40,7 +40,7 @@ tracker: gh      # gh | jira | md   — where specs are read, state lives, issue
 host: gh         # gh | gitlab | bitbucket — where the pull request opens
 ```
 
-With `tracker: jira` and a known project key, add it; with `tracker: md` and a directory other than the default `.mstack/`, add that (one or the other, matching the tracker):
+With `tracker: jira` and a known project key, add it; with `tracker: md` and a directory other than the default `.mstack/` for the md tracker's own files (the issues a run publishes), add that (one or the other, matching the tracker). Where a spec lives does not set it:
 
 ```yaml
 jira:
