@@ -25,12 +25,14 @@ def read(path):
 
 def requirements(text):
     reqs = {}
+    needs = set(re.findall(r"^\s*-\s*(R\d+) needs ", text, re.M))
     for line in text.splitlines():
         m = REQ.match(line.strip())
         if m:
             rid, level, words = m.groups()
             reqs[rid] = {
                 "level": "derived" if level == "derived" else "required",
+                "env": rid in needs or bool(re.search(r"·\s*CI\s+\S.*$", line.strip())),
                 "words": words,
                 "retired": bool(re.search(r"·\s*retired by D\d+\s*$", line.strip())),
             }
@@ -94,7 +96,7 @@ def main():
             fails.append(f"step {n} listed twice")
         steps[n] = rid
         if rid not in live:
-            fails.append(f"step {n} serves {rid}, which is not a live requirement")
+            fails.append(f"step {n} serves {rid}, which is not a live requirement: serve the live line that carries its work")
 
     for n, rid in steps.items():
         f = out / f"step-{n}.md"
@@ -109,7 +111,7 @@ def main():
         if not m:
             fails.append(f"step-{n}.md Done when does not end `serves R<k> \"<words>\"`")
         elif m.group(1) in reqs and m.group(2) != reqs[m.group(1)]["words"]:
-            fails.append(f"step-{n}.md quotes {m.group(1)} with other words than the requirement")
+            fails.append(f"step-{n}.md quotes {m.group(1)} with other words than the requirement: copy its quoted words exactly")
         if re.search(r"\{[A-Z_]+\}|<placeholder>|TODO", body):
             fails.append(f"step-{n}.md holds a placeholder")
     for f in out.glob("step-*.md"):
@@ -142,25 +144,25 @@ def main():
         serves = set(re.findall(r"R\d+", (re.search(r"·\s*serves ([R\d\s]+)", line) or [None, ""])[1]))
         comp = set(re.findall(r"R\d+", (re.search(r"·\s*completes ([R\d\s]+)", line) or [None, ""])[1]))
         if not comp <= serves:
-            fails.append(f"slice {s} completes {' '.join(sorted(comp - serves))} it does not serve")
+            fails.append(f"slice {s} completes {' '.join(sorted(comp - serves))} it does not serve: add them to its serves, or move the completes")
         for r in serves:
             if r in completed_at and seq.index(completed_at[r]) < seq.index(s):
-                fails.append(f"slice {s} serves {r}, already completed by {completed_at[r]}")
+                fails.append(f"slice {s} serves {r}, already completed by {completed_at[r]}: move the completes to the last slice serving it")
         for r in comp:
             if r in completed_at:
-                fails.append(f"{r} completed by both {completed_at[r]} and {s}")
+                fails.append(f"{r} completed by both {completed_at[r]} and {s}: keep it on the later one only")
             completed_at.setdefault(r, s)
         for r in serves - live:
-            fails.append(f"slice {s} serves {r}, which is not a live requirement")
+            fails.append(f"slice {s} serves {r}, which is not a live requirement: drop it from serves")
 
     assumed = get("Assumed")
     for r in sorted(live, key=lambda x: int(x[1:])):
         if r in completed_at:
             continue
-        if reqs[r]["level"] == "required":
-            fails.append(f"{r} is completed by no slice")
+        if reqs[r]["level"] == "required" and not reqs[r]["env"]:
+            fails.append(f"{r} is completed by no slice: add `completes {r}` to the last slice serving it, and a step serving it if none does")
         elif not re.search(rf"\b{r}\b", assumed):
-            fails.append(f"derived {r} is completed by no slice and no Assumed line says why")
+            fails.append(f"{r} is completed by no slice and no Assumed line says why: complete it on a slice, or name it with why under Assumed")
 
     if a.previous:
         prev = pathlib.Path(a.previous)
@@ -168,7 +170,7 @@ def main():
             old = prev / f"step-{n}.md"
             new = out / f"step-{n}.md"
             if old.exists() and new.exists() and read(old).strip() != read(new).strip():
-                fails.append(f"step {n} changed its body but kept its number")
+                fails.append(f"step {n} changed its body but kept its number: give it the next unused number")
 
     for f in fails:
         print(f"- FAIL {f}")

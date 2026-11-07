@@ -7,7 +7,7 @@ agent: general-purpose
 background: false
 ---
 
-Settle the question in the block below with no human: five fresh agents research it, the decision best backed by sources you checked in this run wins, and a fresh reviewer tests it before you reply. The record goes to a file the caller stores without reading; your reply is the few lines it acts on.
+Settle the question in the block below with no human. The record goes to a file the caller stores without reading; your reply is the few lines it acts on.
 
 The block:
 
@@ -31,7 +31,7 @@ No `Id`: use `D?` and say so in the record, since the caller numbers debates; wi
 
 The record is written to `Out` in the shape of [references/record.md](references/record.md), its checks hold, and your reply is exactly the lines under Reply. The debate changes nothing it found: no tracker item, comment, file or git state of the checkout, no data or state of a running system, and nothing it started still runs.
 
-A debate costs minutes; a wrong one costs a prove round, a follow-up debate, sometimes a requirement shipped unverified. It goes wrong when it rests on something no longer true, settles from docs or reasoning what the code or the running system could show, breaks a requirement it was given (above all one already proved), or quietly undoes an earlier decision or its own `Adds`.
+A debate costs minutes; a wrong one costs a prove round, a follow-up debate, sometimes a requirement shipped unverified.
 
 # How a debate works
 
@@ -41,13 +41,13 @@ A debate costs minutes; a wrong one costs a prove round, a follow-up debate, som
 
 **A neutral question.** Debaters see only what you dispatch, so a hint in the question comes back as their answer. `Dispatched` is an open how/what question that keeps what must hold, in the spec's words where it has them, with no candidate option, preference or leading word, no yes/no or either-or. What is installed, an attempt that failed (with its evidence) and earlier decisions are facts and go in `Facts`; an opinion posing as a fact is dropped.
 
-**Five independent debaters.** Dispatch five fresh `general-purpose` agents in one message, so they run in parallel, and in the foreground, so you hold until every verdict is in: a debater left in the background is lost when you reply. Not forks: three on `strong`, two on `standard` (a tier that does not resolve runs on the session's model). Each gets the "Round 1" prompt of [references/debater.md](references/debater.md), filled from the block; none sees labels, tiers or the others. Later rounds are dispatched the same way.
+**Five independent debaters.** Dispatch five fresh `general-purpose` agents in one message, so they run in parallel, and in the foreground, so you hold until every verdict is in: a debater left in the background is lost when you reply. Not forks: three on `strong`, two on `standard` (strong is the harness's most capable model, standard its middle one; a tier that does not resolve runs on the session's model). Each gets the "Round 1" prompt of [references/debater.md](references/debater.md), filled from the block; none sees labels, tiers or the others. Later rounds are dispatched the same way.
 
 **Usable verdicts.** A verdict weighs only through sources a reader can check: a quoted page, a `file:line`, the spec, or an observation (what was run and where, its output verbatim, and when). A verdict missing a field or a checkable source gets one more ask; still without, it stays in the record as `unsourced` and weighs nothing.
 
-**Round 2 only without consensus.** Consensus: an implementer handed any of the sourced verdicts that no rule below puts out would build the same thing (mechanism, where data lives, interface, failure behaviour); wording does not split them. Without it, each debater gets the others' verdicts anonymised, in no order ("Round 2" in debater.md), continuing its own conversation where the harness allows.
+**Round 2 only without consensus.** Consensus: an implementer handed any of the sourced verdicts that no rule below puts out would build the same thing (mechanism, where data lives, interface, failure behaviour); wording does not split them. Without it, each debater gets the others' verdicts anonymised, in no order ("Round 2" in debater.md), continuing its own conversation where the harness allows, else as a fresh agent given its Round 1 prompt and verdict first. Then choose by the rules below, whether or not round 2 agrees.
 
-**Decided by checked sources, not votes.** How many agree is evidence neither way. Check yourself the sources the choice rests on: the quote is on the raw page (say when it came through a summarising fetch), the `file:line` says it now, the excerpt is in the spec, the observation gives the same result when you repeat it the same safe way. Check enough of the losing positions' sources to know they lost on evidence. A source that fails is dropped. Then:
+**Decided by checked sources, not votes.** How many agree is evidence neither way. Check yourself the sources the choice rests on: the quote is on the raw page (say when it came through a summarising fetch), the `file:line` says it now, the excerpt is in the spec, the observation gives the same result when you repeat it the same safe way. Check enough of the losing positions' sources to know they lost on evidence. A source that fails is dropped; one you cannot reach (the network, the system down) is `not checked`, not failed. Then:
 
 - A position that breaks a `Fact` (repeats a failed attempt without answering why it failed, exceeds a limit, needs a version not installed), the spec excerpt, or a requirement given as proved is out, unless the problem is a spec contradiction and it says which reading it keeps.
 - A rejection several debaters share stands against a position unless its checked sources answer it.
@@ -58,7 +58,7 @@ The decision is always one a debater proposed: the caller cannot go on without o
 
 **Buildable and consistent.** Write the decision in its proposers' words, concrete enough to build. When it adds behaviour observable from outside the code that no listed requirement covers, add one `Adds` line worded as a requirement (what someone outside the code observes, no `"` inside; a bound naming the inputs it covers when the words hold every, any, never or all, else `bound —`). When it makes an existing derived requirement necessary, add `Requires`. The decision, its `Adds` and the requirements must agree: a decision that accepts what its own `Adds` forbids sends a prove round to find it.
 
-**Reviewed before it returns.** Dispatch one fresh `general-purpose` agent on `strong` with the "Review" prompt of debater.md, in the foreground, on the chosen decision with its `Adds` and `Requires`. A break it reports that you confirm is a new Fact: choose again among the positions that answer it, or, when none does, give it to the debaters as a Fact for another round; review whatever is chosen. When a round brings no position or source that answers a confirmed break, more rounds will not: choose the position that breaks the fewest requirements given as proved, then by the rules above, and the record's Review says what stays broken and why. An earlier decision undone on purpose is not a failure, but the caller must know (`Undoes`), since what was proved under it is no longer proved.
+**Reviewed before it returns.** Dispatch one fresh `general-purpose` agent on `strong` with the "Review" prompt of debater.md, in the foreground, on the chosen decision with its `Adds` and `Requires`. A break it reports that you confirm is a new Fact: choose again among the positions that answer it, or, when none does, give it to the debaters as a Fact for another round; review whatever is chosen. When a round brings no position or source that answers a confirmed break, or its answer only moves the break to another requirement or back to one an earlier pass raised, more rounds will not: choose the position that breaks the fewest requirements given as proved, then by the rules above, and the record's Review says what stays broken and why. An earlier decision undone on purpose is not a failure, but the caller must know (`Undoes`), since what was proved under it is no longer proved.
 
 **A repeated decision is a finding.** When `Facts` show an earlier attempt and the chosen decision is that attempt again in other words, say so in `Repeats`: the caller needs to know the debate found nothing new.
 

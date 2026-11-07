@@ -29,11 +29,11 @@ Before each fix item and each debate, put the new failure beside the earlier one
 
 ## Stop for a person
 
-The run stops in two places only: the setup stop at Start, and here, when a requirement cannot hold without a person. Stop before more work is built on it: write the reason on the state (`Stop · R<n> · <what is needed from a person> · <evidence: the docs quote, or the variable that is missing>`), print that line, and end. A resume after the person answers picks up from the state. Everything else is decided without asking: Assumed, a debate, or a fix.
+The run stops in two places only: the setup stop at Start, and here, when a requirement cannot hold without a person, or the run cannot go on without one (a refused merge or push of `feature/<name>`). Stop before more work is built on it: write the reason on the state (`Stop · <R<n> | the command> · <what is needed from a person> · <evidence: the docs quote, or the variable that is missing>`), print that line, and end. A resume after the person answers picks up from the state. Everything else is decided without asking: Assumed, a debate, or a fix.
 
 ## Bound rule
 
-A requirement failing again on an input its earlier fix did not cover (another character, another page of what its words name) has no domain yet, and fixing input by input never ends. Give it one before another fix: the domain the standard or vendor documents, found by calling the Skill tool with `m-research`. It becomes the bound, written `bound <new bound> was: <old bound>`, and a line under Assumed, when it covers the failed input and everything the words name; one that would narrow the requirement (from `bound —` included) goes to a debate, since the spec is frozen. Then one fix item for the whole new bound. A changed bound keeps the PR from Proved: a person accepts it, under Notes for reviewers. A requirement that fails past a documented bound goes to a debate, not to another bound.
+A requirement failing again on an input its earlier fix did not cover (another character, another page of what its words name) has no domain yet, and fixing input by input never ends. Give it one before another fix: the domain the standard or vendor documents, found by calling the Skill tool with `m-research`; `Not found` sends the bound to a debate, the failed inputs among its Facts. It becomes the bound, written `bound <new bound> was: <old bound>`, and a line under Assumed, when it covers the failed input and everything the words name; one that would narrow the requirement (from `bound —` included) goes to a debate, since the spec is frozen. Then one fix item for the whole new bound. A changed bound keeps the PR from Proved: a person accepts it, under Notes for reviewers. A requirement that fails past a documented bound goes to a debate, not to another bound.
 
 ## Running a debate
 
@@ -71,4 +71,4 @@ A requirement failing again on an input its earlier fix did not cover (another c
 
 ## Refused commands
 
-A refused command goes under the PR's To merge, never retried in another form: the command, what it was for, and the `/setup-mstack` auto-mode entry that would allow it (`mstack step merges`, `mstack review scripts` or `mstack run recipes`). Permissions are setup-mstack's job, so this skill leaves them as it finds them. A refused step merge or push of `feature/<name>` makes every later slice impossible: stop for a person, naming the command and the entry.
+A refused command goes under the PR's To merge, never retried in another form: the command, what it was for, and the `/setup-mstack` auto-mode entry that would allow it (`mstack step merges`, `mstack review scripts` or `mstack run recipes`). Permissions are setup-mstack's job, so this skill leaves them as it finds them. A refused step merge or push of `feature/<name>` makes every later slice impossible: stop for a person (above), naming the command and the entry.

@@ -42,19 +42,16 @@ At least one source. At least one rejected alternative.
 ## Round 2
 
 ```
-Four others answered the same problem independently. Their verdicts follow, in no order. Weigh them, check whatever bears on your decision, and keep or change it. Change only for a reason a source supports; agreement alone is not a reason. The same rules hold: current, observed where it can be, harmless to others.
+Others answered the same problem independently. Their verdicts follow, in no order. Weigh them, check whatever bears on your decision, and keep or change it. Change only for a reason a source supports; agreement alone is not a reason. The same rules hold: current, observed where it can be, harmless to others.
 
-<verdict 1>
-<verdict 2>
-<verdict 3>
-<verdict 4>
+<each other debater's verdict, one after another>
 
 Reply in the same format as before, with one first line added:
 
 Changed  · yes · <the source or argument that changed it> | no · <why the others do not change it>
 ```
 
-A later round after a review finding uses the Round 2 prompt with the finding added under Facts.
+A debater that cannot be continued gets, before this prompt, its Round 1 prompt and its own verdict, so it has the problem to answer. A later round after a review finding uses the Round 2 prompt opened by `New Fact · <the finding>`; a debater that cannot be continued gets the finding under its Round 1 prompt's Facts instead.
 
 ## Review
 

@@ -14,7 +14,6 @@ The state is one tracker item (label `feature:map`) plus one item per step (labe
 - `tracker write-state` replaces the whole body: read it first and write it all back, or another section is lost.
 - The body holds current truth; reports, records and evidence summaries go in comments, which append. `read-state` returns each comment headed `<!-- comment <id> <date> -->`.
 - With the `md` tracker the state lives under `<git common dir>/mstack/md/<feature>/`, never in the work tree; only issues reach the repo, through `tracker publish-issues` at Closing.
-- `tracker link <a> <b>` between two steps of this state means a is blocked by b; any other pair is a plain related link.
 - Write what a reviewer can open and act on: links rather than local paths, results rather than a stage's internal reasoning, a credential's `MSTACK_SECRET_<NAME>` name and never its value.
 
 ## State body
@@ -124,7 +123,7 @@ Exactly the `Step <n>` body `m-plan` wrote, created from its `step-<n>.md` file 
 
 Inside an open slice, the first of these that holds:
 
-1. An open step item with no merge commit naming it on `origin/feature/<name>`: step check its local step branch when one exists, else cut it again and rebuild.
+1. An open step item with no merge commit naming it on `origin/feature/<name>`: step check its local step branch when its notes file exists, else cut the next-numbered branch and rebuild (a build that stopped leaves commits and no notes).
 2. Every step merged, quality not `clean`: quality review (a re-review when open findings are listed).
 3. Prove not `verified`: slice prove.
 4. Else close the slice line.

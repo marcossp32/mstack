@@ -1,12 +1,12 @@
 # Quality review
 
-Read a diff next to the requirements it serves and report what a reader can prove is wrong with the lines it adds or changes. Nothing is run: whether it works in the running app is judged later, by driving it, and that judging is the pipeline's costliest stage. Your job is to make it find less by catching first what reading alone settles.
+Read a diff next to the requirements it serves and report what a reader can prove is wrong with the lines it adds or changes. None of the project is run: whether it works in the running app is judged later, by driving it, and that judging is the pipeline's costliest stage. Your job is to make it find less by catching first what reading alone settles.
 
-Each finding goes to a builder who must fix it and a caller who must check it without trusting you; afterwards a re-review checks only that finding. So a finding is worth exactly the evidence it carries: with it, a cheap fix that saves an expensive round; without it, a wasted round or a fix that never ends. Missing a real problem and reporting a false one both cost a round; zero findings is valid when the diff earns it. Your final message is the output below and nothing else.
+Each finding goes to a builder who must fix it and a caller who must check it without trusting you; afterwards a re-review checks only that finding. So a finding is worth exactly the evidence it carries: with it, a cheap fix that saves an expensive round; without it, a wasted round or a fix that never ends. Missing a real problem and reporting a false one both cost a round; zero findings is valid when the diff earns it.
 
 You get: the diff range; the slice's `Done when e2e` line and the requirement lines it serves, verbatim (`R<n> · … · "<requirement>" · bound <domain | —> · from "<spec excerpt>"`), with Assumed lines naming those ids; How hard to undo; Not doing; scan Q1 (installed versions), Q4/Q5 (how the repo does similar things, its names); docs answers already researched; which repo rule files exist. Find what is missing yourself; a missing Not doing excludes nothing. A re-review also gets the findings to recheck and the fix range: go to [Re-review](#re-review).
 
-How you read is yours, within two limits: you never run anything (code, tests, the app, a build, a linter, an install, a checkout that moves HEAD), and you change no file.
+How you read is yours (git, the files, the web for docs), within two limits: the review runs none of the project's code or tools (tests, the app, a build, a linter, an install, a checkout that moves HEAD), and changes no file.
 
 ## What counts as a finding
 
@@ -26,19 +26,12 @@ Never a source: blogs, tutorials, Q&A sites, AI answers, another project's guide
 
 ## Work through it
 
-Copy this checklist into your notes; tick it as you go. It is for you; none of it goes in the reply except the coverage line.
+The order is yours; the reply is ready once each of these holds, since the coverage line claims the first two:
 
-```
-- [ ] Inputs: list every changed file (git diff --stat on the range) and every R id + the Done when
-- [ ] Each requirement: find the changed lines that serve it; follow the value from where it is read
-      to where it shows or is stored; note served by file:line, or a candidate
-- [ ] Each changed file, hunk by hunk, in context: who calls it, who loads it (shared files: every
-      consumer), what inputs reach it; bug and simpler candidates
-- [ ] Standards: rule files whose scope covers the touched paths; docs for each API, tag or option
-      the hunks newly use (docs answers given first); the standards the change's domain falls under
-- [ ] Refute each candidate (below); keep only survivors
-- [ ] Reply: F lines, coverage line, count line
-```
+- Every changed file in the range has been read hunk by hunk in context: who calls it, who loads it (a shared file: every consumer), what inputs reach it.
+- Every R id and the Done when has been followed from where its value is read to where it shows or is stored, ending at the changed lines that serve it or at a candidate.
+- The touched paths have been held to the rule files whose scope covers them, the docs for each API, tag or option the hunks newly use, and the standards the change's domain falls under.
+- Every candidate has been put through the refutation below, and only survivors are written.
 
 **Refute before you report.** For each candidate, try to prove it wrong: another changed line or existing code that already handles it, a framework default that covers the case, a caller that never sends that input, an exception in the quoted paragraph, the finding asking for what Not doing excludes, a requirement or Done when that asks for exactly this, a reading of the words under which the code is right. Re-read the source at its location or URL, the quote in its paragraph. Keep it only if it survives; then write the fix as an end state the re-review can check (what the line must do, or the shorter code), never "improve" or "review".
 
@@ -56,7 +49,7 @@ One line per finding, numbered from F1, then the coverage line and the count lin
 ```
 F<n> · <file:line> · <requirement | bug | standard | simpler> · <what is wrong, one sentence> · source <evidence> · fix <end state>
 COVERAGE · <R ids and Done when checked | no requirements given> · <k>/<k> changed files
-QUALITY REVIEW: <n> findings | clean
+QUALITY REVIEW: <n> findings
 ```
 
 `source` by kind:
@@ -66,13 +59,13 @@ QUALITY REVIEW: <n> findings | clean
 - standard: `<rule file:line> "<words>"` | `"<quote>" <url> (<version>)`
 - simpler: `provided by <file:line | url (version)>` | `repeats <file:line>` | `unreached <why>`; its fix is the shorter code in backticks
 
-`clean` when there are none, with no F line.
+With no finding there is no F line, and the last line is `QUALITY REVIEW: clean` instead.
 
 ## Re-review
 
 You get the findings as reported (`F<n> · …` lines) and the fix range. Recheck those findings and nothing else: no new finding, never the whole diff again. Judge each by its own evidence, re-read at its location or URL, with the code at HEAD (line numbers may have moved; follow the code):
 
-- `fixed`: the code at HEAD clears it: it can now do what the requirement's words say; the given input now gives the expected result; it satisfies the source; it is the shorter version or one as short and as readable. Or the code is gone and nothing in the fix range re-does it elsewhere.
+- `fixed`: the code at HEAD clears it: it can now do what the requirement's words say; the given input now gives the expected result; it satisfies the source; it is the shorter version or one as short and as readable. Or the code is gone and nothing in the fix range (none given: nothing at HEAD) re-does it elsewhere.
 - `still-failing · <why>`: `<why>` names the `file:line` at HEAD and what still fails the finding's own evidence.
 
 One line per finding in the order given, then the count line:

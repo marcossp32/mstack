@@ -41,15 +41,15 @@ A `derived` line is an effect the spec implies (an empty state, a failing input 
 
 # Writing a line
 
-Each line is one effect someone outside the code can watch hold, with its trigger or state, and one reading: what a page shows, a command or endpoint returns, a fresh read of stored data holds. Two effects are two lines. Name an implementation only where the spec does. Read [references/wording.md](references/wording.md) before wording a comparison, a judgement, or a line that resists one reading.
+Each line is one effect someone outside the code can watch hold, with its trigger or state, and one reading: what a page shows, a command or endpoint returns, a fresh read of stored data holds. Name an implementation only where the spec does. Read [references/wording.md](references/wording.md) before wording a comparison, a judgement, or a line that resists one reading.
 
 - **Bounded to what the change touches.** An absolute or a set names the inputs it covers in `bound`; a vague word gets a measure in the line. Take the spec's figure first, then a limit the repo enforces (its `file:line` in Assumed), then the narrowest domain that still serves the spec's purpose. "Nothing else changes" bounded to the whole app fails on code the change never touched: bound it to the surfaces the change alters and what depends on them, and say how sameness is seen.
-- **Comparisons and judgements finite.** "Matches", "looks like", "same as before", "still works" let each prover pick its own set and tolerance and find a finer difference each round. Such a line names the reference (a file, the base commit, a named screen), a closed list of measurable aspects each with its tolerance, and what is not compared, the spec's own limit included where it gives one, so one proof checks the whole list and one fix round closes it. What no measure captures (does it feel calm) is its own line ending ` · human`, which a person judges beside the reference; never one a measure settles.
+- **Comparisons and judgements finite.** "Matches", "looks like", "same as before", "still works" let each prover pick its own set and tolerance and find a finer difference each round. Such a line names the reference (a file, the base commit, a named screen), a closed list of measurable aspects each with its tolerance, and what is not compared, so one proof checks the whole list and one fix round closes it. What no measure captures (does it feel calm) is its own line ending ` · human`, which a person judges beside the reference; never one a measure settles.
 - **Settleable by a local run.** A line whose surface is the host's CI ends ` · CI <check>`, the check's name in the repo's CI config, or `all` when the spec names none; the host's checks settle it, nobody drives it. A line needing production scale or data, an external service's key or a person's account fails only at the end: where the spec's purpose survives, word it as what a local run can observe (the request sent, the repo's stub); otherwise keep it and add `- R<n> needs <the key, account or environment, exactly> · why <what the local run lacks> · affects R<n>` under `## Assumed`, so it is asked for before any building.
 
 # Contradictions
 
-Two excerpts that cannot both hold are a contradiction; a vague word is not (it needs a measure). They hide where **two sentences act on the same thing** (the same field, screen, command, state or limit), so read side by side every sentence touching each thing the spec changes. A sentence that adopts a standard, a syntax or a format (a regex dialect, semantic versioning, ISO 8601 dates) brings all of that standard's rules along, those it does not spell out included: another sentence that breaks one of them contradicts it. Choose the reading that serves the app best (often the more specific sentence, the one naming a surface, the safer one where data or access is at stake), word the lines in it, and trace the other excerpt to `C<n>`. `undo` follows [Decisions](#decisions).
+A vague word is not a contradiction (it needs a measure). Contradictions hide where **two sentences act on the same thing** (the same field, screen, command, state or limit), so read side by side every sentence touching each thing the spec changes. A sentence that adopts a standard, a syntax or a format (a regex dialect, semantic versioning, ISO 8601 dates) brings all of that standard's rules along, those it does not spell out included: another sentence that breaks one of them contradicts it. Choose the reading that serves the app best (often the more specific sentence, the one naming a surface, the safer one where data or access is at stake), word the lines in it, and trace the other excerpt to `C<n>`. `undo` follows [Decisions](#decisions).
 
 A new rule can also break what the repo already guarantees (a stored format, an existing behaviour, a public contract). With no second spec excerpt it is not a `C` line: where keeping both is hard to undo it is an `O` line with the guarantee and its `file:line` in `facts`; where easy, an Assumed line naming the guarantee and the reading chosen.
 
@@ -66,7 +66,7 @@ Name the cheapest build that passes every line yet misses the spec (a hard-coded
 
 # Output
 
-Return exactly this block, nothing before or after: it is parsed. A section with nothing in it holds `none`. Quotes delimit the fields, so requirement text uses `'` and an excerpt is cut to a verbatim span of the spec file with no `"` in it. A Trace line quotes its spec sentence whole, any `"` in it included.
+Return exactly this block, nothing before or after: it is parsed. Quotes delimit the fields, so requirement text uses `'` and an excerpt is cut to a verbatim span of the spec file with no `"` in it. A Trace line quotes its spec sentence whole, any `"` in it included.
 
 ```
 ## Requirements
@@ -89,5 +89,4 @@ O<n> · <neutral problem> · from "<excerpt>" | from R<m> · facts <constraints 
 "<spec sentence, verbatim>" → R<a> R<b> | Not doing | Considered | How to build | C<n> | O<n> | context · <why>
 ```
 
-- Ids run R1..Rn in order. A line never carries `required by D<k>` or `retired by D<k>`: those are added once a decision is settled.
-- `bound` is the inputs the line covers ("orders of one store, 0 to 10 000", "each role in the roles table"); `—` only when the line has no absolute or set.
+`bound` is the inputs the line covers ("orders of one store, 0 to 10 000", "each role in the roles table"); `—` only when the line has no absolute or set.

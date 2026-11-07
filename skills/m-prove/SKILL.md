@@ -31,7 +31,7 @@ Your last message is the Return block below for the mode asked, every part fille
 
 # Inputs
 
-If this conversation wrote or watched the code, dispatch a fresh `general-purpose` agent on the strong tier (model `opus`) whose prompt opens `Call the Skill tool with m-prove.` plus the inputs, and relay its reply unchanged: a judge that saw the code written reads its intent into the evidence, and the verdict rests on the supervisor's judgement. Done when that reply is a Return block, which only a run of this skill produces. Both modes get:
+If this conversation wrote or watched the code, dispatch a fresh `general-purpose` agent whose prompt opens `Call the Skill tool with m-prove.` plus the inputs, and relay its reply unchanged: a judge that saw the code written reads its intent into the evidence, and the verdict rests on the supervisor's judgement. Done when that reply is a Return block, which only a run of this skill produces. Both modes get:
 
 - `mode: slice` or `mode: final`.
 - Feature branch (`feature/<name>`), which keeps the replays.

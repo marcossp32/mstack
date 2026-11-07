@@ -1,6 +1,6 @@
 ---
 name: m-review
-description: "Reviews a change without running the app: a script checks each build step against the suite's recorded baseline, and a static review reports only findings a reader can prove from the diff, by a requirement's words, a concrete input, a repo rule or the installed version's docs. Use when asked to check a build step, review a change against its requirements, or recheck its findings after a fix."
+description: "Reviews a change without running the app: a script checks each build step against the suite's recorded baseline, and a static review reports only findings that carry their own evidence. Use when asked to check a build step, review a change against its requirements, or recheck its findings after a fix."
 ---
 
 Tells the caller whether a change is well made and does what was asked, as far as reading can tell; whether it works in the running app is judged elsewhere, by driving it. Three parts, each started on its own request: the step check, the quality review and the re-review. Each ends on the lines its Done when names, which are what the caller branches on.
@@ -13,13 +13,13 @@ A script judges, with no model judgement: a build step may merge into the featur
 
 ```bash
 python3 scripts/step_check.py baseline --test-cmd "<suite command | none>" --test-file-cmd "<command for one test file, {test} for its path>" --env <NAME=VALUE>
-python3 scripts/step_check.py check --base origin/feature/<name> --notes <step notes file>
-python3 scripts/step_check.py set-cmd --base feature/<name> --test-cmd "<suite command>"
-python3 scripts/step_check.py clear --base feature/<name>
+python3 scripts/step_check.py check --base origin/<feature branch> --notes <step notes file>
+python3 scripts/step_check.py set-cmd --base <feature branch> --test-cmd "<suite command>"
+python3 scripts/step_check.py clear --base <feature branch>
 ```
 
 - `baseline` runs once, on the feature branch, before the first check, since every step is judged against the suite as it was then. Give one `--env` per variable the tests need (a bare `NAME` for a secret already set in the environment, which is never stored); the script refuses a variable set inline in the command. A suite that fails before any test runs records nothing and names what it lacked: provide it, then record again.
-- `check` runs on the step branch with no tracked changes, after a fetch, since a stale feature branch puts earlier steps in the diff. It reads the notes' `## Tests changed` and `## Pinned by`; without `--notes`, nothing counts as declared or pinned.
+- `check` runs on the step branch with no tracked changes, after a fetch, since a stale feature branch puts earlier steps in the diff; with no remote, `--base` is the local branch. It reads the notes' `## Tests changed` and `## Pinned by`; without `--notes`, nothing counts as declared or pinned.
 - `set-cmd` swaps the recorded suite command, keeping its verdict and its environment unless `--env` is given again, which replaces it; `clear` deletes the baseline when the feature ends.
 
 A suite run can outlast the shell tool's time limit, and a pipe or a timeout loses the verdict, so run each call in the background, unpiped, and read its whole output before acting.
@@ -28,15 +28,15 @@ What the output means, by its last line rather than its exit code, since an abor
 
 - `STEP CHECK: PASS` (exit 0): the step may merge. Its `- ` notes still travel to the caller, and none fails the step.
 - `STEP CHECK: FAIL` (exit 1): the `- FAIL` lines say what to fix, for the builder.
-- `STEP CHECK: NOT RUN · <why>` (exit 2): nothing was judged, so it is neither a pass nor the step's fault. After `suite unstable under load` (different files failing each run, all passing alone), `set-cmd` to a suite command that runs fewer files at once, then check again.
-- `ABORT: <reason>` on stderr, with no `STEP CHECK:` line: no verdict. Where the reason names something to provide (a prerequisite, a baseline, a fetch), provide it and run again; changes in the checkout that you did not make belong to whoever made them, so return the message as it is rather than committing or discarding them.
+- `STEP CHECK: NOT RUN · <why>` (exit 2): nothing was judged, so it is neither a pass nor the step's fault. After `suite unstable under load` (different files failing each run, all passing alone), `set-cmd` to a suite command that runs fewer files at once, then check again; still unstable one file at a time, return the NOT RUN.
+- `ABORT: <reason>` on stderr, with no `STEP CHECK:` line: no verdict. Where the reason names something to provide (a prerequisite, a baseline, recorded on the feature branch, a fetch), provide it and run again, and return the abort once providing it changes nothing; changes in the checkout that you did not make belong to whoever made them, so return the message as it is rather than committing or discarding them.
 - The `suite logs` note holds every run's full output: read failures there rather than rerunning. The `sweep` note is cleanup of earlier runs, not a finding.
 
 **Done when** the script's output is returned whole and unedited, ending in its one `STEP CHECK:` line, or its abort message, which carries no verdict.
 
 # Quality review
 
-One fresh static reviewer reads a range of merged commits next to the requirements it serves, and reports only findings that carry their own evidence, so the builder can fix each one to a clear end and the caller can check it without trusting the reviewer. Nothing runs.
+One fresh static reviewer reads a range of merged commits next to the requirements it serves, and reports only findings that carry their own evidence, so the builder can fix each one to a clear end and the caller can check it without trusting the reviewer. None of the project runs.
 
 The inputs, from the caller where given:
 
@@ -57,16 +57,18 @@ The reviewer has a stake in its own findings, so hold its output to what you can
 ```
 F<n> · <file:line> · <requirement | bug | standard | simpler> · <what is wrong, one sentence> · source <evidence, by kind, as in quality.md> · fix <the end state that clears it>
 COVERAGE · <requirement ids and Done when checked | no requirements given> · <k>/<k> changed files
-QUALITY REVIEW: <n> findings | clean
+QUALITY REVIEW: <n> findings
 ```
+
+With no F line, the last line is `QUALITY REVIEW: clean` instead.
 
 # Re-review
 
 After a fix for quality findings has merged, recheck only the findings handed to the builder, never the whole range again, so a fix round converges instead of growing.
 
-Dispatch one fresh `general-purpose` agent at the review's tier, its prompt opening as above and pointing it at the Re-review section of `references/quality.md`, with the `F<n>` lines verbatim and the fix range `<sha before the fix merge>..<sha after it>`. What happens to a `still-failing` finding is the caller's decision.
+Dispatch one fresh `general-purpose` agent at the review's tier, its prompt opening as above and pointing it at the Re-review section of `references/quality.md`, with the `F<n>` lines verbatim and the fix range `<sha before the fix merge>..<sha after it>` (none given: the reviewer judges HEAD alone). Fallback is the review's. What happens to a `still-failing` finding is the caller's decision.
 
-**Done when** its output is returned verbatim, one line per finding given, the same ids, and no new finding:
+**Done when** its output is returned verbatim, one line per finding given, the same ids, and no new finding (or, as in the review, only `Fresh reviewer needed · <why>`):
 
 ```
 F<n> · fixed

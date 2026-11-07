@@ -1,8 +1,8 @@
 # Auto mode
 
-Read when a `scripts/check_auto_mode.py` line fails, or to explain the block to the human.
+What a `scripts/check_auto_mode.py` line means, where the settings live, the block the script checks against, and why each entry is there.
 
-An mstack run nobody watches still merges step branches into the feature branch, pushes it, runs mstack's scripts and writes prove's run recipe. Claude Code's auto mode classifier can refuse these ("Merge Without Review", "CI Bypass", "Self-Modification" for writes under `~/.claude/skills/`). An approval typed in a chat does not lift a refusal that happens hours later in a run nobody watches; only the human's settings do. A refused command is never retried in another form, since that is the bypass the classifier blocks: the run lists it under the pull request's "To merge" with the entry that would allow it, and a refused step merge leaves every later slice not verified. So setup checks the settings once, while a human is present.
+An mstack run nobody watches still merges step branches into the feature branch, pushes it, runs mstack's scripts and writes prove's run recipe. Claude Code's auto mode classifier can refuse these ("Merge Without Review", "CI Bypass", "Self-Modification" for writes under `~/.claude/skills/`). An approval typed in a chat does not lift a refusal that happens hours later in a run nobody watches; only the human's settings do, and the run does not retry a refused command in another form, so a refused step merge leaves every later slice not verified. So setup checks the settings once, while a human is present.
 
 ## Where the settings live
 
@@ -15,8 +15,6 @@ An mstack run nobody watches still merges step branches into the feature branch,
 Sources: https://code.claude.com/docs/en/auto-mode-config, https://code.claude.com/docs/en/settings, https://code.claude.com/docs/en/permission-modes (read 2026-10-23, Claude Code 2.1.309).
 
 ## The block
-
-Setup prints it and says where it goes; the human adds it (a run granting itself permissions is the "Self-Modification" the classifier stops).
 
 The script reads the entries from this block; change them only here.
 

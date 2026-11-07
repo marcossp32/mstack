@@ -27,20 +27,20 @@ Before printing the final PR line, check on the host and the state:
 - [ ] Every Debates line, Assumed line, `mstack:contradiction` and `found-by-prove` issue appears in the PR; each issue carries `Origin · feature <name> · PR <link>`.
 - [ ] Every refused command is under To merge with the setup-mstack entry that would allow it.
 - [ ] No credential value in the state, any item, issue, commit message or the PR body; no local path in the PR's media.
-- [ ] The step check baseline is cleared and the final evidence dir deleted, or named in the final line.
+- [ ] The step check baseline is cleared and every evidence dir deleted, or named in the final line.
 
 ## What holds on every route
 
 - **Adapters.** Every tracker and host action is an adapter operation (`tracker read-spec`, `host open-pr`, …), whose commands live only in its file. Read `references/trackers/<tracker>.md` and `references/hosts/<host>.md` before the first operation of each. Git runs directly; the remote is `origin`, and anything compared against a remote branch is compared after a fetch, since a stale local branch puts other work in the diff.
 - **The state is the truth.** Read [`references/state.md`](references/state.md) before creating the state or resuming one. With the pushed `feature/<name>`, it is all a new session on another machine has: write what a resume needs before relying on it, and where the state and your memory disagree, the state wins.
-- **Two stops; nothing else waits for a person.** The run stops at the setup stop, before anything exists, and when a requirement cannot hold without a person (escalation.md, Stop for a person). Anywhere else a human would be asked, decide and record why under Assumed, research it, or debate it.
+- **Two stops; nothing else waits for a person.** The run stops at the setup stop, before anything exists, and when a requirement or the run itself cannot go on without a person (escalation.md, Stop for a person). Anywhere else a human would be asked, decide and record why under Assumed, research it, or debate it.
 - **Credentials** come only from environment variables `MSTACK_SECRET_<NAME>`. Stages get their names, never their values, and a value is written nowhere: people who must not see it read the state, issues and PR.
 - **A refused command** is recorded for the PR's To merge and the run goes on with what does not need it; retrying it in another form is the bypass the refusal exists to block (escalation.md, Refused commands).
 - **The spec is frozen** at Start: every stage reads the frozen copy, so a mid-run edit cannot move the target; a later change is noted in the PR.
 - **Chat**: what this chat prints for the human is one line per slice closed, one per debate, the final PR line or a stop line, each in the form given where it is printed. The state holds the detail.
 - **Judges are not builders.** The step check (a script), the quality review and the prove judge the work. Each judge that is an agent is a fresh one that did not write the code and has not seen this chat, and only a judge clears its own finding: your reading of the code settles nothing. A judge passes only when the work changes: tests, the spec and every Done when stay as they were, since changing one to pass hides the failure it was there to find.
 - **Waiting.** Prove, build and step check can idle this chat for an hour or more. The prompt cache keeps this context cheap to read back for about an hour of silence; the first call after it lapses writes the whole context again, while a wake costs almost nothing. So no silence reaches the hour: before each wait, arrange a wake 45–55 minutes after your last call (a scheduled wake, a background timer whose exit notifies you, a monitor). A stage that will end well inside the hour wakes you with its own exit notice: set no timer beside it. Each wake checks only whether the stage has ended, then arranges the next.
-- **Other skills' directories**: `<m-requirements dir>`, `<m-review dir>` and `<m-prove dir>` are this skill's sibling directories, where their scripts live.
+- **Other skills' directories**: `<m-requirements dir>`, `<m-review dir>` and `<m-prove dir>` are this skill's sibling directories, where their scripts live. Scripts run with the first of `python3` and `python` that runs Python 3.
 
 ## Start
 
@@ -83,10 +83,8 @@ Done when the state holds the requirements block, the scan answers, the docs ans
 
 Done when the plan block is a state comment, each step has an item with its blocking links, and the `Slices ·` line (item refs) heads Decided. Nobody confirms the plan: then Per slice.
 
-`m-plan` runs in its own context and writes the plan and every step body to files, so the tens of thousands of tokens it reads and writes never enter this chat; its reply is the few lines this chat acts on.
-
-- Its inputs go as files, never retyped, since a requirement retyped can drift by a word every step then quotes. Save `tracker read-state` (body and comments) to a file under `Out` by redirecting its output; on `md` the state files are already files. `Out` is `<git common dir>/mstack/plan/<name>/<cut>/`, absolute, `<cut>` being `1` for the first plan and the `D<k>` that leads to each later one.
-- Call the Skill tool with `m-plan`, its argument those paths (and any input already a file: the frozen spec, a debate record, the previous plan's `Out`), Where it runs, and `Out`. Done when its reply ends `Check · PLAN CHECK: PASS`. A reply `Stop · no <Out | requirements> given` names what your call lacked: call again with it.
+- `m-plan`'s inputs go as files, never retyped, since a requirement retyped can drift by a word every step then quotes. Save `tracker read-state` (body and comments) to a file under `Out` by redirecting its output; on `md` the state files are already files. `Out` is `<git common dir>/mstack/plan/<name>/<cut>/`, absolute, `<cut>` being `1` for the first plan and the `D<k>` that leads to each later one.
+- Call the Skill tool with `m-plan`, its argument those paths (and any input already a file: the frozen spec, a debate record, the previous plan's `Out`), Where it runs, and `Out`. Done when its reply ends with its `Check ·` line: `PLAN CHECK: PASS`, or the checker's last output, which goes under Assumed and the PR's What to watch while the plan is used as it stands. A reply `Stop · no <Out | requirements> given` names what your call lacked: call again with it.
 - The plan and step files go to the adapter by path and are never opened here: `plan.md` becomes a state comment; step `<n>` is `tracker create-step` with its reply line's title and `step-<n>.md` as the body, fed from the file as the adapter says. A body retyped or filled into a template drifts, or ships a placeholder instead of the work.
 - From the reply: `tracker link <blocked> <blocking>` for each Blocking pair; the `Slices ·` line with numbers rewritten to item refs; the `Slice S<k>` lines, which review and prove receive verbatim; its `Assumed ·` line holds several choices, each with its why: each becomes one line under the state's Assumed (state.md gives the shape).
 - An `Open ·` line is debated, then `m-plan` is called again with the decision and the previous `Out`; each step number without an item then gets one (`Changed · new` and those that waited), and each `dropped` one is closed with `Replaced by D<k>`. A step whose reply line ends `· waits D?` gets its item only after that decision, so nothing is built on a guess.
@@ -104,7 +102,7 @@ Then the next slice; after the last, Closing.
 
 - Steps are built one at a time, each merged into `feature/<name>` only after its step check passes, so each builds on checked work; every merge is pushed for resume.
 - After the slice's steps merge: quality review ⇄ fix, then slice prove ⇄ fix. Quality fixes come first: they change code the prove must see, and a prove is the costly judge.
-- A failure is fixed by the builder in fix mode. One that one more fix cannot settle goes to a debate (escalation.md). Rounds go on while they make progress; a loop changes the question or stops for a person (escalation.md, Progress or loop).
+- A failure is fixed by the builder in fix mode. Read [`references/escalation.md`](references/escalation.md) before the first fix item, if not yet read: a failure one more fix cannot settle, and a loop, go as it says.
 
 ## Closing
 
@@ -112,7 +110,7 @@ Starts once every slice line is closed. A slice whose last prove was not verifie
 
 ## Dispatch
 
-A stage that runs as an agent runs as a fresh one, never a fork, which inherits this conversation's reasoning. It has not seen this chat and runs no tracker or host command: paste verbatim every state section, step item and spec excerpt it needs, read just before; a section that needs changing changes on the state first.
+A stage that runs as an agent runs as a fresh one, never a copy of this conversation, which inherits its reasoning. It has not seen this chat and runs no tracker or host command: paste verbatim every state section, step item and spec excerpt it needs, read just before; a section that needs changing changes on the state first.
 
 The prompt opens by having the agent load its stage's skill, so it works under that skill's rules:
 
@@ -130,8 +128,8 @@ Models are tiers: cheap, standard and strong, the harness's quickest, middle and
 | scan question group A (Q1) | fresh agent loading `m-scan` | `Explore` | cheap |
 | scan question groups B (Q2–5), C (Q6, Q9), D (Q7–8) | fresh agent loading `m-scan` | `Explore` | standard |
 | docs | this chat, `m-research` loaded; it dispatches its own agents | — | its own |
-| debate | `m-debate` through the Skill tool, the block as its argument; it runs in its own context and dispatches its own agents, so only its reply lines reach this chat | — | its own |
-| plan, re-cut | `m-plan` through the Skill tool, the paths of its inputs as its argument; it runs in its own context, so only its reply lines reach this chat | — | the session's |
+| debate | `m-debate` through the Skill tool, the block as its argument, in its own context; it dispatches its own agents | — | its own |
+| plan, re-cut | `m-plan` through the Skill tool, the paths of its inputs as its argument, in its own context | — | the session's |
 | build, fix mode included | fresh agent loading `m-build`, one at a time | `general-purpose` | standard; strong when How hard to undo is hard |
 | step check | this chat, `step_check.py` | — | none |
 | quality review, re-review | this chat, `m-review` loaded; it dispatches its own fresh reviewer | — | its own, from How hard to undo |
