@@ -1,8 +1,8 @@
 # Auto mode
 
-Read when a `scripts/check_auto_mode.py` line fails, or to explain the block to the human.
+What a `scripts/check_auto_mode.py` line means, where the settings live, the block the script checks against, and why each entry is there.
 
-An mstack run nobody watches still merges step branches into the feature branch, pushes it, runs mstack's scripts and writes prove's run recipe. Claude Code's auto mode classifier can refuse these ("Merge Without Review", "CI Bypass", "Self-Modification" for writes under `~/.claude/skills/`). An approval typed in a chat does not lift a refusal that happens hours later in a run nobody watches; only the human's settings do. A refused command is never retried in another form, since that is the bypass the classifier blocks: the run lists it under the pull request's "To merge" with the entry that would allow it, and a refused step merge leaves every later slice not verified. So setup checks the settings once, while a human is present.
+An mstack run nobody watches still merges step branches into the feature branch, pushes it, runs mstack's scripts and writes prove's run recipe. Claude Code's auto mode classifier can refuse these ("Merge Without Review", "CI Bypass", "Self-Modification" for writes under `~/.claude/skills/`). An approval typed in a chat does not lift a refusal that happens hours later in a run nobody watches; only the human's settings do, and the run does not retry a refused command in another form, so a refused step merge leaves every later slice not verified. So setup checks the settings once, while a human is present.
 
 ## Where the settings live
 
@@ -16,8 +16,6 @@ Sources: https://code.claude.com/docs/en/auto-mode-config, https://code.claude.c
 
 ## The block
 
-Setup prints it and says where it goes; the human adds it (a run granting itself permissions is the "Self-Modification" the classifier stops).
-
 The script reads the entries from this block; change them only here.
 
 ```json
@@ -26,8 +24,8 @@ The script reads the entries from this block; change them only here.
     "allow": [
       "$defaults",
       "mstack step merges: a local `git merge` (or `git merge --squash`) of a `step/*` branch into a `feature/*` branch, the `git push` of that `feature/*` branch, and deleting the merged `step/*` branch, after mstack's step_check.py printed `STEP CHECK: PASS` for that step. Never a merge into, or a push to, the base or default branch. The step check, the quality review and the prove are the user's chosen review for steps; a feature branch reaches the base only through a final pull request a human merges. Not Merge Without Review.",
-      "mstack review scripts: running mstack's scripts (step_check.py, contain.py, cleanup.py, replay.py, and check.py, m-requirements' output checker, run unattended by m-feature) from an installed `m-*/scripts` skill directory (`m-requirements/scripts` for check.py). They run the test suite, start and stop the app under test in containment, replay saved proofs, check requirements against their spec, and delete only the evidence directories mstack created; they skip, disable or loosen no check. Not CI Bypass.",
-      "mstack run recipes: m-prove writing, or appending to, a run recipe `SKILL.md` under `~/.claude/skills/` (how to launch, health-check and stop the repo under test, and the traps its drivers hit), from commands its drivers ran. It grants no permission and changes no setting or other skill. Not Self-Modification."
+      "mstack review scripts: running mstack's scripts (step_check.py, contain.py, cleanup.py, replay.py, prepare.py, runspec.py, plan_check.py, m-plan's plan checker, find_issue.mjs, the md tracker's issue search, and check.py, m-requirements' output checker, run unattended by m-feature and m-plan) from an installed `m-*/scripts` skill directory (`m-requirements/scripts` for check.py). They run the test suite, install, build, start and stop the app under test in containment, replay saved proofs, check requirements against their spec and plans against their requirements, and delete only the evidence directories mstack created; they skip, disable or loosen no check. Not CI Bypass.",
+      "mstack run recipes: m-prove writing or editing a run recipe under `~/.claude/skills/run-<repo>/` (its `SKILL.md`, `run.json` and `surfaces/*.md`: how to install, launch, health-check and stop the repo under test, and the traps its drivers hit), from commands its drivers ran. It grants no permission and changes no setting or other skill. Not Self-Modification."
     ]
   },
   "permissions": {
@@ -41,5 +39,5 @@ Merge it into the existing file: append the three `mstack …` entries to an exi
 ## Why each entry
 
 - **step merges**: m-feature merges each passing step locally and pushes `feature/*` so a later session can resume from the remote. "Git Push Destination" already allows the push; the entry frames the local merge as reviewed. Base and default branch are excluded so a human always merges the final pull request.
-- **review scripts**: the step check and prove run the suite, containment and replays unattended. They must not read as skipping checks.
+- **review scripts**: the step check and prove run the suite, containment and replays unattended, and the plan and requirements checkers run with nobody to approve them. They must not read as skipping checks.
 - **run recipes**: m-prove records how to start the app in a skill under `~/.claude/skills/`, a config surface "Self-Modification" guards.

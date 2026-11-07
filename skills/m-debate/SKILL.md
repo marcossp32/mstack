@@ -1,102 +1,91 @@
 ---
 name: m-debate
 description: "Settles one hard engineering decision with nobody to ask: five fresh agents research it, the decision best backed by checked sources wins, and dissent is recorded. Use when asked to settle a hard-to-undo choice, or a failure one more fix will not settle, with no human to ask."
+argument-hint: "debate block · Id, Problem, Spec, Facts, Requirements, Decisions, Repo, Runs, Out"
+context: fork
+agent: general-purpose
+background: false
 ---
 
-Settles one hard question with no human: five fresh agents research it from docs, the internet and the repo, and the decision best backed by sources checked in this run wins. Returns one `D<k>` line and the full record, for whoever called it to store and for a later reviewer to read what was decided and why. Nobody is there to answer, so it decides every time and returns its decision instead of writing it anywhere: the caller owns where decisions live.
+Settle the question in the block below with no human. The record goes to a file the caller stores without reading; your reply is the few lines it acts on.
+
+The block:
+
+$ARGUMENTS
+
+```
+Id           · D<k>
+Problem      · <what must hold, under which conditions; how would you do it?>
+Spec         · <reference> · "<verbatim excerpt>"
+Facts        · <one per line, each with its evidence and where/when it was seen (commit, time): versions · limits · Not doing · what was tried and how it failed>
+Requirements · <every R line in the area the decision touches, with its status now: proved · failing · not proved yet>
+Decisions    · <earlier D lines on the same requirements, files or mechanism>      optional
+Repo         · <absolute path of the checkout the debaters read>
+Runs         · <where the system runs and how to reach it, what in it is shared>   optional
+Out          · <path to write the record to>           optional: else debate-D<k>.md in the current directory
+```
+
+No `Id`: use `D?` and say so in the record, since the caller numbers debates; with no `Out` either, the file is `debate-unnumbered.md`, since `?` is no valid file name on every system.
 
 # Done when
 
-The reply is the `D<k> · <question> → <decision>` line followed by the `## D<k> · record` block in the shape under Output; the chosen decision rests only on sources checked in this run; and nothing outside the reply changed: no tracker item, comment, file, repo or git state, and no app, test or project code ran.
+The record is written to `Out` in the shape of [references/record.md](references/record.md), its checks hold, and your reply is exactly the lines under Reply. The debate changes nothing it found: no tracker item, comment, file or git state of the checkout, no data or state of a running system, and nothing it started still runs.
 
-# Acceptance criteria
-
-- [ ] `Dispatched` contains no option, no named candidate approach, no preference and no yes/no or either-or question; `Asked` holds the caller's wording verbatim.
-- [ ] Round 1 lists exactly 5 verdicts: 3 from `strong`, 2 from `standard`.
-- [ ] Every verdict has `Decision`, `Why`, `Sources` and `Rejected`; a verdict with no source a reader can check (URL and quote, `file:line`, or spec excerpt) is marked `unsourced`.
-- [ ] Round 2 verdicts appear only when `Rounds` says round 1 reached no consensus, and `Rounds` says why.
-- [ ] Every source under `Chosen · Rests on` is marked `checked ✓`.
-- [ ] `Chosen · Basis` is `sourced`, or `most reversible · no verified source` naming why it is the most reversible proposed.
-- [ ] The chosen decision is one a debater proposed, and it does not break a fact under `Facts`, nor the spec excerpt unless the problem is a spec contradiction and the decision names the reading it keeps.
-- [ ] `Adds` appears only when the decision has an effect someone can observe from outside the code that no requirement covers; its words are observable and contain no `"`.
-- [ ] `Against` lists every position not chosen and every shared rejection of the chosen decision, each with why it lost or why it does not hold.
-- [ ] No line mentions asking a human or waiting.
-
-# Input
-
-One block:
-
-```
-Id       · D<k>
-Problem  · <the problem: what must hold, under which conditions; how would you do it?>
-Spec     · <spec reference> · "<verbatim excerpt behind the problem>"
-Facts    · <one per line: installed versions · infrastructure limits · what the spec excludes (Not doing) · what was tried, how it failed, with evidence (command + output lines, file:line, replay)>
-Requirements · <the R lines the decision touches>     optional
-Repo     · <absolute path of the checkout the debaters read>
-```
-
-No `Id`: use `D?` and say so in the record, since the caller numbers debates.
+A debate costs minutes; a wrong one costs a prove round, a follow-up debate, sometimes a requirement shipped unverified.
 
 # How a debate works
 
-The whole debate reads and never runs: no debater and no check starts the app, runs tests or runs project code, because others build and prove whatever is chosen and anything run here could disturb their work.
+**Current, not remembered.** What the debate relies on must be true now: the caller's Facts, the installed versions, the repo as it is, the running system. Facts are the caller's last observation, and the code may have moved since. Before dispatch, note what identifies the state you read (the checkout's commit; where none can be read, say so and give the time) and re-check each Fact that describes the present (a version, a limit, what a file says, how the system behaves) the cheapest safe way. One that no longer holds goes to the debaters corrected and marked stale, with what is true now; a Fact quoting docs no longer holds where the code or the system shows otherwise. A Fact about an attempt that failed is history: keep it, with when it was seen. Docs count for the version installed now, read from the repo, not from memory or the latest release.
 
-**A neutral question.** Debaters see only what is dispatched, so a hint in the question comes back as their answer. Make `Problem` an open how/what question that keeps what must hold, in the spec's words where it has them, with no candidate option (a library, pattern or design offered as the answer), no preference or leading word, and no yes/no or either-or. Something installed or fixed is a fact, and a failed attempt is a fact with its evidence: both go in `Facts`, not the question. An opinion posing as a fact is dropped. Record `Asked` (verbatim) and `Dispatched` (yours).
+**Observe, don't disturb.** A fact the running system or the code can show is settled by looking: docs say what should happen, an observation says what does, and the requirement will be proved against what does. Others may be building or proving on the same machine and system at the same time, so the debate reads the code, queries the running system read-only, and tries things on a scratch copy outside the checkout: the checkout ends as found, shared data and services are only read, nothing is installed where others run, and every process an agent starts ends before it replies. What could be seen only by changing shared state is not observed: the record says what and why.
 
-**Five independent debaters.** Dispatch five fresh `general-purpose` agents with clean context, not forks, so the caller's reasoning cannot leak in: three on `strong`, two on `standard` (a tier that does not resolve runs on the session's model). Read [`references/debater.md`](references/debater.md) before dispatching: each gets its "Round 1" prompt, filled from the dispatched block, and none sees labels, tiers or the others in round 1. The five verdicts in the record are what show the dispatch happened.
+**A neutral question.** Debaters see only what you dispatch, so a hint in the question comes back as their answer. `Dispatched` is an open how/what question that keeps what must hold, in the spec's words where it has them, with no candidate option, preference or leading word, no yes/no or either-or. What is installed, an attempt that failed (with its evidence) and earlier decisions are facts and go in `Facts`; an opinion posing as a fact is dropped.
 
-**Usable verdicts.** A verdict weighs only through sources a reader can check: a quoted page, a `file:line`, or the spec; a claim backed by running code is not one. A debater whose verdict lacks a field or a checkable source, or who returned none, gets one more ask; still without one, its verdict stays in the record as `unsourced` and weighs nothing.
+**Five independent debaters.** Dispatch five fresh `general-purpose` agents in one message, so they run in parallel, and in the foreground, so you hold until every verdict is in: a debater left in the background is lost when you reply. Not forks: three on `strong`, two on `standard` (strong is the harness's most capable model, standard its middle one; a tier that does not resolve runs on the session's model). Each gets the "Round 1" prompt of [references/debater.md](references/debater.md), filled from the block; none sees labels, tiers or the others. Later rounds are dispatched the same way.
 
-**Round 2 only without consensus.** Consensus means an implementer handed any of the sourced verdicts would build the same thing: mechanism, where data lives, interface, failure behaviour; wording and incidental detail do not split them. Consensus only skips round 2. Without it, each debater gets the others' verdicts anonymised and in no order ("Round 2" in debater.md), continuing its own conversation where the harness allows, else as a fresh agent on the same tier given its round 1 prompt and verdict first; it may change only for a reason a source supports. There is no round 3.
+**Usable verdicts.** A verdict weighs only through sources a reader can check: a quoted page, a `file:line`, the spec, or an observation (what was run and where, its output verbatim, and when). A verdict missing a field or a checkable source gets one more ask; still without, it stays in the record as `unsourced` and weighs nothing.
 
-**Decided by checked sources, not votes.** How many agents agree is evidence neither way. Check yourself, read-only, the sources the choice would rest on: the quote is on the raw page (a fetch tool that summarises can paraphrase it, so say when a quote came through one), the `file:line` says what is claimed, the excerpt is in the spec. Check enough of the other positions' sources to know they lost on the evidence, not by default. A source that fails is dropped. Then:
+**Round 2 only without consensus.** Consensus: an implementer handed any of the sourced verdicts that no rule below puts out would build the same thing (mechanism, where data lives, interface, failure behaviour); wording does not split them. Without it, each debater gets the others' verdicts anonymised, in no order ("Round 2" in debater.md), continuing its own conversation where the harness allows, else as a fresh agent given its Round 1 prompt and verdict first. Then choose by the rules below, whether or not round 2 agrees.
 
-- A position that breaks a `Fact` (repeats a failed attempt without answering why it failed, exceeds a limit, needs a version not installed) or the spec excerpt is out, unless the problem is a spec contradiction and it says which reading it keeps.
-- A rejection several debaters share stands against a position unless that position's checked sources answer it.
-- Primary sources for the installed version (official docs, the repo's code, the spec) and sources about this problem outweigh general advice. A tie goes to the more reversible decision.
-- With no checked source on any position, the most reversible one proposed wins (writes no persisted data, changes no public interface or contract, least work to undo), said so in `Basis`.
+**Decided by checked sources, not votes.** How many agree is evidence neither way. Check yourself the sources the choice rests on: the quote is on the raw page (say when it came through a summarising fetch), the `file:line` says it now, the excerpt is in the spec, the observation gives the same result when you repeat it the same safe way. Check enough of the losing positions' sources to know they lost on evidence. A source that fails is dropped; one you cannot reach (the network, the system down) is `not checked`, not failed. Then:
+
+- A position that breaks a `Fact` (repeats a failed attempt without answering why it failed, exceeds a limit, needs a version not installed), the spec excerpt, or a requirement given as proved is out, unless the problem is a spec contradiction and it says which reading it keeps.
+- A rejection several debaters share stands against a position unless its checked sources answer it.
+- On what the system does now, an observation outweighs docs and reasoning. Otherwise primary sources for the installed version (official docs, the repo's code, the spec) and sources about this problem outweigh general advice. A tie goes to the more reversible decision.
+- With no checked source anywhere, the most reversible proposal wins (writes no persisted data, changes no public interface, least work to undo), said so in `Basis`.
 
 The decision is always one a debater proposed: the caller cannot go on without one, and a decision nobody researched has no sources.
 
-**Buildable.** Write the chosen decision in its proposers' words, concrete enough to build. When it introduces behaviour observable from outside the code that no line under `Requirements` covers, state it as one `Adds` line, worded as a requirement is: what someone outside the code can observe, with no `"` inside; its bound names the inputs it covers when the words hold an absolute or a set (every, any, never, all), else `bound —`. The caller appends it as `derived · required by D<k>`. An effect only the code sees (a column, an internal name) gets no `Adds`. When the decision makes an existing derived requirement necessary, name it under `Requires`.
+**Buildable and consistent.** Write the decision in its proposers' words, concrete enough to build. When it adds behaviour observable from outside the code that no listed requirement covers, add one `Adds` line worded as a requirement (what someone outside the code observes, no `"` inside; a bound naming the inputs it covers when the words hold every, any, never or all, else `bound —`). When it makes an existing derived requirement necessary, add `Requires`. The decision, its `Adds` and the requirements must agree: a decision that accepts what its own `Adds` forbids sends a prove round to find it.
 
-# Output
+**Reviewed before it returns.** Dispatch one fresh `general-purpose` agent on `strong` with the "Review" prompt of debater.md, in the foreground, on the chosen decision with its `Adds` and `Requires`. A break it reports that you confirm is a new Fact: choose again among the positions that answer it, or, when none does, give it to the debaters as a Fact for another round; review whatever is chosen. When a round brings no position or source that answers a confirmed break, or its answer only moves the break to another requirement or back to one an earlier pass raised, more rounds will not: choose the position that breaks the fewest requirements given as proved, then by the rules above, and the record's Review says what stays broken and why. An earlier decision undone on purpose is not a failure, but the caller must know (`Undoes`), since what was proved under it is no longer proved.
 
-The caller parses this: keep the first line, the headings and the `Requires` / `Adds` lines exactly in this shape.
+**A repeated decision is a finding.** When `Facts` show an earlier attempt and the chosen decision is that attempt again in other words, say so in `Repeats`: the caller needs to know the debate found nothing new.
+
+Before replying, confirm the checkout is as you noted it and nothing the debate started still runs.
+
+# Reply
+
+The caller parses exactly these lines, nothing else: a caveat, a correction or anything not run goes in the record (or a Stale line), never another line.
 
 ```
 D<k> · <Dispatched question> → <chosen decision, one sentence>
-
-## D<k> · record
-Asked      · <the caller's Problem, verbatim>
-Dispatched · <the neutral version sent to the debaters>
-Spec       · <reference> · "<excerpt>"
-Facts      · <as dispatched, one per line>
-Rounds     · 1 · consensus | 2 · no consensus after round 1: <why>
-
-### Verdicts
-V<n> · <strong|standard> · round <1|2> · <changed from round 1: yes · why | no>   (round field and change only in round 2)
-  Decision · <one sentence>
-  Why      · <…>
-  Sources  · <source> · <checked ✓ | failed · <what the page says instead> | not checked>   one per line
-  Rejected · <alternative · why>   one per line
-  <unsourced>   when it is
-
-### Groups
-G<n> · <decision> · V<a> V<b> …          round 1, then round 2 when it ran
-
-### Chosen
-Decision · <the decision, concrete enough to build>
-Group    · G<n>
-Basis    · sourced | most reversible · no verified source · <why it is the most reversible proposed>
-Rests on · <each source the choice relies on> · checked ✓
-Why      · <why this position beat the others, by sources>
-Requires · R<n>   only when the decision makes a derived requirement required (the caller marks it `derived · required by D<k>`)
-Adds     · "<requirement words>" · bound <domain | —>   only when the decision adds an observable behaviour no requirement covers (the caller appends it as `derived · required by D<k>`)
-
-### Against
-- G<n> · <decision> · V<a> … · <its strongest source> · lost because <…>
-- Rejection · "<shared reason>" · V<a> V<b> · <why it does not hold against the choice>
+Record · <path written>
+Basis · sourced | most reversible · no verified source
+Repeats · no | <the earlier attempt in Facts it repeats>
+Undoes · no | D<j> · <what of it is undone> · R<n> … <the requirements that lose their proof>
+Stale · <the Fact, in a few words> · now <what is true, in a few words>    one per stale Fact, only when there is one; the record holds the detail
+Requires · R<n>                                     only when there is one
+Adds · "<requirement words>" · bound <domain | —>   only when there is one
 ```
 
-The first line is the short form a caller keeps; the record is the long form it keeps beside it.
+Illustrative:
+
+```
+D3 · How must order exports keep running when the carrier API is down for minutes at a time? → Queue each export in the existing jobs table and retry with the backoff the carrier documents, marking it failed after 24 h.
+Record · /repo/.git/mstack/debates/D3.md
+Basis · sourced
+Repeats · no
+Undoes · no
+Stale · exports run synchronously in the request · now queued by the jobs runner since a1b2c3d
+```

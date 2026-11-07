@@ -73,6 +73,10 @@ Afterwards the body holds no local media path: each is a hosted URL, or a line s
 
 Drafts unavailable: keep the PR ready and put `> **Not verified: do not merge.** This repo cannot hold draft pull requests.` as the verdict alert's first line after its `[!…]` marker (`edit-pr`); the PR line says `draft unavailable`. A Proved PR, or one that is a draft, carries no such line.
 
+## ci-status `<n>`
+
+The checks the host ran on the PR's head, once they finish: `gh pr checks <n> --watch --interval 30` waits for them (exit 8 while any is pending), then `gh pr checks <n> --json name,bucket,link` lists each with `bucket` `pass`, `fail`, `pending`, `skipping` or `cancel`. Returns one line per check: `<name> · <bucket> · <link>`. No checks configured: `none`. `skipping` settles nothing: report it as not reported. `cancel`: re-run it once (`gh run rerun <run id>`, the id from its link), then report what it ends as; cancelled again counts as `fail`.
+
 ## Cannot do
 
 - Drafts on private repos of plans without them: the do-not-merge line above.

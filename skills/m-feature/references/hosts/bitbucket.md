@@ -16,11 +16,11 @@ Bitbucket Cloud has no first-party CLI for pull requests (`acli` covers Jira, no
 ```bash
 curl --version | head -1
 python3 --version
-API="https://api.bitbucket.org/2.0/repositories/$(git remote get-url origin | sed -E 's#.*bitbucket\.org[:/]##; s#\.git$##')"
-curl -fsS -o /dev/null -H "Authorization: Bearer $BITBUCKET_API_TOKEN" "$API"    # token set, repo readable
+git remote get-url origin                   # <ws>/<repo> is what follows bitbucket.org: or bitbucket.org/, less .git
+curl -fsS -o /dev/null -H "Authorization: Bearer $BITBUCKET_API_TOKEN" "https://api.bitbucket.org/2.0/repositories/<ws>/<repo>"    # token set, repo readable
 ```
 
-- The `API` line reads `<ws>/<repo>` from an https, `git@bitbucket.org:` or `ssh://` remote alike.
+- `<ws>/<repo>` reads the same from an https, `git@bitbucket.org:` or `ssh://` remote; `$API` below is `https://api.bitbucket.org/2.0/repositories/<ws>/<repo>`: set `API` to it once, with `<ws>/<repo>` read from the remote, before the first op.
 - The token is an Atlassian API token created for Bitbucket under Bitbucket personal settings → API tokens, with the scopes `read:repository:bitbucket`, `write:repository:bitbucket` (the API marks Downloads uploads as repository writes), `read:pullrequest:bitbucket` and `write:pullrequest:bitbucket`, exported by the human as `BITBUCKET_API_TOKEN`, a name this adapter chose. There is no login command: a missing or failing token is fixed by creating and exporting one. It is never asked for, printed or stored, and expands at run time only.
 - Atlassian documents `Authorization: Bearer <api token>` for API tokens, which needs no email, beside basic auth `<atlassian account email>:<api token>`. App passwords were removed in 2026.
 
@@ -57,6 +57,10 @@ Afterwards the body holds no local media path. Bitbucket has no inline upload fo
 ## set-draft `<n>` `<true|false>`
 
 `PUT $API/pullrequests/<n>` with `{"draft": <bool>}`. `draft` is documented on create, not on update, so re-read the PR to confirm it changed. Refused or ignored: keep it open and put `> **Not verified: do not merge.** This repo cannot hold draft pull requests.` as the verdict alert's first line after its `[!…]` marker (`edit-pr`); the PR line says `draft unavailable`. A Proved PR, or one that is a draft, carries no such line.
+
+## ci-status `<n>`
+
+Not specified for this host yet: its commands are not checked against its docs. Return `unknown`; Closing names the CI lines under What to watch, and the PR cannot be Proved on them.
 
 ## Cannot do
 

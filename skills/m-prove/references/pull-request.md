@@ -8,11 +8,11 @@ Final mode, after Judge. You settle the verdict, fill the body and write the iss
 - **Not verified · human check**: short of Proved only by blocking lines that are `human check`. Nobody has seen those lines work.
 - **Not verified**: anything else.
 
-A plain `derived` line never changes the verdict: it is reported. Neither does an `S<k>` that is `superseded by S<j> | R<n>` (a later line changed that surface on purpose), nor a `pre-existing` B line (it becomes an issue).
+A plain `derived` line never changes the verdict: it is reported. Neither does a `settled by caller · CI <check>` line: the caller settles it from the host's checks and adjusts the verdict. Neither does an `S<k>` that is `superseded by S<j> | R<n>` (a later line changed that surface on purpose), nor a `pre-existing` B line (it becomes an issue).
 
 ## Media
 
-Per R line, pick what shows it to a reviewer who will only look: for a page, Q1's clip and after screenshot beside Q2's before screenshot; otherwise the command and up to 15 lines of its output (for `verified · replay`, its block in `replay.txt`). Plus the demo.
+Per R line, pick what shows it to a reviewer who will only look: for a page, the media driver's clip and after screenshot beside Q2's before screenshot (recorded only once this verdict is clean: SKILL.md, Drive); otherwise the command and up to 15 lines of its output (for `verified · replay`, its block in `replay.txt`). Plus the demo.
 
 - Look at each before it goes (a clip through its contact sheet): one showing a blank page, an error, a login wall, another page or a value other than the reported one is dropped and named on Harness. Media settle nothing, so dropping one never changes a verdict.
 - Mask tokens, secrets and personal data in screenshots and outputs; drop a clip that shows one, since a video cannot be masked.
@@ -28,11 +28,11 @@ Write for a reviewer who never saw the run: what a user does and sees, values as
 
 - **Verdict alert**, the first block, so the verdict is the first thing seen. It opens with its alert marker line, `> [!TIP]` Proved, `> [!WARNING]` human check, `> [!CAUTION]` Not verified (the host adapters write after that marker; hosts that do not render alerts still show the text). It says how many required requirements were proved and, for Proved, how many other areas were checked against the base; for human check, how many only a person can check; for Not verified, what failed and the value seen.
 - **Demo video**, alone in its own paragraph (`![](<path>)`): a video plays only there, inside a table or sentence it becomes a link. No demo: drop the placeholder and say in one line why.
-- **Requirements table**: every R line with its id, the requirement quoted, its level and its result (verified, not verified with the value, not driven with the precondition, check by hand). Blocking lines first in id order, then plain `derived` lines as their own group marked as not blocking. A changed bound shows `was: <old bound>`.
+- **Requirements table**: every R line with its id, the requirement quoted, its level and its result (verified, not verified with the value, not driven with the precondition, check by hand). A `· CI <check>` line's result and section are `<!-- ci: R<n> -->`, which the caller fills from the check; the verdict alert counts it apart, as settled by CI. Blocking lines first in id order, then plain `derived` lines as their own group marked as not blocking. A changed bound shows `was: <old bound>`.
 - **One section per R line** below the table: the requirement quoted, the result (what was driven → value, via what route), then its evidence: the clip in its own paragraph, the before/after screenshots side by side (or after alone), or the command with up to 15 lines of output folded in `<details>`.
 - **Regressions checked**: each covered area and what was driven, same as the base or `intended R<n>`; each break with head and base values: `new`, `base not run`, or `pre-existing` with `<!-- issue: B<n> -->` after it, where the caller puts the issue link; each `S<k>` whose replay did not pass (still works, broken by a later slice, or changed on purpose by which line); areas not driven with why.
 - **Try it yourself**: how to launch (prerequisites, command, URL) and, per requirement, the steps Q1 drove ending in what the reviewer should see. Credentials by role and variable only, never a value.
-- **Check by hand**, only with a `human check` line: `## Check by hand before merging` and one `- [ ]` item per line saying what to check, where, and what should be seen; one missing a credential adds `(set MSTACK_SECRET_<NAME> to let mstack prove it)`.
+- **Check by hand**, only with a `human check` line: `## Check by hand before merging` and one `- [ ]` item per line saying what to check, where, and what should be seen; one missing a credential adds `(set MSTACK_SECRET_<NAME> to let mstack prove it)`. A `· human` line (taste no measure settles) shows the reference and the head side by side under its item, and the differences Q1 found off its comparison lines' lists, so the person judges with what the machine saw.
 
 **Media paths** are matched by the caller when it uploads them, so they are exact: each clip and image referenced by the absolute path of its file in the evidence dir, forward slashes, inside angle brackets (`![<what it shows, viewport>](<C:/…/q1/R1-head-1280x720.png>)`; a video gets no alt text), and each path also on the return's Media line exactly as written in the body.
 

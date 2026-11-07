@@ -1,6 +1,6 @@
 # Drive
 
-You drive as Q1 or Q2, named in your prompt, against the contract that follows it. You choose the values, routes, ports and tools; the supervisor judges only what your saved evidence shows. Tests and type checks are not evidence here. Log what you see, including what the contract did not expect; never change a drive to make it pass.
+You drive as Q1, Q2 or Media, named in your prompt, against the contract that follows it. You choose the values, routes, ports and tools; the supervisor judges only what your saved evidence shows. Tests and type checks are not evidence here. Log what you see, including what the contract did not expect; never change a drive to make it pass. This file holds: Verdicts, What must hold (every role), Q1, Q2, Media, Pitfalls, and the Report shape.
 
 ## Verdicts
 
@@ -14,7 +14,7 @@ A caveat is not verified or not driven. When the control fails too, the harness 
 
 ## What must hold
 
-- **Start from a clean, matching checkout.** HEAD differs from the contract or `git status --porcelain` is not empty: stop, every line not driven, naming why. Read the contract's recipe in full first: its harness, traps and teardown win.
+- **Start from a clean, matching checkout.** HEAD differs from the contract or `git status --porcelain` is not empty: stop, every line not driven, naming why. Read the recipe's `SKILL.md` and the surface files the contract names: their harness, traps and teardown win.
 - **Change nothing in the checkout**, even briefly: another driver may be using it, and Judge names every new path. What the app writes belongs in the data dir; your own files go in your subdir of the evidence dir (run tools from there, since many write where they run). The supervisor already installed and built; a launch that needs an edit, install or build makes every line not driven, naming what it needs.
 - **The app as shipped**: overrides only on the lines the contract lists them for. A line that passes only with an unlisted variable is not verified, naming it.
 - **Contain every process you start** (server, browser script, suite): `python3 <this skill's directory>/scripts/contain.py -- <command>` (`--env KEY=VALUE` for variables; `--shell "<line>"` only for pipes and `&&`, cmd.exe on Windows). When it exits or is stopped, everything it started ends; its first stderr line `contain: pid <n>` is the pid to stop it by. contain will not start: stop, every line not driven; never run uncontained.
@@ -34,10 +34,10 @@ A caveat is not verified or not driven. When the control fails too, the harness 
 - Slice mode: drive only what the slice range touched; no base, no other slice's lines. Final mode: an `S<k>` whose replay failed or went stale is driven like any line; whether a later line supersedes it is the supervisor's call.
 - Never drive the base: a line that fails is not verified whatever the base does.
 - A clause over a set is checked over the whole set by a script that prints the member count and an expected count from an independent route (a fresh read, the source list) and fails on 0 or a mismatch. A not verified names every failing member.
+- A clause comparing with a reference (a prototype, a mockup, the base's output) lists aspects and tolerances: it is a set of cells, aspect by element by condition. One script measures every cell on the reference and on the change, prints the cell count, and a not verified names every differing cell with both values: a prove that names a few differences buys a fix round per few. Measure the reference itself, as the base has it (slice mode: at the range's start; `git show <sha>:<path>` into your subdir), never values from the builder's notes or tests. A reference the branch changed is a Deviation naming the file: judge against the base's copy, or the builder has moved the target to meet it. Final mode also compares the two whole (the full snapshot and screenshot, or the full output): a difference off the list fails nothing; report it as `off the list · <what>`, so a person sees it.
 - A clause with a bound is driven at each limit and just past it.
 - A timing clause: report the raw numbers. Judge only the tolerance the clause states; what you observe lags what the app does, so a value within your measurement gap of the bound meets it.
 - Ceiling: 60 minutes in all, cut after 10 minutes with no new file in your subdir and no command of yours running. A whole-set script is slow, not stuck. Lines done keep their results; open lines are `not driven · ceiling`, naming what is next.
-- `media only` lines (final mode): their replay verified them; drive each once only to record its clip and after screenshot, and report `media only · <files>`. One you see fail is a Deviation naming the value, not a verdict.
 
 **Replays.** Each line you verify by a script gets a replay in `replay/<line>/`, so later proves can re-check it without an agent. It must:
 
@@ -53,15 +53,16 @@ Check them as they will be replayed, against your own server: `python3 <this ski
 - For each risk area, find the smallest drive that would show it broken, spending most time where a break is likeliest. What a diff reaches is often outside the request path it was written for (illustrative: a restart, shutdown with work in flight, an integration that hangs).
 - Timebox: 20 minutes of driving. Open areas are not driven, naming what you would drive next.
 - Compare against the base: the contract's base worktree, already built; change nothing in it. None: add your own under your subdir, installed and with the env files copied. Drive the base against itself first to learn the noise (ids, timestamps), then the same drive with the same inputs on head and base. The base counts only when its health check and control pass and it needs no data state the head changed (migration, schema); else `base not run`.
-- Each R line whose surface is a page: a before screenshot on the base, `<line>-base-<w>x<h>.png`, at the viewport the clause names (else 1280x720), for the pull request to show beside Q1's after.
+- Each R line whose surface is a page: a before screenshot on the base, `<line>-base-<w>x<h>.png`, at the viewport the clause names (else 1280x720), for the pull request to show beside the after one.
 - Report what each area covered and every break with head and base values. Noise you learned is not a break. A difference that is exactly what an R line's settled when observes on that surface is the change: report it as `intended R<n>` with both values and the value that clause predicts for your inputs. What an Assumed decision describes is still a break.
 
-## Media (Q1, final mode, when the Run line has ffmpeg)
+## Media (final mode, after a clean verdict, when the Run line has ffmpeg)
 
-Media show a reviewer the line working; they settle nothing, and a missing clip is never a not verified.
+Media show a reviewer the line working; they settle nothing, and a missing clip is never a not verified. The lines are already verified: drive each once, only to record it, and report `media only · <files>`. One you see fail is a Deviation naming the value, not a verdict.
 
 - After screenshots of what a requirement makes visible, once the page shows the value you read back, at the clause's viewport (else 1280x720) with the element scrolled into view: `<line>-head-<w>x<h>.png`.
-- A clip per page R line, `media only` included, from after its preconditions to its read-back: `<line>-head-<w>x<h>.mp4`, with a contact sheet beside it. A line you repeat: record the repeat.
+- A clip per page R line, from after its preconditions to its read-back: `<line>-head-<w>x<h>.mp4`, with a contact sheet beside it. A line you repeat: record the repeat.
+- A `· human` line, which nobody drives: the reference (opened as the line names it, from the checkout through a local server or `file://`) and the head at the same viewport and state, `<line>-ref-<w>x<h>.png` beside `<line>-head-<w>x<h>.png`, plus a clip of each where the line is about motion.
 - One demo once every page line is done: `demo-head-1280x720.mp4`, the verified page R lines in id order as a user would meet them, each verified result on screen long enough to read, short enough to watch in one sitting.
 
 ## Pitfalls
@@ -87,8 +88,8 @@ Media show a reviewer the line working; they settle nothing, and a missing clip 
 In this shape, so Judge can check it against the files:
 
 ```
-HEAD <sha> · tree <sha> · checkout clean <yes | no: files> · driving <Q1 | Q2>
-<line> — <verdict | media only> · drove <what, with which values> → <value> via <route> · <file> · repeated <yes | no> · replay <saved in replay/<line> | none · why>
+HEAD <sha> · tree <sha> · checkout clean <yes | no: files> · driving <Q1 | Q2 | Media>
+<line> — <verdict | media only> · drove <what, with which values> → <value> via <route> · <file> · repeated <yes | no> · replay <saved in replay/<line> | none · why>[ · off the list <what | none>]
 Area <name> — <verdict> · drove <what, head and base> → head <value> · base <value | not run> · <file> [· intended R<n> · predicts <value>]
 Break — <what> · head <value> · base <value | not run> · <file>
 Deviation — <what you saw that the contract did not expect> · <file>
