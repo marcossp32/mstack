@@ -1,150 +1,170 @@
 ---
 name: m-feature
-description: Takes one reviewed spec to a pull request proved in the running app, with nobody watching. Use only when asked to run /m-feature with a spec reference, which starts that spec's feature or resumes it.
+description: Takes a feature through the whole cycle without help, from a spec or any description of what has to be built to a pull request that proves it works. Use when /m-feature is run with a spec, an issue or a description, to start that feature or resume it.
 disable-model-invocation: true
 ---
 
 # m-feature
 
-Turn one already-reviewed spec into a pull request a reviewer can merge, with nobody watching the run. `/m-feature <spec ref>` starts it or resumes it; the argument may also be the feature's state item. This skill owns order, routing, the state and the few lines the chat shows; the skills it loads or dispatches do the work.
+## Goal
 
-The reviewer gets a PR whose top says whether each requirement holds in the running app, then every decision made without a human, with its sources. Success is a PR whose verdict is Proved, or `Not verified · human check` with only lines a person must check left. A Not verified PR is the run failing, never a way to end it: while something can still be fixed, researched or debated, the run goes on.
+You are given something to build: a spec, an issue or a description. You take it through the whole cycle, from understanding it to a pull request that proves it works and that it is well made.
+
+Your role is to direct the work and answer for the result. Each part of the cycle has a skill, an agent or a tool that does it well: use it. What nothing covers, do yourself.
+
+## You work alone
+
+Nobody watches this run and nobody answers. Launching this skill is the permission for everything the delivery needs: creating branches, committing, pushing your branch, opening the pull request and issues, installing what the project declares, starting servers. Do not ask and do not wait for approval: decide, and write down what you decided and why.
+
+When a doubt changes the result and neither the repo nor the documentation settles it, ask other agents that have not seen this conversation, so their opinion is not shaped by yours (a skill for debating decisions does this well). Then decide yourself.
+
+Freedom has an edge, and it is the footprint. Everything you create lives in the repo, in your branch or in your work folder, and when you finish nothing of yours is left anywhere else: no servers, no temporary folders, no packages installed outside the project. You do not touch what is not yours: the base branch, other branches, other people's files. Whoever launched you trusts that the run only changes what the feature needs.
+
+## Driven by proof
+
+This skill follows PDD (*proof driven development*): what drives the work is proving that it works. Tests check what the test expects; the proof checks that the user gets what they asked for. A requirement is done when you have seen it work in the running app and saved the evidence, not when the tests pass.
+
+Three ideas hold the whole cycle together:
+
+- **Think of the proof before the code.** If you do not know how to prove a requirement, you do not understand it yet.
+- **Whoever builds does not judge.** Agents that did not write the code review it and prove it, with clean context, because whoever checks their own work sees what they expect. If a skill exists for testing in the running app or for reviewing, use it: it knows how to test better than an improvised check. A failure is closed by whoever found it, when they check the fix. Your own reading of the code closes nothing.
+- **A verdict speaks for the code it saw.** A review or a proof certifies one commit. What the pull request claims holds only for its last commit: if the code changes after a proof, that proof no longer covers it. Rechecking is cheap, because it only looks at the failures and at what the fix touched. Skipping it is what lets a broken fix reach the base.
 
 ## Done when
 
-The run ends on one of three lines:
+The run ends in one of three ways. Nothing else is an end.
 
-- the final PR line ([`references/closing.md`](references/closing.md)), after every box below holds;
-- the setup stop (Start), with nothing created;
-- a stop for a person ([`references/escalation.md`](references/escalation.md), Stop for a person), with the state saved for a resume.
+- **Delivered.** A pull request against the base branch, open on the host, that meets all the acceptance criteria and is marked as ready.
+- **Failed.** You tried several approaches and something still does not work. The pull request stays as a draft and says at the top what fails and what you tried.
+- **Blocked.** Something only someone outside this run can give is missing (see [Blocked](#blocked)). You found it before building, or as soon as it appeared.
 
-Before printing the final PR line, check on the host and the state:
+A substitute for something external is not that thing: a file that describes a pull request is not a pull request, and a check you ran instead of the CI is not the CI. If the real thing cannot exist, the run is Blocked, and it says so.
 
-- [ ] One open PR from `feature/<name>` into the state's Base; a draft (or carrying the do-not-merge line) unless Proved.
-- [ ] Its verdict comes from a final prove of the tree the PR head shows (or the PR notes md's markdown-only `publish-issues` commit after it).
-- [ ] The state has the headings of [`references/state.md`](references/state.md) in order; every Requirements line has its `from`; Spec holds the frozen copy's hash.
-- [ ] Every slice on `Slices ·` has a closed line: `verified`, `verified · human check <lines>`, or `not verified · … · gap accepted by D<k>`; every step item is closed, or listed on its slice's not verified line.
-- [ ] Every Debates line, Assumed line, `mstack:contradiction` and `found-by-prove` issue appears in the PR; each issue carries `Origin · feature <name> · PR <link>`.
-- [ ] Every refused command is under To merge with the setup-mstack entry that would allow it.
-- [ ] No credential value in the state, any item, issue, commit message or the PR body; no local path in the PR's media.
-- [ ] The step check baseline is cleared and every evidence dir deleted, or named in the final line.
+## The cycle
 
-## What holds on every route
+An order that usually works. Adapt it when the work asks for it, but each phase reaches its result before the work leans on it.
 
-- **Adapters.** Every tracker and host action is an adapter operation (`tracker read-spec`, `host open-pr`, …), whose commands live only in its file. Read `references/trackers/<tracker>.md` and `references/hosts/<host>.md` before the first operation of each. Git runs directly; the remote is `origin`, and anything compared against a remote branch is compared after a fetch, since a stale local branch puts other work in the diff.
-- **The state is the truth.** Read [`references/state.md`](references/state.md) before creating the state or resuming one. With the pushed `feature/<name>`, it is all a new session on another machine has: write what a resume needs before relying on it, and where the state and your memory disagree, the state wins.
-- **Two stops; nothing else waits for a person.** The run stops at the setup stop, before anything exists, and when a requirement or the run itself cannot go on without a person (escalation.md, Stop for a person). Anywhere else a human would be asked, decide and record why under Assumed, research it, or debate it.
-- **Credentials** come only from environment variables `MSTACK_SECRET_<NAME>`. Stages get their names, never their values, and a value is written nowhere: people who must not see it read the state, issues and PR.
-- **A refused command** is recorded for the PR's To merge and the run goes on with what does not need it; retrying it in another form is the bypass the refusal exists to block (escalation.md, Refused commands).
-- **The spec is frozen** at Start: every stage reads the frozen copy, so a mid-run edit cannot move the target; a later change is noted in the PR.
-- **Chat**: what this chat prints for the human is one line per slice closed, one per debate, the final PR line or a stop line, each in the form given where it is printed. The state holds the detail.
-- **Judges are not builders.** The step check (a script), the quality review and the prove judge the work. Each judge that is an agent is a fresh one that did not write the code and has not seen this chat, and only a judge clears its own finding: your reading of the code settles nothing. A judge passes only when the work changes: tests, the spec and every Done when stay as they were, since changing one to pass hides the failure it was there to find.
-- **Waiting.** Prove, build and step check can idle this chat for an hour or more. The prompt cache keeps this context cheap to read back for about an hour of silence; the first call after it lapses writes the whole context again, while a wake costs almost nothing. So no silence reaches the hour: before each wait, arrange a wake 45–55 minutes after your last call (a scheduled wake, a background timer whose exit notifies you, a monitor). A stage that will end well inside the hour wakes you with its own exit notice: set no timer beside it. Each wake checks only whether the stage has ended, then arranges the next.
-- **Other skills' directories**: `<m-requirements dir>`, `<m-review dir>` and `<m-prove dir>` are this skill's sibling directories, where their scripts live. Scripts run with the first of `python3` and `python` that runs Python 3.
+### 1. Start
 
-## Start
+Check everything external before creating anything: the tracker, the host, the tools and the sessions logged in, the credentials the requirements need. Finding a gap at the end means having worked for nothing; finding it now costs one message.
 
-Done when: the setup stop line is printed and nothing was created, or a state item, a pushed `feature/<name>` and a frozen spec exist. Then Understand.
+Then look for saved progress for this spec. If there is, continue from where it stopped, on its branch. If not, create your own branch from the base.
 
-- **Config before anything is created**, so the setup stop leaves nothing behind. Read `.mstack.yml` (`tracker`, `host`, optional `jira: project:`, `md: dir:` default `.mstack/`). Missing: deduce `host` from `git remote get-url origin` (github.com → `gh`, gitlab → `gitlab`, bitbucket.org → `bitbucket`) and `tracker` from the spec reference (`#123` or a GitHub issue URL → `gh`, `ABC-123` or an atlassian URL → `jira`, a path to a `.md` file → `md`). Then `tracker check`, `host check` and `tracker read-spec`. A value that cannot be deduced, a missing adapter file, a failed check or an unreadable spec: print this line and end.
-  ```
-  Stop · <what is missing: tracker | host | <tool> not installed or not authenticated | spec <ref> unreadable> · run /setup-mstack
-  ```
-- **One state per spec**, since two would split the truth. The argument is itself a state (it has the state's headings), or a `feature:map` item already names this spec (`tracker find-issue`): go to Resume.
-- **`<name>`** is kebab-case from the spec title, and `feature/<name>` is new on the remote, so two features never share a branch.
-- **Frozen spec**: the text `read-spec` returned, saved at `<git common dir>/mstack/spec/<name>.md` (`git rev-parse --path-format=absolute --git-common-dir`), its sha256 on the state, the text as a state comment so a resume elsewhere can restore it.
-- **Base**: the branch the spec names, else `host default-branch`.
-- **Labels** `feature:map build found-by-prove mstack:contradiction` exist (`tracker ensure-labels`).
-- **`feature/<name>`** cut from `origin/<base>` and pushed.
-- **State** created (`tracker create-state <name> <title> <body>`) with Spec, Base and a provisional How hard to undo; linked to the spec when the spec is a tracker item.
+The spec as you read it now is the target. If it changes during the work, keep building what you read and say so in the pull request.
 
-## Resume
+**Done when** you know where the spec, the issues and the pull request live, nothing external is missing, and you are on the feature's branch.
 
-The session may be new: rebuild from the state and the remote. Re-run Start's config and checks; settle the base. Read the state with its comments; restore the frozen copy from its comment when it is missing on disk; if the live spec's hash differs from Spec's, note `Spec changed · <date>` once and go on with the frozen copy. Read the feature branch's first-parent log and any local `step/<name>-*` branches: steps push nothing, so unmerged work exists only on the machine that built it. Bring up the prerequisites and the baseline unless resuming at Closing. Then continue at the first milestone below that the state does not yet show; inside a slice or at Closing, at the point state.md (Resume points) names.
+### 2. Understand
 
-## How hard to undo
+Write what is asked as requirements that can be checked, each one tied to the words of the spec it comes from. Note what the spec leaves out, what contradicts itself and what it leaves open.
 
-If this ships wrong, how hard is it to undo? You decide; stages only report evidence. Hard is a change others come to depend on or data gets stored in (a schema, a public API, a stored format, a core dependency); easy is one a later commit reverses whole (names, folders, internal structure). Build runs strong when it is hard, and quality review and plan receive it. Settle it again after scan and after docs, since a vendor limit can change it; then it holds unless a debate changes it.
+**Done when** each requirement says what a person would see if it works, and each contradiction or gap is written down.
 
-## Understand
+### 3. Investigate
 
-Done when the state holds the requirements block, the scan answers, the docs answers, every open decision debated (`→ D<k>`), every contradiction with its issue, and every line only a person can unlock either has its credential set or has stopped the run; the prerequisites run and the step check baseline is recorded. Then Plan.
+Find out what the repo already is: the versions it uses, how it does similar things, how it is tested and how it runs. Facts the repo cannot settle (a library's limit, what changed in a version, what a standard requires) come from their owner's documentation, quoted with its link, not from memory. There are skills for scanning a repo and for researching documentation.
 
-- **Requirements and scan** start together, since neither needs the other: one fresh agent for requirements and the scan split by question group, each dispatched as Dispatch says.
-- **The requirements block is accepted** once `python3 <m-requirements dir>/scripts/check.py --spec <frozen copy> --out <block file>` passes it. A failing block goes back with its FAIL lines while each resend fixes some; when one stops improving, accept it and list each FAIL line under Assumed and the PR's What to watch. Its seven state sections (Requirements, Not doing, Considered, Contradictions, Open decisions, Assumed, How to build) go into the body verbatim; Laziest build and Trace go in a comment. It never runs again on resume: its ids are what everything after cites.
-- **Scan answers** go on the state as one comment; Where it runs comes from Q8.
-- **Prerequisites and the baseline** need scan Q6 and Q9 and exist before the first step check, which compares against the baseline. Read [`references/slice-loop.md`](references/slice-loop.md) before starting them.
-- **Docs.** Once scan has returned the installed versions (Q1) and infrastructure (Q8), and requirements the open decisions, call the Skill tool with `m-research`, in this chat. Ask: the hard limits of the service or library; the documented timeout, as a number; the vendor's security guidance (auth, secrets, what never to log); what changed in the installed version; and, for each hard-to-undo open decision, what the standard and vendor docs say and which alternatives they document. A question with no subject is answered "not applicable". Done when its quoted answers are a state comment, their links under Sources.
-- **Debates before planning.** Each open decision `O<n>` (all hard to undo; easy ones are Assumed), each hard-to-undo contradiction, and each derived requirement that is the only line covering a hard-to-undo behaviour (whether it is required) goes to a debate, with scan's versions and limits among its Facts, since requirements ran without them. Read [`references/escalation.md`](references/escalation.md) before the first.
-- **What only a person can unlock.** Some lines can only be driven with something a person holds: a login of a given kind (a buyer, an admin), a service key, an approval. Found at the final prove, the gap leaves the PR Not verified after all the work; found now, it costs one stop. Start from the requirements block's Assumed lines `R<n> needs …`, and read every line's bound and the spec for others. An agent can drive a line once its credential is set as an `MSTACK_SECRET_<NAME>` variable; one a line needs that is not set is a stop for a person (escalation.md) now, naming the variable and what it unlocks. A line settled by the host's CI needs no person: Closing settles it.
-- **Contradiction issues**: each contradiction gets one `mstack:contradiction` issue saying the reading built, its ref beside the entry, never opened twice. Read [`references/closing.md`](references/closing.md) (Issues) for its body before opening the first.
+**Done when** you could explain to someone how you will build it in this repo, and each outside fact you rely on has its source.
 
-## Plan
+### 4. Decide
 
-Done when the plan block is a state comment, each step has an item with its blocking links, and the `Slices ·` line (item refs) heads Decided. Nobody confirms the plan: then Per slice.
+Before planning, settle what is open, above all what would be hard to undo: a stored format, a public API, a dependency others will rely on. The harder it is to undo, the more care it deserves: more opinions, stronger models, more proof. What is easy to undo, decide it yourself and write down why.
 
-- `m-plan`'s inputs go as files, never retyped, since a requirement retyped can drift by a word every step then quotes. Save `tracker read-state` (body and comments) to a file under `Out` by redirecting its output; on `md` the state files are already files. `Out` is `<git common dir>/mstack/plan/<name>/<cut>/`, absolute, `<cut>` being `1` for the first plan and the `D<k>` that leads to each later one.
-- Call the Skill tool with `m-plan`, its argument those paths (and any input already a file: the frozen spec, a debate record, the previous plan's `Out`), Where it runs, and `Out`. Done when its reply ends with its `Check ·` line: `PLAN CHECK: PASS`, or the checker's last output, which goes under Assumed and the PR's What to watch while the plan is used as it stands. A reply `Stop · no <Out | requirements> given` names what your call lacked: call again with it.
-- The plan and step files go to the adapter by path and are never opened here: `plan.md` becomes a state comment; step `<n>` is `tracker create-step` with its reply line's title and `step-<n>.md` as the body, fed from the file as the adapter says. A body retyped or filled into a template drifts, or ships a placeholder instead of the work.
-- From the reply: `tracker link <blocked> <blocking>` for each Blocking pair; the `Slices ·` line with numbers rewritten to item refs; the `Slice S<k>` lines, which review and prove receive verbatim; its `Assumed ·` line holds several choices, each with its why: each becomes one line under the state's Assumed (state.md gives the shape).
-- An `Open ·` line is debated, then `m-plan` is called again with the decision and the previous `Out`; each step number without an item then gets one (`Changed · new` and those that waited), and each `dropped` one is closed with `Replaced by D<k>`. A step whose reply line ends `· waits D?` gets its item only after that decision, so nothing is built on a guess.
-- A resume that finds the plan comment but not every item, on a machine without the plan files, calls `m-plan` again with the same inputs and the plan comment as the plan given: m-plan keeps each number on its work, and only steps with no item get one.
+**Done when** every open point has a decision with its reason, and each contradiction in the spec has an issue saying what you built.
 
-## Per slice
+### 5. Plan
 
-Read [`references/slice-loop.md`](references/slice-loop.md) before the first slice. Done, per slice in plan order, when its Decided line is closed (state.md, Slice lines) and its line printed:
+Split the work into parts. A part is a group of requirements that a user can check on its own: something they would see working in the app. A feature with three things a user does is three parts, even if each is small. Only when the requirements cannot be checked separately is the whole feature one part.
+
+Parts exist so that a failure shows up where it is cheap to fix. Seen at the end, a failure forces you to redo work built on top of it.
+
+**Done when** each part names the requirements it covers and how a user would check it, in an order where each part builds on finished work.
+
+### 6. Build, review and prove each part
+
+For each part, in order:
+
+1. **Build** it, with tests that would fail without it.
+2. **Review** it: that it does what was asked, follows the official documentation and the standards of what it uses, and respects the repo's rules and architecture.
+3. **Prove** it in the running app.
+4. **Fix** what they found and send it back to whoever found it to check, until nothing remains open.
+
+Review comes before proof because its fixes change the code that the proof must see.
+
+The `principle-*` skills hold the engineering habits that most often decide whether a part passes review: fixing root causes, the smallest change, tests that pin behavior, checking the real thing. Load the ones that fit what you are doing at that moment, for example the root-cause one when a fix fails.
+
+**Done when** the part's last commit has a review with no open failures and a proof that says it works.
+
+### 7. Prove the whole feature
+
+When all the parts are done, prove the whole feature against the base branch: each requirement once more together, and what your change could have broken in what already worked. Earlier parts can break when later ones arrive.
+
+**Done when** the proof of the last commit says it works, with evidence for each requirement and no new breakage against the base.
+
+### 8. Deliver
+
+Open the pull request as a draft and mark it ready only when it meets every acceptance criterion and its proof covers its last commit. If you change code after that, it goes back to review and proof.
+
+**Done when** the run has ended Delivered, Failed or Blocked, and your footprint is clean.
+
+## Acceptance criteria
+
+Each one is answered yes or no before marking the pull request ready.
+
+**It works**
+- [ ] Each requirement has been seen working in the running app: in the open app, running the command or calling the API.
+- [ ] The pull request shows the proof of each requirement: a video, a screenshot, or the command and what it returned.
+- [ ] What already worked and the spec does not ask to change still works.
+- [ ] The proof covers the pull request's last commit.
+
+Check only what is needed: one clear proof per requirement and what your change can affect. Repeating checks that already passed spends time without adding confidence.
+
+**It is trustworthy**
+- [ ] Agents that did not build it reviewed it and proved it, and every failure they found was closed by them.
+- [ ] No test or requirement was changed to make something pass. That hides the failure, it does not fix it.
+- [ ] The tests pass. CI passes or, if the host has none, the pull request says so.
+
+**It is simple**
+- [ ] There is no simpler way to get the same result, with fewer pieces, layers or code, without doing less or doing it worse.
+
+**It is understandable without reading the code**
+- [ ] The first thing the pull request says is whether it works or not.
+- [ ] It explains what changes for the user.
+- [ ] Each decision you made alone appears with its reason.
+
+**It is safe and clean**
+- [ ] No key or password is written in the code, the pull request or the issues.
+- [ ] Nothing of this run is left outside the repo and its work folder: no processes running, no temporary files, no global installs.
+
+## Along the way
+
+- **Save progress after each phase and each part**, so a new session can continue if this one is cut off. The progress says where you are, what you decided and why, and which commit each verdict covers.
+- **A failure that comes back after fixing it** asks for a different approach, not the same one again: investigate, ask for another opinion or rethink that part. If several approaches fail, the run ends Failed.
+- **What does not belong to this feature goes to an issue**: a failure that was already in the base or a contradiction in the spec. Mention it in the pull request.
+- **Skills leave things behind too.** At the end, check that what the skills you used created outside the repo is gone, and clean it yourself if not. The saved progress stays until the pull request is merged.
+
+## Where the tasks are and where the pull request goes
+
+The **tracker** is where the spec and the issues are: GitHub Issues, Jira or markdown files in the repo. If the repo has `.mstack.yml`, it says which one. If not, deduce it from the reference you were given (`#123` is GitHub, `ABC-123` is Jira, a path to a `.md` is files). If you were only given text, use markdown files.
+
+Before using the tracker, read its file. It has the commands and the usual errors of each tool.
+
+| [GitHub Issues](references/trackers/gh.md) | [Jira](references/trackers/jira.md) | [Markdown](references/trackers/md.md) |
+|---|---|---|
+
+The pull request opens on the **host** `origin` points to. If it cannot be opened there (a host with no way to open one, or no session logged in), the run is Blocked.
+
+## Blocked
+
+Some things only someone outside the run can give: a host where the pull request can be opened, a tool or a logged-in session, a key, an account, a permission. Nothing else blocks: a doubt is decided, a hard question is investigated or debated.
+
+Look for all of them at Start and report them together, so whoever reads it can fix everything at once. Save progress and end with this message, which is read by someone arriving later without context:
 
 ```
-S<k> · verified | verified · human check <lines> | not verified · <what works now | why>
+⏸ m-feature blocked · needs something from outside
+
+Missing:      <what is missing, e.g. the payments API key>
+What for:     <which requirement or phase needs it>
+How to give:  <exactly what to do, e.g. set PAYMENTS_SECRET=<your key>>
+Then:         run /m-feature <the same as before> again; it resumes from the saved progress
 ```
-
-Then the next slice; after the last, Closing.
-
-- Steps are built one at a time, each merged into `feature/<name>` only after its step check passes, so each builds on checked work; every merge is pushed for resume.
-- After the slice's steps merge: quality review ⇄ fix, then slice prove ⇄ fix. Quality fixes come first: they change code the prove must see, and a prove is the costly judge.
-- A failure is fixed by the builder in fix mode. Read [`references/escalation.md`](references/escalation.md) before the first fix item, if not yet read: a failure one more fix cannot settle, and a loop, go as it says.
-
-## Closing
-
-Starts once every slice line is closed. A slice whose last prove was not verified is open, however much was merged after it: it goes back to its own loop (fix, then slice prove) or to a debate, since a final over a slice known to fail ends Not verified on it. Read [`references/closing.md`](references/closing.md) before Closing's first act: the draft PR, so CI runs while the final prove does; final prove ⇄ fix; found-by-prove issues; the PR with its media; cleanup; the final line.
-
-## Dispatch
-
-A stage that runs as an agent runs as a fresh one, never a copy of this conversation, which inherits its reasoning. It has not seen this chat and runs no tracker or host command: paste verbatim every state section, step item and spec excerpt it needs, read just before; a section that needs changing changes on the state first.
-
-The prompt opens by having the agent load its stage's skill, so it works under that skill's rules:
-
-```
-Call the Skill tool with `<m-requirements | m-scan | m-build | m-prove>`. Then do the work below.
-```
-
-A dispatch is done when its reply is the return its skill defines, which only a run under that skill produces: requirements, the block `check.py` judges; scan, one `Q<n>` line per question its question group owns; build, a notes path or a `Stop ·` line; prove, its Return block. Any other reply, or one missing part of its return, was not made under the skill: dispatch again. A second such reply means a resend will not fix it: inside a slice, that slice is failing (Progress or loop, then a debate); in Understand, what is missing goes under Assumed and the PR's What to watch, and the run goes on.
-
-Models are tiers: cheap, standard and strong, the harness's quickest, middle and most capable. A tier that does not resolve runs on the session's.
-
-| Stage | Runs in | subagent_type | Model |
-|---|---|---|---|
-| requirements | fresh agent loading `m-requirements` | `general-purpose` | standard; `check.py` checks its block |
-| scan question group A (Q1) | fresh agent loading `m-scan` | `Explore` | cheap |
-| scan question groups B (Q2–5), C (Q6, Q9), D (Q7–8) | fresh agent loading `m-scan` | `Explore` | standard |
-| docs | this chat, `m-research` loaded; it dispatches its own agents | — | its own |
-| debate | `m-debate` through the Skill tool, the block as its argument, in its own context; it dispatches its own agents | — | its own |
-| plan, re-cut | `m-plan` through the Skill tool, the paths of its inputs as its argument, in its own context | — | the session's |
-| build, fix mode included | fresh agent loading `m-build`, one at a time | `general-purpose` | standard; strong when How hard to undo is hard |
-| step check | this chat, `step_check.py` | — | none |
-| quality review, re-review | this chat, `m-review` loaded; it dispatches its own fresh reviewer | — | its own, from How hard to undo |
-| prove, slice and final | fresh agent loading `m-prove` (the supervisor) | `general-purpose` | strong; it dispatches its own drivers |
-
-Inputs each stage needs:
-
-| Stage | Inputs |
-|---|---|
-| requirements | the frozen copy's path · the spec's ref · the checkout path (read-only) |
-| scan | the spec title and frozen copy's path · the question group it owns |
-| build | the step item's ref and body verbatim, or the path of its step file, which reaches the builder as written · Not doing and How to build verbatim · scan Q2–Q9 · docs answers or "not applicable" · the step branch it is on (checked out) and its feature branch |
-| build, fix mode | the same, with the fix step item, whose body lists what to fix: step check output, quality findings (`F<n>` lines with their kind, `file:line` and evidence), or prove failures (the requirement or slice Done when, the value seen, an evidence excerpt; for a comparison, every differing cell), never prove's replays · a debate decision, when one led here |
-| debate | the block in escalation.md (Running a debate) |
-| quality review | the diff range `<slice start sha>..<slice end sha>` · the slice's `Slice S<k> · Done when e2e …` line verbatim · the Requirements lines it serves, verbatim, and the Assumed lines that name those ids · How hard to undo · Not doing verbatim · the repo's rule files that exist (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/rules/`, `.cursor/rules/`, style guides the repo names) · scan Q1, Q4, Q5 · the docs answers with their quotes and links |
-| re-review | only the findings to recheck and the fix range |
-| prove, slice | `mode: slice` · the feature branch · the slice id and its `Slice S<k> · Done when e2e …` line verbatim · the Requirements lines it serves, verbatim · diff range `<slice start sha>..HEAD` · scan Q9, and Q6's `env` (its regression hunt runs tests) · Not doing · each `MSTACK_SECRET_<NAME>` set in the environment, by name, with what it unlocks |
-| prove, final | `mode: final` · the feature branch · every Requirements line verbatim but those `retired by D<k>` · every `Slice S<k>` line · base: the bare base branch name (m-prove adds `origin/`), after `git fetch` · scan Q9, and Q6's `env` · Not doing, Assumed · credential variable names · the PR body with its `<!-- prove: … -->` placeholders (closing.md, Body) · after a fix round, `previous final:` the previous final's Return block |

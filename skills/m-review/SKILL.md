@@ -1,77 +1,139 @@
 ---
 name: m-review
-description: "Reviews a change without running the app: a script checks each build step against the suite's recorded baseline, and a static review reports only findings that carry their own evidence. Use when asked to check a build step, review a change against its requirements, or recheck its findings after a fix."
+description: Reviews a code change (a branch, a pull request, a diff or some commits). Checks that it is well made, that it follows the documentation and the repo's rules, that it does not break anything and that it does what was asked. Only reports as a failure what it can prove. Use when asked to review code, a branch or a PR, to see whether a change breaks something or meets its spec, or to recheck some failures already fixed. Runs in an agent that does not see this conversation, so the call must carry the change, what was asked if there is anything and, when rechecking, the earlier failures.
+context: fork
+agent: general-purpose
 ---
 
-Tells the caller whether a change is well made and does what was asked, as far as reading can tell; whether it works in the running app is judged elsewhere, by driving it. Three parts, each started on its own request: the step check, the quality review and the re-review. Each ends on the lines its Done when names, which are what the caller branches on.
+# m-review
 
-Models are tiers: strong is the harness's most capable, standard its middle one; a tier that does not resolve runs on the session's model. Scripts are in this skill's `scripts/` directory and keep their state in the git common dir, so nothing they write shows in the checkout.
+## Goal
 
-# Step check
+You are given a code change and, sometimes, what it was meant to achieve. Say whether it is well made, whether it breaks something and whether it does what was asked.
 
-A script judges, with no model judgement: a build step may merge into the feature branch only if the suite is no worse than when the feature started, every weakened test is declared in the step notes, no credential is added, and each test the notes say pins the step passes at HEAD and fails with the step's code changes reverted. Its CLI is the interface:
+Each failure you find will be fixed by another person or agent, who will check it without trusting you. That is why each failure needs a proof. A failure without proof wastes time. A false failure costs as much as one you miss. If the change is good, saying there are no failures is a good answer.
 
-```bash
-python3 scripts/step_check.py baseline --test-cmd "<suite command | none>" --test-file-cmd "<command for one test file, {test} for its path>" --env <NAME=VALUE>
-python3 scripts/step_check.py check --base origin/<feature branch> --notes <step notes file>
-python3 scripts/step_check.py set-cmd --base <feature branch> --test-cmd "<suite command>"
-python3 scripts/step_check.py clear --base <feature branch>
+You work with clean context because whoever writes the code does not review it well. If your platform does not do it on its own, launch a new subagent and pass it only the change and what was asked.
+
+## What you receive
+
+- **The change.** A branch, a PR, a diff or some commits. If you are not told which, review the current branch against the base branch. If it does not exist or is empty, say so and stop.
+- **What was asked.** A spec, an issue or a sentence. It is optional. If it does not arrive, review only quality and breakages.
+- **Failures to recheck.** Only sometimes. See [Recheck](#recheck).
+
+## Done when
+
+- [ ] You have read each changed file and what uses it.
+- [ ] Each failure has its proof.
+- [ ] You have tried to disprove each failure before reporting it.
+- [ ] If there is a spec, each point says whether it is done, missing or contradicted.
+- [ ] The repo is the same as at the start. Other agents may be using it.
+
+## What a failure is
+
+Whoever calls you does not merge the change while a failure remains. Each one forces a round of fixing and review. That is why something is a failure only if it meets all three conditions:
+
+1. **You prove it** with a run, a quote or the requested text.
+2. **This change causes it.**
+3. **Nothing else will stop it.** Not the tests, not the linter, not the repo's CI, even if you cannot run them.
+
+Severity does not count. A small but proven case is a failure. What looks serious but does not meet the three conditions is not.
+
+What is not a failure, but is worth saying, goes in **Suggestions**: the caller decides whether to fix it. What could break something but you could not prove goes in **Unproven risks**.
+
+A failure's type is given by its proof: `breakage` if it is a run, `quality` if it is the quote of a rule, a documentation or a standard, and `spec` if it is the requested text.
+
+## Acceptance criteria
+
+- **Disproved.** Before reporting a failure, look for why it might not be one. For example, another part of the code already handles it, or that case never arrives. You only report the ones that hold.
+- **Easy to fix.** Each failure says how the code should end up. "Improve this" is not enough.
+
+## What to look for
+
+### Breakages and bugs
+
+Any input that can arrive and gives a wrong result. It can be in the new code or in something that already worked and the change breaks, also outside the changed files. It is proven by **running something**: a failing test, a script or a command. What comes out is the proof.
+
+Look at what a search by name does not find: a file shared by several parts, data stored in the old format or a configuration. Often the change is safe for a single reason ("this function is only used here"). Find it and check it.
+
+If the change is big or risky, launch one or two agents that try to break it. Then run what they bring yourself: only what fails again counts.
+
+You may run whatever you need, but always on a copy: a worktree or a temporary folder. Tests and scripts can write data or files, and other agents may be using the repo at the same time. If something is only visible with the app open and you cannot test it, list it as an unproven risk.
+
+If you want to check something in a browser, use `agent-browser` rather than writing Playwright or Puppeteer scripts or launching a browser yourself: it already does that work and it does not leave profiles behind on the machine. Read its guide first (`agent-browser skills get core --full`), use a session of your own (`--session <unique name>`) and close it when you finish. Send its output to a file, not through a pipe, because the browser keeps the pipe open.
+
+### Quality
+
+That the code follows what the sources that rule say. It is proven by **quoting** the source as it is:
+
+- **The repo's rules.** `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` or the rules folders. Quote the file, the line and the text.
+- **The official documentation of the installed version.** Quote the URL and the version.
+- **Well-known standards**, if they apply: accessibility (WCAG), security (OWASP) or the standard of the format the code uses.
+- **Something simpler.** The same can be done with considerably less code and is just as understandable, because it already exists in the repo or in the library, or because the code is unused. The proof is writing the short version. If you cannot write it, it is not a failure.
+
+Blogs, forums, AI answers, the documentation of another version and your opinion do not count as sources.
+
+The `principle-*` skills help you see what to look for: a guard that hides a root cause, a test pinned to internals, a layer nobody needs, an operation that breaks when run twice. Load the ones that fit the change. A principle is not a source: what it shows you is a failure only if you prove it as above, and otherwise it is a suggestion.
+
+### What was asked
+
+Compare the change with what was asked, without being strict. What is missing may be done later.
+
+- **Contradicts:** the code cannot do what the requested text says. It is a failure. Quote the text.
+- **Missing:** something asked for that is not there. Flag it, but it is not a failure.
+- **Extra:** something done that nobody asked for. Flag it, but it is not a failure.
+
+Doing it another way that also complies is not contradicting.
+
+## Common mistakes
+
+- **The installed version is in the lockfile**, not in the `package.json` or similar.
+- **On many documentation websites, `latest` is the development version.** The released one is usually `stable`.
+- **If you have a skill for researching documentation**, use it instead of trusting what you remember.
+
+## Report
+
+Reply only with the report. Always use these labels, because whoever calls you reads them to decide what to do:
+
+```
+VERDICT · clean | <n> failures
+
+F1 · breakage · <file:line> · <what fails>
+     Proof    · `<command>` → <what comes out> · expected <what should come out>
+     Fix      · <how it should end up>
+F2 · quality · <file:line> · <what fails>
+     Source   · "<quote>" · <url and version, or file:line>
+     Fix      · <how it should end up, or the short code>
+F3 · spec · <file:line> · <what it contradicts>
+     Source   · "<requested text>" · <why it is not met>
+     Fix      · <how it should end up>
+
+Spec
+- "<requested point>" · done <file:line> | missing | contradicted F<n>
+- extra · <what> · <file:line>
+
+Suggestions (not failures)
+- S1 · <file:line> · <what> · <why>
+
+Unproven risks
+- <what could break> · <where> · <why it could not be proven>
+
+Reviewed · <k>/<k> files · ran: <what> · spec: <yes | no>
 ```
 
-- `baseline` runs once, on the feature branch, before the first check, since every step is judged against the suite as it was then. Give one `--env` per variable the tests need (a bare `NAME` for a secret already set in the environment, which is never stored); the script refuses a variable set inline in the command. A suite that fails before any test runs records nothing and names what it lacked: provide it, then record again.
-- `check` runs on the step branch with no tracked changes, after a fetch, since a stale feature branch puts earlier steps in the diff; with no remote, `--base` is the local branch. It reads the notes' `## Tests changed` and `## Pinned by`; without `--notes`, nothing counts as declared or pinned.
-- `set-cmd` swaps the recorded suite command, keeping its verdict and its environment unless `--env` is given again, which replaces it; `clear` deletes the baseline when the feature ends.
+Each failure is one problem in one place. If the same problem appears in two places, they are two failures. If a failure has several proofs, the type is that of the strongest and the others go inside. Remove empty sections, except `VERDICT` and `Reviewed`. Do not add anything outside these sections.
 
-A suite run can outlast the shell tool's time limit, and a pipe or a timeout loses the verdict, so run each call in the background, unpiped, and read its whole output before acting.
+## Recheck
 
-What the output means, by its last line rather than its exit code, since an abort and a FAIL can share exit 1:
+You are given some failures `F<n>` and the change that tries to fix them. Check only those failures, with the same proof, on the current code. Do not look for new failures: if each round finds something new, it never ends.
 
-- `STEP CHECK: PASS` (exit 0): the step may merge. Its `- ` notes still travel to the caller, and none fails the step.
-- `STEP CHECK: FAIL` (exit 1): the `- FAIL` lines say what to fix, for the builder.
-- `STEP CHECK: NOT RUN · <why>` (exit 2): nothing was judged, so it is neither a pass nor the step's fault. After `suite unstable under load` (different files failing each run, all passing alone), `set-cmd` to a suite command that runs fewer files at once, then check again; still unstable one file at a time, return the NOT RUN.
-- `ABORT: <reason>` on stderr, with no `STEP CHECK:` line: no verdict. Where the reason names something to provide (a prerequisite, a baseline, recorded on the feature branch, a fetch), provide it and run again, and return the abort once providing it changes nothing; changes in the checkout that you did not make belong to whoever made them, so return the message as it is rather than committing or discarding them.
-- The `suite logs` note holds every run's full output: read failures there rather than rerunning. The `sweep` note is cleanup of earlier runs, not a finding.
+- **fixed:** the proof now passes. The command gives what was expected, the code meets the source or is now simpler. It also counts if that code no longer exists.
+- **remains:** say where and why it still fails.
 
-**Done when** the script's output is returned whole and unedited, ending in its one `STEP CHECK:` line, or its abort message, which carries no verdict.
-
-# Quality review
-
-One fresh static reviewer reads a range of merged commits next to the requirements it serves, and reports only findings that carry their own evidence, so the builder can fix each one to a clear end and the caller can check it without trusting the reviewer. None of the project runs.
-
-The inputs, from the caller where given:
-
-- the range `<start sha>..<end sha>`; with none given, the current branch from its merge-base with the base branch to HEAD;
-- the slice's `Slice S<k> · Done when e2e …` line and the Requirements lines it serves, verbatim, with the Assumed lines that name those ids (none given: the review judges no requirement, and the coverage line says so);
-- How hard to undo, and Not doing (none given: nothing is excluded);
-- installed versions (scan Q1), how the repo does similar things and its names (scan Q4, Q5), and docs answers already researched, with their quotes and links; where missing, the reviewer finds them itself;
-- which repo rule files exist.
-
-Dispatch one fresh `general-purpose` agent with web access for docs: model standard, strong when How hard to undo is hard or not given, since a miss there is costly to undo. Fresh, because whoever wrote or merged the code reads it with the author's eyes. Its prompt opens `Read <this skill's directory>/references/quality.md and follow it.`, then gives the inputs above verbatim.
-
-With no Agent tool, read [`references/quality.md`](references/quality.md) and review yourself, unless this session wrote the code under review: then return only `Fresh reviewer needed · <why>`.
-
-The reviewer has a stake in its own findings, so hold its output to what you can check cheaply before returning it: drop any `F<n>` line whose code `file:line` is outside the range's changed lines, whose requirement words are not verbatim in the lines given, whose rule `file:line` does not hold its quoted words at HEAD, or that lacks its kind's evidence (a `bug` without a concrete input, a `simpler` without the shorter code). If the coverage line misses a requirement id given or a changed file, send the reviewer back once to cover them. Renumber from F1, fix the count line, and return the rest verbatim.
-
-**Done when** this is returned, and nothing else:
+The lines may have moved. Follow the code, not the number.
 
 ```
-F<n> · <file:line> · <requirement | bug | standard | simpler> · <what is wrong, one sentence> · source <evidence, by kind, as in quality.md> · fix <the end state that clears it>
-COVERAGE · <requirement ids and Done when checked | no requirements given> · <k>/<k> changed files
-QUALITY REVIEW: <n> findings
-```
-
-With no F line, the last line is `QUALITY REVIEW: clean` instead.
-
-# Re-review
-
-After a fix for quality findings has merged, recheck only the findings handed to the builder, never the whole range again, so a fix round converges instead of growing.
-
-Dispatch one fresh `general-purpose` agent at the review's tier, its prompt opening as above and pointing it at the Re-review section of `references/quality.md`, with the `F<n>` lines verbatim and the fix range `<sha before the fix merge>..<sha after it>` (none given: the reviewer judges HEAD alone). Fallback is the review's. What happens to a `still-failing` finding is the caller's decision.
-
-**Done when** its output is returned verbatim, one line per finding given, the same ids, and no new finding (or, as in the review, only `Fresh reviewer needed · <why>`):
-
-```
-F<n> · fixed
-F<n> · still-failing · <why>
-RE-REVIEW: <n> fixed · <m> still failing
+F1 · fixed
+F2 · remains · <file:line> · <why>
+RESULT · <n> fixed · <m> remain
 ```

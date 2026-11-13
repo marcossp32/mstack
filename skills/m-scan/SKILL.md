@@ -1,51 +1,62 @@
 ---
 name: m-scan
-description: "Scans a repository for what its code can settle about a change: installed versions, existing code, conventions, testing, how it runs, per-environment config, infrastructure limits. Use before changing an unfamiliar codebase."
+description: Investigates a repository before implementing something in it. Finds out the installed versions, the available libraries, how the repo does similar things, how it is tested and whether something already solves what is wanted, in whole or in part. Use before touching unfamiliar code, or when asked what the repo already has for a change.
 ---
 
 # m-scan
 
-Settles from the repository what a builder, a reviewer and a prover would otherwise look up in docs or decide by argument, before code is written. Each answer is acted on as fact, so it carries the path that shows it.
+## Goal
 
-# Done when
+You are told what is to be implemented. Find out what the repo already has, so as not to reinvent it and to do it the repo's way. The main conversation will use what you find as fact, so each finding carries the path that proves it. What has no path is memory, and that is exactly what this skill replaces.
 
-The reply is the report under [Report](#report): every owned question has exactly one line in its shape, none missing or merged with another, each answer with a path (`file:line` where it points at code) or `Not found` with where it looked. The checkout is as found: `git status --porcelain` prints the same before and after, since other agents work on this machine.
+## Done when
 
-# How to answer
+- [ ] Each area below has an answer, or `Not found` with where you looked.
+- [ ] Each finding carries `path:line`, or `path` if it refers to a whole file.
+- [ ] What changes the plan goes at the very top, if there is any.
+- [ ] The repo is left as it was: `git status --porcelain` gives the same before and after. Other agents may be working in it.
 
-- **From the repo, with a path.** The repo's files and git history are the whole input; run something where it settles an answer. An answer without a path is memory, which is what the scan replaces.
-- **A gap is `Not found`.** A stated gap gets researched or decided; a guess gets built on.
-- **By meaning.** The repo may name things differently from the request (`Backoff` where the request says `RetryPolicy`).
-- **Current practice over stale.** Where the repo does something several ways, the most recently changed way is the one to follow; two recent ways that disagree are both reported.
-- **Code over docs.** Code and CI config are what runs; where a README disagrees, report the disagreement.
-- **What exists, not what to choose**: the reader decides with all of it.
+## Acceptance criteria
 
-# Questions
+- **With proof.** Each claim carries its path. A gap is stated as `Not found`: a declared gap gets investigated, but an assumption gets taken as true and built on.
+- **About the change, not the whole repo.** Report what matters for what is wanted, not an inventory.
+- **What exists, not what is advisable.** Describe what exists. The main conversation decides.
+- **To the point.** Another agent reads it: one line per finding, no introductions.
 
-A request naming a question group answers only its questions: A = 1 · B = 2–5 · C = 6, 9 · D = 7, 8. Otherwise answer all nine. Callers dispatch by these letters and cite answers as `Q<n>`, so they stay as written.
+## Areas
 
-1. **Installed version**, from the lockfile, not the manifest: the manifest gives a range, the lockfile what is installed. Where several lockfiles exist, the one that governs the code the change touches. No lockfile: say so and give the manifest range.
-2. Does this already exist in the repo? Also what would trip it: an earlier attempt reverted or abandoned, and tests that pin the behaviour the request changes.
-3. Does an installed library already do it?
-4. How does the repo do similar things?
-5. What does the repo call these things?
-6. How does it test: framework, test file location and naming, assertion style, how fakes are set up; whether test files launch a browser or a server, and the runner's flag that caps how many files run at once, since such files collide when many run together. Then the two commands a script runs unattended from the repo root, through cmd.exe on Windows and `sh` elsewhere: the whole suite, and one test file with `"{test}"` where its path goes.
-   - **Environment apart.** What the tests need set (a variable, e.g. a path to dependencies a fresh worktree lacks) is reported as `env NAME=<value or where it comes from>`, never inside a command, since an inline assignment works in one shell only and the variable is set for every run. A secret by name only.
-   - **Tried, not guessed.** These commands record the baseline every later step is judged against; a wrong one makes that baseline useless. Run them through that shell, whatever shell you are in: the one-file command on a real test file, and the suite command only far enough to show it finds the test files (the runner's list or dry-run mode, or stopped once files run), since a full suite can take many minutes. Say what each trial showed; one you could not run is `untried · <why>`. A trial that fails before any test runs names what the tests lack, which is part of the answer.
-7. Which values differ between local and production, and which do not?
-8. Infrastructure limits: what the platform the app runs on caps (run time, memory, disk, outbound network), from the config that names that platform.
-9. How the app runs (start command, URL or entry point, prerequisites such as a seeded DB, env file or services); the path of a launch recipe in the repo (a `SKILL.md` under `.claude/skills/` or `.agents/skills/` whose name or description says it launches the app); how a fresh checkout gets its dependencies; and whether PRs land squashed or merged on the default branch.
+1. **Versions.** Which version is installed of what the change touches. Look it up in the lockfile: the manifest gives a range and the lockfile, what is really there. If there is no lockfile, say so and give the range.
+2. **Libraries.** Whether an installed library already does what is wanted, or part of it.
+3. **Standards.** How the repo does similar things and what it calls them. If it does them in several ways, the most recently touched one is the current one. If two recent ways disagree, report both.
+4. **Testing.** Framework, where tests go and how they are named, how fakes are made, and the command the repo declares to run them. Do not run them.
+5. **Does it already exist?** Code that already solves the problem or a part of it. Also what could get in the way: an earlier attempt that was reverted or abandoned (`git log`), or tests that pin the behavior that is to be changed.
 
-# Report
+Search by meaning, not by name: the repo may call `Backoff` what the request calls `RetryPolicy`. If the code and the documentation disagree, the code wins, because it is what runs. Point out the difference.
 
-One line per owned question in the shape `- Q<n> <title> — <answer> · <path>`, which callers parse. Illustrative:
+## How to split it
+
+Launch one subagent per area, in parallel and in a single message, so the repo is read at once and the main conversation receives only the conclusions. If the repo is small or the change is narrow, group areas into fewer agents. Give each one what is to be implemented and its area. They only read and search; you gather what they return and drop whatever arrives without a path.
+
+## Result
+
+First, one line for each finding that changes whether the change is made or how: it already exists, it exists in part, there was a reverted attempt, or the repo solves it another way. Then, one section per area. For example:
 
 ```
-- Q1 Installed version — `axios 1.7.2` · package-lock.json:441
-- Q2 Already exists — retry logic with 3 callers · src/http/retry.ts:18
-- Q4 How they do it — newest example, changed 3 weeks ago · src/orders/client.ts
-- Q6 How it tests — suite `make test` (tried: listed 212 files) · one file `make test FILE="{test}"` (tried: tests/cart_test.x passed) · env `DEPS_PATH=<main checkout>/deps` (worktree has none) · Makefile:12
-- Q7 Per-environment values — Not found · searched config/, .env.example, deploy/
-```
+⚠ A retry with backoff already exists that covers half the case · src/http/retry.ts:18
 
-Above the lines, one line for each finding that changes whether or how the change should be made at all, such as that it already exists, an earlier attempt was reverted, the request breaks the repo's pattern, or the infrastructure does not allow it.
+## Versions
+- axios 1.7.2 · package-lock.json:441
+
+## Libraries
+- p-retry 6.2.0 installed, unused · package-lock.json:1020
+
+## Standards
+- HTTP clients as a class with a wrapped `request()`, the most recent · src/orders/client.ts:12
+
+## Testing
+- Vitest, tests next to the code as `*.test.ts`, fakes with `vi.mock` · src/orders/client.test.ts:3
+- Command: `npm test` · package.json:9
+
+## Does it already exist?
+- `withRetry()` with 3 calls · src/http/retry.ts:18
+```
