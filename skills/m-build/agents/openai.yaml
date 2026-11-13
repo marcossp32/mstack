@@ -1,3 +1,0 @@
-interface:
-  display_name: "m-build"
-  short_description: "Build one step into pinned commits and a notes file"

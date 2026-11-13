@@ -47,8 +47,7 @@ dev servers and test reports otherwise open the user's default browser.
 MSTACK_PRIORITY=low runs the tree at below-normal priority (off by default:
 under load it makes timing tests flaky).
 
-Identical copies live in m-build, m-prove and m-review scripts/, so each skill
-installs on its own. Change all three; CI checks that they match.
+It lives only in m-prove's scripts/; m-prove's SKILL.md tells how to call it.
 """
 import json
 import os

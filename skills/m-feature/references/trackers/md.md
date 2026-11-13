@@ -1,128 +1,53 @@
-# Tracker · Markdown files (`tracker: md`)
+# Tracker · Markdown files
 
-Read before the first tracker operation when `.mstack.yml` says `tracker: md`, or the spec reference is a path to a `.md` file. This file holds:
+No tool or account: the spec, the progress and the issues are `.md` files. A reference is the file's path.
 
-- Where the files live, and why outside the work tree
-- The file format `read-state` and `find-issue` parse
-- `check`, then one section per operation, in the order the other trackers use, `publish-issues` the one that does work here
-- Closing by hand, and what this tracker cannot do
+- `<md dir>` is `md: dir:` from `.mstack.yml`, by default `.mstack/`.
+- `<name>` is a short lowercase hyphenated name, taken from the spec's title. If you were only given text, pick it yourself and save that text as `<git common dir>/m-feature/<name>/spec.md`.
 
-No tool and no account: spec, state, steps and issues are plain Markdown files. The spec is a file in the repo, read as it is. `<md.dir>` is `.mstack.yml`'s `md:` → `dir:`, default `.mstack/`.
-
-## Every operation
-
-- Every file is written with the Write or Edit tool, so no body passes through a shell string. A body that is already a file (a plan, a step body, a debate record) is copied from it by a short script (`python3 -c` reading the file and writing or appending it), never retyped: retyping puts the whole body through this chat and lets it drift.
-- A ref is an absolute forward-slash path for a run file, or a repo-relative path for the spec and a published issue.
-
-## Where the files live, and why
+## Where each thing goes
 
 ```
-$MD = <git common dir>/mstack/md                  (git rev-parse --path-format=absolute --git-common-dir)
-$MD/<feature>/state.md                            the state body
-$MD/<feature>/comments.md                         state comments, oldest first
-$MD/<feature>/steps/<n>-<slug>.md                 step items
-$MD/<feature>/issues/<k>-<slug>.md                issues opened during the run
-$MD/<feature>/pending/<file name>                 comments for issues already published
-<md.dir>/issues/<n>-<slug>.md                     published issues, committed
+<git common dir>/m-feature/<name>/progress.md     the progress
+<git common dir>/m-feature/<name>/issues/         the issues you open during the work
+<md dir>/issues/                                  the repo's issues, which are pushed with a commit
 ```
 
-Everything written during a run stays outside the work tree and is never committed. A builder has a step branch checked out, the step check, quality review and prove read diffs, and prove needs a clean tree: a file dropped into the checkout mid-run breaks all four. The git common dir survives a new session on this machine, not a move to another. Issues are for the team, so they reach the repo once, at closing, after prove has judged everything, in a commit of Markdown only that changes nothing prove drove.
+`<git common dir>` comes from `git rev-parse --path-format=absolute --git-common-dir`.
 
-## File format
+While you work, do not write anything inside the repo. Builds, reviews and tests look at the repo's changes, and a half-written file that shows up confuses them. That is why the progress and the issues live outside until the end.
 
-State, step and issue files start with front matter:
+## Check
 
-```markdown
----
-title: <one line>
-labels: <comma-separated, e.g. found-by-prove>
-status: open
-parent: <state ref, steps only>
----
-```
+`git rev-parse --git-common-dir` works: you are inside a git repo. There is no session to log in.
 
-Then the body. Comments on a step or issue go under a final `## Comments` heading; links under `## Links`, one `- <relation> <ref>` per line. Every comment, wherever it lives, is headed `<!-- comment <n> <ISO date> -->`, `<n>` its position among that ref's comments, never by a Markdown heading: a debate record holds `###` headings, and comments must split unambiguously.
+## Read the spec
 
-## check
+Read the file. The title is the first `# ` and, if there is none, the file's name. If the path does not exist, there is no spec.
 
-```bash
-git rev-parse --path-format=absolute --git-common-dir     # inside a git repo; $MD lives under it
-python3 --version
-node --version
-```
+## Save and read progress
 
-Nothing to authenticate, so no login command: the only failures are being outside a git repo and having no Python or no Node.
+A single file, `progress.md`. Write and read it with the file tools, never passing the text through the shell.
 
-## read-spec `<ref>`
+## Find an issue
 
-`<ref>` is a path to a `.md` file: the spec, a state, a step or an issue. Returns text = the file without front matter; title = front matter `title:`, else the first `# ` heading, else the file name; url = the ref. A missing path is the setup stop.
+Search with the search tool in `<git common dir>/m-feature/*/issues/` and in `<md dir>/issues/`. Only those with `status: open` count.
 
-## create-state `<name>` `<title>` `<body>`
+## Open an issue and comment
 
-`<name>` is the feature name and becomes `<feature>`. Writes `state.md` (`labels: feature:map`) and an empty `comments.md`; returns the state path.
+- Open: write `<git common dir>/m-feature/<name>/issues/<n>-<short-title>.md`, starting like this:
+  ```
+  ---
+  title: <title>
+  status: open
+  ---
+  ```
+- Comment: add the text at the end, under `## Comments`, with the date.
 
-## read-state `<ref>`
+## Publish the issues at the end
 
-The state: `state.md`'s body, then `comments.md`. A step or issue: its file, comments included.
+Just before opening the pull request, copy the new issues to `<md dir>/issues/`, numbered after the ones already there. Push them in a commit that only has those files. That way the commit changes nothing of what was already proven. Then, in the pull request, replace the links to the issues with their new paths.
 
-## write-state `<ref>` `<body>`
+## Not possible
 
-Replaces everything after the front matter with `<body>`; the front matter stays.
-
-## comment `<ref>` `<body>`
-
-Appends a headed comment: to `comments.md` for the state, under `## Comments` for a run step or issue. A published issue (`<md.dir>/issues/…`) is in the work tree, which stays untouched mid-run, so its comment goes to `$MD/<feature>/pending/<its file name>` and `publish-issues` applies it. Returns `<ref>#comment-<n>`.
-
-## create-step `<state ref>` `<title>` `<body>`
-
-Writes `steps/<n>-<slug>.md` with `labels: build` and `parent: <state ref>`, `<n>` the next free number, `<slug>` a short filesystem-safe form of the title. Returns the path.
-
-## close-step `<ref>` `<comment>`
-
-Appends the comment and sets `status: closed`.
-
-## find-issue `<label>` `<query>`
-
-Searches every run's files under `$MD`, so a state in flight for a spec is found, and the published issues. A match carries the label, `status: open`, and at least half the query's words; returns per match ref = path, title, body, or nothing. An issue another unmerged feature opened is visible only on this machine.
-
-Run the script as written: it is the match rule above, and `grep -iF` aborts on the GNU grep 3.0 that Git for Windows ships. It prints each match as `=== <ref> | <title>` and its body, or `no match`.
-
-```bash
-node <this skill's directory>/scripts/find_issue.mjs '<label>' '<query>' "$MD" "<md.dir>/issues"
-```
-
-## open-issue `<title>` `<body>` `<labels>`
-
-Writes `$MD/<feature>/issues/<k>-<slug>.md`, `<k>` the next free number, with `labels: <labels>` and `status: open`; returns the path. It gets its repo number at `publish-issues`.
-
-## comment-issue `<ref>` `<body>`
-
-As `comment`.
-
-## ensure-labels `<labels>`
-
-Nothing to create: a label is text in `labels:`.
-
-## link `<a>` `<b>`
-
-Only run files are written: the spec and published issues get no back-link mid-run. Both are steps of one state: `- blocked-by <b>` under `a`'s `## Links`, the blocked step passed first. Any other pair: `- related <b>` on `a`, and `- related <a>` on `b` when `b` is a run file.
-
-## publish-issues
-
-Runs at closing, after the final prove and before `host open-pr`, with `feature/<name>` checked out and clean. Afterwards:
-
-- each run issue is in `<md.dir>/issues/<n>-<slug>.md`, numbered after the highest already there, with run refs inside it rewritten to published paths and state or step refs replaced by the feature name;
-- each pending comment is appended under `## Comments` of its published issue;
-- one commit, `mstack: publish issues for <feature>`, holds only `<md.dir>/issues`, pushed on `feature/<name>`. Stage that path alone: anything else in the commit would be code no prove judged.
-
-Returns the map `<run ref> → <published path>`, with which the PR body's issue links are rewritten. Nothing to publish: no commit, an empty map.
-
-## Closing by hand
-
-Merging changes no `status:`. The To merge note names the published issues, if any, to set `status: closed` by hand; the spec is not the run's to edit, and the run dir is local.
-
-## Cannot do
-
-- Resume on another machine: the state is local to this clone's git dir.
-- Assignees, notifications, web links: none. The PR names each issue path.
-- Hosted media in issue files: evidence is text, the command and up to 15 lines of its output; screenshots and videos are never committed.
+Resuming on another machine: the progress only exists in this clone.

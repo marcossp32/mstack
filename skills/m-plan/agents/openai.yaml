@@ -1,3 +1,0 @@
-interface:
-  display_name: "m-plan"
-  short_description: "Cut the work into build steps grouped into provable slices"

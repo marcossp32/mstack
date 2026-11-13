@@ -1,3 +1,0 @@
-interface:
-  display_name: "m-review"
-  short_description: "Check each step by script; review quality only against cited sources"
