@@ -28,7 +28,7 @@ Three ideas hold the whole cycle together:
 
 - **Think of the proof before the code.** If you do not know how to prove a requirement, you do not understand it yet.
 - **Whoever builds does not judge.** Agents that did not write the code review it and prove it, with clean context, because whoever checks their own work sees what they expect. If a skill exists for testing in the running app or for reviewing, use it: it knows how to test better than an improvised check. A failure is closed by whoever found it, when they check the fix. Your own reading of the code closes nothing.
-- **A verdict speaks for the code it saw.** A review or a proof certifies one commit. What the pull request claims holds only for its last commit: if the code changes after a proof, that proof no longer covers it. Rechecking is cheap, because it only looks at the failures and at what the fix touched. Skipping it is what lets a broken fix reach the base.
+- **A verdict speaks for the code it saw.** Every check certifies one commit: a review, a proof, a run of the test suite, CI. What the pull request claims holds only for its last commit: if the code changes after a check, that check no longer covers it, however small or safe the change looks. The late changes are the risky ones, because they are made to satisfy something else (a reviewer, CI, a size limit) and nobody planned them. Rechecking is cheap, because a review or proof only looks at the failures and at what the fix touched, and a suite reruns by itself. Skipping it is what lets a broken fix reach the base.
 
 ## Done when
 
@@ -84,7 +84,7 @@ Parts exist so that a failure shows up where it is cheap to fix. Seen at the end
 
 For each part, in order:
 
-1. **Build** it, with tests that would fail without it.
+1. **Build** it, with tests that would fail without it. When the part needs something the repo already has (a form, a lookup, a script, a style), use that piece. If it lives inside another feature's file, moving it into a shared piece and using it from both places is part of this request, not a refactor nobody asked for: a copy looks like the smaller change, but it leaves two places that the next change must find and that drift apart.
 2. **Review** it: that it does what was asked, follows the official documentation and the standards of what it uses, and respects the repo's rules and architecture.
 3. **Prove** it in the running app.
 4. **Fix** what they found and send it back to whoever found it to check, until nothing remains open.
@@ -115,7 +115,7 @@ Each one is answered yes or no before marking the pull request ready.
 - [ ] Each requirement has been seen working in the running app: in the open app, running the command or calling the API.
 - [ ] The pull request shows the proof of each requirement: a video, a screenshot, or the command and what it returned.
 - [ ] What already worked and the spec does not ask to change still works.
-- [ ] The proof covers the pull request's last commit.
+- [ ] Every check the pull request relies on (review, proof, test suite, CI) ran on its last commit.
 
 Check only what is needed: one clear proof per requirement and what your change can affect. Repeating checks that already passed spends time without adding confidence.
 
