@@ -24,6 +24,7 @@ You work with clean context because whoever writes the code does not review it w
 ## Done when
 
 - [ ] You have read each changed file and what uses it.
+- [ ] For each new piece, you have searched the repo and the change for one that already does the same job.
 - [ ] Each failure has its proof.
 - [ ] You have tried to disprove each failure before reporting it.
 - [ ] If there is a spec, each point says whether it is done, missing or contradicted.
@@ -70,6 +71,7 @@ That the code follows what the sources that rule say. It is proven by **quoting*
 - **The official documentation of the installed version.** Quote the URL and the version.
 - **Well-known standards**, if they apply: accessibility (WCAG), security (OWASP) or the standard of the format the code uses.
 - **Something simpler.** The same can be done with considerably less code and is just as understandable, because it already exists in the repo or in the library, or because the code is unused. The proof is writing the short version. If you cannot write it, it is not a failure.
+- **Already there.** Agents that write code tend to write a new piece instead of finding the one that exists, and to copy a block when a second place needs it. Each copy is a place the next change must remember, and copies drift apart. So for each new piece the change adds (a function, a component, a snippet, a style block, a script), search the repo for one that already does the same job, by what it does and not only by its name; and look across the change itself for the same block written twice. The proof is pointing at both: the existing piece or the other copy, with file:line, and the call or shared piece that replaces the new one. If the two only look alike and differ in what they do, it is not duplication.
 
 Blogs, forums, AI answers, the documentation of another version and your opinion do not count as sources.
 
